@@ -10,7 +10,9 @@ import {
   Upload,
   Eye,
   Edit3,
-  Plus
+  Plus,
+  Grid3X3,
+  Flag
 } from 'lucide-react';
 import { EditorState } from '../types/venue';
 
@@ -19,54 +21,58 @@ interface ToolbarProps {
   dispatch: any;
   onSave: () => void;
   onLoad: () => void;
+  onOpenGridGenerator: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoad }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoad, onOpenGridGenerator }) => {
   const tools = [
     { id: 'select', icon: MousePointer2, label: 'Seleccionar' },
     { id: 'add-seat', icon: Plus, label: 'Añadir Asiento' },
     { id: 'add-section-rect', icon: Square, label: 'Sección Rect' },
     { id: 'add-section-circle', icon: CircleIcon, label: 'Sección Circ' },
+    { id: 'add-stage', icon: Flag, label: 'Añadir Escenario' },
   ];
 
   const handleAddSeat = () => {
     const id = `seat-${Date.now()}`;
-    const offset = state.current.seats.length * 25;
     dispatch({
       type: 'ADD_SEAT',
       seat: {
         id,
-        x: 100 + (offset % 500),
-        y: 100 + (Math.floor(offset / 500) * 25),
+        x: 100,
+        y: 100,
         row: '1',
-        number: String(state.current.seats.length + 1),
+        number: '1',
         status: 'available',
         price: 50,
+        radius: 8,
+        opacity: 1,
       }
     });
   };
 
-  const handleAddSection = (type: 'rectangle' | 'circle') => {
+  const handleAddSection = (type: 'rectangle' | 'circle' | 'stage') => {
     const id = `section-${Date.now()}`;
-    const offset = state.current.sections.length * 40;
     dispatch({
       type: 'ADD_SECTION',
       section: {
         id,
-        name: 'Nueva Sección',
-        type,
-        x: 150 + offset,
-        y: 150 + offset,
-        width: type === 'rectangle' ? 200 : undefined,
-        height: type === 'rectangle' ? 150 : undefined,
+        name: type === 'stage' ? 'Escenario' : 'Nueva Sección',
+        type: type === 'stage' ? 'stage' : type,
+        x: 150,
+        y: 150,
+        width: type === 'circle' ? undefined : 200,
+        height: type === 'circle' ? undefined : 150,
         radius: type === 'circle' ? 100 : undefined,
-        color: '#3b82f6',
+        color: type === 'stage' ? '#475569' : '#3b82f6',
+        isActive: true,
+        opacity: type === 'stage' ? 1 : 0.4,
       }
     });
   };
 
   return (
-    <div className="h-16 border-b bg-white flex items-center justify-between px-4 shadow-sm">
+    <div className="h-16 border-b bg-white flex items-center justify-between px-4 shadow-sm z-50">
       <div className="flex items-center gap-2">
         <div className="flex bg-gray-100 p-1 rounded-lg mr-4">
           <button
@@ -100,6 +106,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoa
                       if (tool.id === 'add-seat') handleAddSeat();
                       else if (tool.id === 'add-section-rect') handleAddSection('rectangle');
                       else if (tool.id === 'add-section-circle') handleAddSection('circle');
+                      else if (tool.id === 'add-stage') handleAddSection('stage');
                       else dispatch({ type: 'SET_TOOL', tool: tool.id as any });
                   }}
                   className={`p-2 rounded-md transition-colors ${
@@ -110,6 +117,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoa
                   <tool.icon size={20} />
                 </button>
               ))}
+              <button
+                onClick={onOpenGridGenerator}
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+                title="Generador de Grilla"
+              >
+                <Grid3X3 size={20} />
+              </button>
             </div>
             <div className="h-6 w-px bg-gray-200 mx-2" />
             <div className="flex gap-1">
@@ -117,7 +131,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoa
                 onClick={() => dispatch({ type: 'UNDO' })}
                 disabled={state.historyIndex < 0}
                 className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-30"
-                title="Deshacer"
               >
                 <Undo2 size={20} />
               </button>
@@ -125,7 +138,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoa
                 onClick={() => dispatch({ type: 'REDO' })}
                 disabled={state.historyIndex >= state.history.length - 1}
                 className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-30"
-                title="Rehacer"
               >
                 <Redo2 size={20} />
               </button>
@@ -133,7 +145,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoa
                 onClick={() => dispatch({ type: 'DELETE_SELECTED' })}
                 disabled={state.selectedIds.length === 0}
                 className="p-2 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-30"
-                title="Eliminar seleccionado"
               >
                 <Trash2 size={20} />
               </button>
@@ -148,14 +159,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoa
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md"
         >
           <Upload size={18} />
-          Importar JSON
+          Importar
         </button>
         <button
             onClick={onSave}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-md shadow-sm"
         >
           <Save size={18} />
-          Exportar JSON
+          Guardar
         </button>
       </div>
     </div>

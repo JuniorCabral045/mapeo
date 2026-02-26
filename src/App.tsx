@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useVenueStore } from './hooks/useVenueStore';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
 import { VenueCanvas } from './components/VenueCanvas';
+import { GridGenerator } from './components/GridGenerator';
 
 function App() {
   const { state, dispatch } = useVenueStore();
+  const [showGridGen, setShowGridGen] = useState(false);
 
   const handleSave = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.current, null, 2));
@@ -38,28 +40,32 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       <Toolbar
         state={state}
         dispatch={dispatch}
         onSave={handleSave}
         onLoad={handleLoad}
+        onOpenGridGenerator={() => setShowGridGen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 relative">
             <VenueCanvas state={state} dispatch={dispatch} />
 
-            {/* Legend Overlay in View Mode */}
             {state.mode === 'view' && (
-                <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur p-4 rounded-xl shadow-lg border border-gray-100 flex gap-6">
+                <div className="absolute bottom-6 left-6 bg-white/90 backdrop-blur p-4 rounded-xl shadow-lg border border-gray-100 flex gap-6 z-10">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         <span className="text-xs font-medium text-gray-600">Disponible</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
                         <span className="text-xs font-medium text-gray-600">Ocupado</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <span className="text-xs font-medium text-gray-600">Bloqueado</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -71,6 +77,16 @@ function App() {
 
         <Sidebar state={state} dispatch={dispatch} />
       </div>
+
+      {showGridGen && (
+          <GridGenerator
+            onGenerate={(seats) => {
+                dispatch({ type: 'ADD_SEATS', seats });
+                setShowGridGen(false);
+            }}
+            onCancel={() => setShowGridGen(false)}
+          />
+      )}
     </div>
   );
 }

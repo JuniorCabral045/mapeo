@@ -1,32 +1,36 @@
-export type SeatStatus = 'available' | 'occupied' | 'reserved' | 'selected';
+export type SeatStatus = 'available' | 'occupied' | 'reserved' | 'blocked' | 'selected';
 
-export interface Seat {
+export interface BaseElement {
   id: string;
   x: number;
   y: number;
+  rotation?: number;
+  opacity?: number;
+  price?: number;
+  color?: string;
+  borderColor?: string;
+  borderWidth?: number;
+}
+
+export interface Seat extends BaseElement {
   row: string;
   number: string;
   status: SeatStatus;
-  price: number;
   sectionId?: string;
-  rotation?: number;
+  radius?: number; // Size
 }
 
-export type SectionType = 'rectangle' | 'circle' | 'polygon';
+export type SectionType = 'rectangle' | 'circle' | 'polygon' | 'stage';
 
-export interface Section {
-  id: string;
+export interface Section extends BaseElement {
   name: string;
   type: SectionType;
-  x: number;
-  y: number;
   width?: number;
   height?: number;
   radius?: number;
-  points?: number[]; // For polygon or custom shapes
-  rotation?: number;
-  color: string;
-  price?: number; // Default price for seats in this section
+  borderRadius?: number;
+  points?: number[]; // For polygon
+  isActive: boolean;
 }
 
 export interface VenueLayout {
@@ -34,6 +38,8 @@ export interface VenueLayout {
   name: string;
   seats: Seat[];
   sections: Section[];
+  gridSize: number;
+  snapToGrid: boolean;
 }
 
 export interface EditorState {
@@ -42,5 +48,5 @@ export interface EditorState {
   current: VenueLayout;
   selectedIds: string[];
   mode: 'edit' | 'view';
-  tool: 'select' | 'add-seat' | 'add-section-rect' | 'add-section-circle';
+  tool: 'select' | 'add-seat' | 'add-section-rect' | 'add-section-circle' | 'add-section-polygon' | 'add-stage';
 }

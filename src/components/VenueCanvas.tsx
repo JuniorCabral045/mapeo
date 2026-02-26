@@ -1,18 +1,30 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Stage, Layer, Rect, Circle, Group, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Group, Transformer, Line, Text } from 'react-konva';
 import Konva from 'konva';
-import { Seat, Section, EditorState } from '../types/venue';
+import { EditorState } from '../types/venue';
 
 interface VenueCanvasProps {
   state: EditorState;
-  dispatch: any; // Ideally typed action
+  dispatch: any;
 }
 
 export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => {
   const stageRef = useRef<Konva.Stage>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
+  const dragStartPos = useRef<{ x: number, y: number } | null>(null);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+
+  useEffect(() => {
+    if (transformerRef.current) {
+        const stage = transformerRef.current.getStage();
+        if (!stage) return;
+        const selectedNodes = state.selectedIds.map(id => stage.findOne('#' + id)).filter(Boolean) as Konva.Node[];
+        transformerRef.current.nodes(selectedNodes);
+        transformerRef.current.getLayer()?.batchDraw();
+    }
+  }, [state.selectedIds, state.current]);
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -38,12 +50,21 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
     setPosition(newPos);
   };
 
+  const snapValue = (val: number) => {
+    if (!state.current.snapToGrid) return val;
+    return Math.round(val / state.current.gridSize) * state.current.gridSize;
+  };
+
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // If we click on empty space, start selection box or clear selection
     if (e.target === stageRef.current) {
       const pos = stageRef.current.getPointerPosition();
       if (pos) {
-        setSelectionBox({ x1: (pos.x - position.x) / scale, y1: (pos.y - position.y) / scale, x2: (pos.x - position.x) / scale, y2: (pos.y - position.y) / scale });
+        setSelectionBox({
+            x1: (pos.x - position.x) / scale,
+            y1: (pos.y - position.y) / scale,
+            x2: (pos.x - position.x) / scale,
+            y2: (pos.y - position.y) / scale
+        });
       }
       if (!e.evt.shiftKey) {
         dispatch({ type: 'SELECT_ITEMS', ids: [] });
@@ -59,9 +80,8 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (selectionBox) {
-        // Calculate which items are inside the selection box
         const { x1, y1, x2, y2 } = selectionBox;
         const minX = Math.min(x1, x2);
         const maxX = Math.max(x1, x2);
@@ -73,7 +93,7 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
 
         const ids = [...selectedSeats, ...selectedSections];
         if (ids.length > 0) {
-            if (window.event && (window.event as any).shiftKey) {
+            if (e.evt.shiftKey) {
                 const combined = Array.from(new Set([...state.selectedIds, ...ids]));
                 dispatch({ type: 'SELECT_ITEMS', ids: combined });
             } else {
@@ -84,11 +104,39 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
     }
   };
 
+  const handleDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
+    dragStartPos.current = { x: e.target.x(), y: e.target.y() };
+  };
+
+  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>, id: string, type: 'seat' | 'section') => {
+    if (!dragStartPos.current) return;
+
+    const dx = snapValue(e.target.x()) - snapValue(dragStartPos.current.x);
+    const dy = snapValue(e.target.y()) - snapValue(dragStartPos.current.y);
+
+    if (state.selectedIds.includes(id) && state.selectedIds.length > 1) {
+        dispatch({ type: 'MOVE_ITEMS', ids: state.selectedIds, dx, dy });
+    } else {
+        if (type === 'seat') {
+            dispatch({
+                type: 'UPDATE_SEAT',
+                seat: { id, x: snapValue(e.target.x()), y: snapValue(e.target.y()) }
+            });
+        } else {
+            dispatch({
+                type: 'UPDATE_SECTION',
+                section: { id, x: snapValue(e.target.x()), y: snapValue(e.target.y()) }
+            });
+        }
+    }
+    dragStartPos.current = null;
+  };
+
   return (
-    <div className="w-full h-full bg-gray-200 overflow-hidden">
+    <div className="w-full h-full bg-gray-100 overflow-hidden">
       <Stage
-        width={window.innerWidth - 300} // Sidebar width
-        height={window.innerHeight - 64} // Toolbar height
+        width={window.innerWidth - 320}
+        height={window.innerHeight - 64}
         ref={stageRef}
         scaleX={scale}
         scaleY={scale}
@@ -101,49 +149,117 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
         draggable={state.tool === 'select' && !selectionBox}
       >
         <Layer>
-            {/* Render Grid or Background if needed */}
-            <Rect
-                width={5000}
-                height={5000}
-                x={-2500}
-                y={-2500}
-                fill="#f8f9fa"
-                listening={false}
-            />
+            {/* Grid */}
+            {state.current.snapToGrid && (
+                <Group listening={false}>
+                    {Array.from({ length: 100 }).map((_, i) => (
+                        <React.Fragment key={i}>
+                            <Line
+                                points={[i * state.current.gridSize - 1000, -1000, i * state.current.gridSize - 1000, 1000]}
+                                stroke="#eee"
+                                strokeWidth={1}
+                            />
+                            <Line
+                                points={[-1000, i * state.current.gridSize - 1000, 1000, i * state.current.gridSize - 1000]}
+                                stroke="#eee"
+                                strokeWidth={1}
+                            />
+                        </React.Fragment>
+                    ))}
+                </Group>
+            )}
 
-            {/* Sections */}
+            {/* Sections & Stages */}
             {state.current.sections.map((section) => (
-                <Rect
+                <Group
                     key={section.id}
                     id={section.id}
                     x={section.x}
                     y={section.y}
-                    width={section.width || 100}
-                    height={section.height || 100}
-                    fill={section.color}
-                    opacity={0.3}
-                    stroke={state.selectedIds.includes(section.id) ? '#3b82f6' : '#ccc'}
-                    strokeWidth={2}
+                    rotation={section.rotation}
                     draggable={state.mode === 'edit'}
-                    onDragEnd={(e) => {
+                    onDragStart={handleDragStart}
+                    onDragEnd={(e) => handleDragEnd(e, section.id, 'section')}
+                    onTransformEnd={(e) => {
+                        const node = e.target;
+                        const update: any = {
+                            id: section.id,
+                            x: snapValue(node.x()),
+                            y: snapValue(node.y()),
+                            rotation: node.rotation()
+                        };
+
+                        if (section.type === 'circle') {
+                            update.radius = Math.max(5, (node.width() * node.scaleX()) / 2);
+                        } else {
+                            update.width = Math.max(5, node.width() * node.scaleX());
+                            update.height = Math.max(5, node.height() * node.scaleY());
+                        }
+
                         dispatch({
                             type: 'UPDATE_SECTION',
-                            section: { ...section, x: e.target.x(), y: e.target.y() }
+                            section: update
                         });
+                        node.scaleX(1);
+                        node.scaleY(1);
                     }}
-                    onClick={(e) => {
-                        if (state.mode === 'edit') {
-                            if (e.evt.shiftKey) {
-                                const newSelection = state.selectedIds.includes(section.id)
-                                    ? state.selectedIds.filter(id => id !== section.id)
-                                    : [...state.selectedIds, section.id];
-                                dispatch({ type: 'SELECT_ITEMS', ids: newSelection });
-                            } else {
-                                dispatch({ type: 'SELECT_ITEMS', ids: [section.id] });
-                            }
-                        }
-                    }}
-                />
+                >
+                    {section.type === 'rectangle' || section.type === 'stage' ? (
+                        <Rect
+                            width={section.width || 100}
+                            height={section.height || 100}
+                            fill={section.isActive ? (section.type === 'stage' ? '#475569' : section.color) : '#cbd5e1'}
+                            opacity={section.opacity ?? (section.type === 'stage' ? 1 : 0.4)}
+                            cornerRadius={section.borderRadius || 0}
+                            stroke={state.selectedIds.includes(section.id) ? '#3b82f6' : (section.borderColor || 'transparent')}
+                            strokeWidth={section.borderWidth || (state.selectedIds.includes(section.id) ? 2 : 0)}
+                            onClick={(e) => {
+                                if (state.mode === 'edit') {
+                                    if (e.evt.shiftKey) {
+                                        const newSelection = state.selectedIds.includes(section.id)
+                                            ? state.selectedIds.filter(id => id !== section.id)
+                                            : [...state.selectedIds, section.id];
+                                        dispatch({ type: 'SELECT_ITEMS', ids: newSelection });
+                                    } else {
+                                        dispatch({ type: 'SELECT_ITEMS', ids: [section.id] });
+                                    }
+                                }
+                            }}
+                        />
+                    ) : (
+                        <Circle
+                            radius={section.radius || 50}
+                            fill={section.isActive ? section.color : '#cbd5e1'}
+                            opacity={section.opacity ?? 0.4}
+                            stroke={state.selectedIds.includes(section.id) ? '#3b82f6' : (section.borderColor || 'transparent')}
+                            strokeWidth={section.borderWidth || (state.selectedIds.includes(section.id) ? 2 : 0)}
+                            onClick={(e) => {
+                                if (state.mode === 'edit') {
+                                    if (e.evt.shiftKey) {
+                                        const newSelection = state.selectedIds.includes(section.id)
+                                            ? state.selectedIds.filter(id => id !== section.id)
+                                            : [...state.selectedIds, section.id];
+                                        dispatch({ type: 'SELECT_ITEMS', ids: newSelection });
+                                    } else {
+                                        dispatch({ type: 'SELECT_ITEMS', ids: [section.id] });
+                                    }
+                                }
+                            }}
+                        />
+                    )}
+                    {section.type === 'stage' && (
+                        <Text
+                            text={section.name.toUpperCase()}
+                            width={section.width}
+                            height={section.height}
+                            align="center"
+                            verticalAlign="middle"
+                            fill="white"
+                            fontStyle="bold"
+                            listening={false}
+                        />
+                    )}
+                </Group>
             ))}
 
             {/* Seats */}
@@ -153,17 +269,18 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
                     id={seat.id}
                     x={seat.x}
                     y={seat.y}
-                    radius={8}
-                    fill={state.selectedIds.includes(seat.id) ? '#10b981' : (seat.status === 'available' ? '#3b82f6' : '#d1d5db')}
-                    stroke={state.selectedIds.includes(seat.id) ? '#059669' : 'transparent'}
-                    strokeWidth={2}
+                    radius={seat.radius || 8}
+                    rotation={seat.rotation}
+                    fill={state.selectedIds.includes(seat.id) ? '#10b981' :
+                          (seat.status === 'available' ? '#3b82f6' :
+                           seat.status === 'blocked' ? '#64748b' :
+                           seat.status === 'occupied' ? '#ef4444' : '#d1d5db')}
+                    opacity={seat.opacity ?? 1}
+                    stroke={state.selectedIds.includes(seat.id) ? '#059669' : (seat.borderColor || 'transparent')}
+                    strokeWidth={seat.borderWidth || (state.selectedIds.includes(seat.id) ? 2 : 0)}
                     draggable={state.mode === 'edit'}
-                    onDragEnd={(e) => {
-                        dispatch({
-                            type: 'UPDATE_SEAT',
-                            seat: { ...seat, x: e.target.x(), y: e.target.y() }
-                        });
-                    }}
+                    onDragStart={handleDragStart}
+                    onDragEnd={(e) => handleDragEnd(e, seat.id, 'seat')}
                     onClick={(e) => {
                         e.cancelBubble = true;
                         if (state.mode === 'edit') {
@@ -176,7 +293,8 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
                                 dispatch({ type: 'SELECT_ITEMS', ids: [seat.id] });
                             }
                         } else if (state.mode === 'view') {
-                            if (seat.status === 'available') {
+                            const section = state.current.sections.find(s => s.id === seat.sectionId);
+                            if (seat.status === 'available' && (!section || section.isActive)) {
                                 const newSelection = state.selectedIds.includes(seat.id)
                                     ? state.selectedIds.filter(id => id !== seat.id)
                                     : [...state.selectedIds, seat.id];
@@ -187,7 +305,18 @@ export const VenueCanvas: React.FC<VenueCanvasProps> = ({ state, dispatch }) => 
                 />
             ))}
 
-            {/* Selection Box */}
+            {state.mode === 'edit' && (
+                <Transformer
+                    ref={transformerRef}
+                    boundBoxFunc={(oldBox, newBox) => {
+                        if (newBox.width < 5 || newBox.height < 5) {
+                            return oldBox;
+                        }
+                        return newBox;
+                    }}
+                />
+            )}
+
             {selectionBox && (
                 <Rect
                     x={Math.min(selectionBox.x1, selectionBox.x2)}

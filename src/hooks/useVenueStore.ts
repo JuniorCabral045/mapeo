@@ -1,19 +1,21 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer } from 'react';
 import { VenueLayout, EditorState, Seat, Section } from '../types/venue';
 
 type Action =
   | { type: 'SET_LAYOUT'; layout: VenueLayout }
-  | { type: 'UPDATE_SEAT'; seat: Seat }
-  | { type: 'UPDATE_SECTION'; section: Section }
+  | { type: 'UPDATE_SEAT'; seat: Partial<Seat> & { id: string } }
+  | { type: 'UPDATE_SECTION'; section: Partial<Section> & { id: string } }
   | { type: 'ADD_SEAT'; seat: Seat }
   | { type: 'ADD_SECTION'; section: Section }
+  | { type: 'ADD_SEATS'; seats: Seat[] }
   | { type: 'DELETE_SELECTED' }
   | { type: 'SELECT_ITEMS'; ids: string[] }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'SET_MODE'; mode: 'edit' | 'view' }
   | { type: 'SET_TOOL'; tool: EditorState['tool'] }
-  | { type: 'MOVE_ITEMS'; dx: number; dy: number; ids: string[] };
+  | { type: 'MOVE_ITEMS'; dx: number; dy: number; ids: string[] }
+  | { type: 'UPDATE_LAYOUT_PROP'; prop: keyof VenueLayout; value: any };
 
 const initialState: EditorState = {
   history: [],
@@ -23,6 +25,8 @@ const initialState: EditorState = {
     name: 'Nuevo Recinto',
     seats: [],
     sections: [],
+    gridSize: 20,
+    snapToGrid: true,
   },
   selectedIds: [],
   mode: 'edit',
@@ -31,7 +35,6 @@ const initialState: EditorState = {
 
 function reducer(state: EditorState, action: Action): EditorState {
   const saveHistory = (newLayout: VenueLayout) => {
-    // If layout hasn't changed, don't save to history
     if (JSON.stringify(newLayout) === JSON.stringify(state.current)) {
         return state;
     }
@@ -52,7 +55,7 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'UPDATE_SEAT': {
       const newLayout = {
         ...state.current,
-        seats: state.current.seats.map(s => s.id === action.seat.id ? action.seat : s),
+        seats: state.current.seats.map(s => s.id === action.seat.id ? { ...s, ...action.seat } : s),
       };
       return saveHistory(newLayout);
     }
@@ -60,7 +63,7 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'UPDATE_SECTION': {
         const newLayout = {
           ...state.current,
-          sections: state.current.sections.map(s => s.id === action.section.id ? action.section : s),
+          sections: state.current.sections.map(s => s.id === action.section.id ? { ...s, ...action.section } : s),
         };
         return saveHistory(newLayout);
     }
@@ -71,6 +74,14 @@ function reducer(state: EditorState, action: Action): EditorState {
         seats: [...state.current.seats, action.seat],
       };
       return saveHistory(newLayout);
+    }
+
+    case 'ADD_SEATS': {
+        const newLayout = {
+          ...state.current,
+          seats: [...state.current.seats, ...action.seats],
+        };
+        return saveHistory(newLayout);
     }
 
     case 'ADD_SECTION': {
@@ -103,7 +114,7 @@ function reducer(state: EditorState, action: Action): EditorState {
           action.ids.includes(s.id) ? { ...s, x: s.x + action.dx, y: s.y + action.dy } : s
         ),
       };
-      // We might want to move seats that belong to moved sections too
+
       const sectionIds = state.current.sections
         .filter(s => action.ids.includes(s.id))
         .map(s => s.id);
@@ -121,11 +132,9 @@ function reducer(state: EditorState, action: Action): EditorState {
 
     case 'UNDO': {
       if (state.historyIndex < 0) return state;
-
-      const newHistory = [...state.history];
-      newHistory[state.historyIndex + 1] = state.current; // Store current for redo
-
       const prevLayout = state.history[state.historyIndex];
+      const newHistory = [...state.history];
+      newHistory[state.historyIndex + 1] = state.current;
       return {
         ...state,
         current: prevLayout,
@@ -137,7 +146,6 @@ function reducer(state: EditorState, action: Action): EditorState {
       if (state.historyIndex + 1 >= state.history.length - 1) return state;
       const nextLayout = state.history[state.historyIndex + 2];
       if (!nextLayout) return state;
-
       return {
         ...state,
         current: nextLayout,
@@ -150,6 +158,9 @@ function reducer(state: EditorState, action: Action): EditorState {
 
     case 'SET_TOOL':
       return { ...state, tool: action.tool };
+
+    case 'UPDATE_LAYOUT_PROP':
+      return saveHistory({ ...state.current, [action.prop]: action.value });
 
     default:
       return state;
