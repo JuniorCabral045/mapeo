@@ -3,14 +3,18 @@ import { VenueElement } from '../types/venue';
 export const stadiumTemplate = (): Record<string, VenueElement> => {
   const elements: Record<string, VenueElement> = {};
 
-  // Pitch
-  const pitchId = 'pitch-1';
+  // Center of the stadium around (600, 400)
+  const centerX = 600;
+  const centerY = 400;
+
+  // Pitch (Cancha)
+  const pitchId = 'pitch-' + Date.now();
   elements[pitchId] = {
     id: pitchId,
     type: 'stage',
-    name: 'Cancha',
-    x: 400,
-    y: 300,
+    name: 'Cancha de Fútbol',
+    x: centerX - 200,
+    y: centerY - 125,
     width: 400,
     height: 250,
     rotation: 0,
@@ -18,39 +22,39 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
     locked: true,
     opacity: 1,
     zIndex: 1,
-    fill: '#22c55e',
+    fill: '#16a34a',
     isActive: true,
     sectionType: 'rectangle',
-    cornerRadius: 10
+    cornerRadius: 8
   };
 
-  // Sections
-  const sections = [
-    { name: 'Norte', x: 400, y: 150, w: 450, h: 100 },
-    { name: 'Sur', x: 400, y: 700, w: 450, h: 100 },
-    { name: 'Este', x: 150, y: 425, w: 100, h: 300 },
-    { name: 'Oeste', x: 1050, y: 425, w: 100, h: 300 },
+  // Tribunas (Sections)
+  const tribunas = [
+    { name: 'Tribuna Norte', x: centerX - 225, y: centerY - 250, w: 450, h: 100, color: '#3b82f6', radius: { topLeft: 50, topRight: 50, bottomLeft: 0, bottomRight: 0 } },
+    { name: 'Tribuna Sur', x: centerX - 225, y: centerY + 150, w: 450, h: 100, color: '#3b82f6', radius: { topLeft: 0, topRight: 0, bottomLeft: 50, bottomRight: 50 } },
+    { name: 'Tribuna Este', x: centerX + 225, y: centerY - 125, w: 120, h: 250, color: '#2563eb', radius: { topLeft: 0, topRight: 50, bottomLeft: 0, bottomRight: 50 } },
+    { name: 'Tribuna Oeste', x: centerX - 345, y: centerY - 125, w: 120, h: 250, color: '#2563eb', radius: { topLeft: 50, topRight: 0, bottomLeft: 50, bottomRight: 0 } },
   ];
 
-  sections.forEach((s, i) => {
-    const id = `section-stadium-${i}`;
+  tribunas.forEach((t, i) => {
+    const id = `section-tribuna-${i}-${Date.now()}`;
     elements[id] = {
       id,
       type: 'section',
-      name: s.name,
-      x: s.x,
-      y: s.y,
-      width: s.w,
-      height: s.h,
+      name: t.name,
+      x: t.x,
+      y: t.y,
+      width: t.w,
+      height: t.h,
       rotation: 0,
       visible: true,
       locked: false,
-      opacity: 0.4,
+      opacity: 0.6,
       zIndex: 2,
-      fill: '#3b82f6',
+      fill: t.color,
       isActive: true,
       sectionType: 'rectangle',
-      cornerRadius: 5
+      cornerRadius: t.radius as any
     };
   });
 
@@ -60,26 +64,57 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
 export const theaterTemplate = (): Record<string, VenueElement> => {
   const elements: Record<string, VenueElement> = {};
 
-  // Stage
-  const stageId = 'stage-theater';
+  const centerX = 600;
+  const startY = 100;
+
+  // Escenario
+  const stageId = 'stage-theater-' + Date.now();
   elements[stageId] = {
     id: stageId,
     type: 'stage',
-    name: 'ESCENARIO',
-    x: 500,
-    y: 100,
-    width: 300,
-    height: 80,
+    name: 'Escenario Principal',
+    x: centerX - 200,
+    y: startY,
+    width: 400,
+    height: 120,
     rotation: 0,
     visible: true,
     locked: true,
     opacity: 1,
     zIndex: 1,
-    fill: '#475569',
+    fill: '#1e293b',
     isActive: true,
     sectionType: 'rectangle',
-    cornerRadius: { topLeft: 0, topRight: 0, bottomLeft: 40, bottomRight: 40 }
+    cornerRadius: { topLeft: 10, topRight: 10, bottomLeft: 100, bottomRight: 100 }
   };
+
+  // Plateas (Sections)
+  const plateas = [
+    { name: 'Platea VIP', x: centerX - 250, y: startY + 180, w: 500, h: 120, color: '#9333ea' },
+    { name: 'Platea General', x: centerX - 300, y: startY + 320, w: 600, h: 150, color: '#3b82f6' },
+  ];
+
+  plateas.forEach((p, i) => {
+    const id = `section-platea-${i}-${Date.now()}`;
+    elements[id] = {
+      id,
+      type: 'section',
+      name: p.name,
+      x: p.x,
+      y: p.y,
+      width: p.w,
+      height: p.h,
+      rotation: 0,
+      visible: true,
+      locked: false,
+      opacity: 0.5,
+      zIndex: 2,
+      fill: p.color,
+      isActive: true,
+      sectionType: 'rectangle',
+      cornerRadius: 15
+    };
+  });
 
   return elements;
 };

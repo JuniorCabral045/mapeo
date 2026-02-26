@@ -11,6 +11,7 @@ export const VenueCanvas: React.FC = () => {
   const transformerRef = useRef<Konva.Transformer>(null);
 
   const {
+    mode,
     elements,
     elementIds,
     selectedIds,
@@ -20,12 +21,14 @@ export const VenueCanvas: React.FC = () => {
     setViewState,
     selectElements,
     updateElement,
+    moveElements,
     rebuildIndex,
     saveHistory
   } = useVenueStore();
 
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
   const [snapGuides, setSnapGuides] = useState<{ type: 'v' | 'h', pos: number }[]>([]);
+  const dragStartPos = useRef<{ x: number, y: number } | null>(null);
 
   // Sync transformer
   useEffect(() => {
@@ -94,10 +97,25 @@ export const VenueCanvas: React.FC = () => {
       const newlySelected = elementIds.filter(id => {
         const el = elements[id];
         if (!el) return false;
-        // Simple bounding box check
-        const w = (el as any).width || (el as any).radius * 2 || 20;
-        const h = (el as any).height || (el as any).radius * 2 || 20;
-        return el.x >= x1 && el.x + w <= x2 && el.y >= y1 && el.y + h <= y2;
+
+        let ex1, ey1, ex2, ey2;
+
+        if (el.type === 'seat' || (el.type === 'section' && el.sectionType === 'circle')) {
+            const r = (el as any).radius || 8;
+            ex1 = el.x - r;
+            ey1 = el.y - r;
+            ex2 = el.x + r;
+            ey2 = el.y + r;
+        } else {
+            const w = (el as any).width || 20;
+            const h = (el as any).height || 20;
+            ex1 = el.x;
+            ey1 = el.y;
+            ex2 = el.x + w;
+            ey2 = el.y + h;
+        }
+
+        return ex1 >= x1 && ex2 <= x2 && ey1 >= y1 && ey2 <= y2;
       });
 
       if (e.evt.shiftKey) {
@@ -109,7 +127,12 @@ export const VenueCanvas: React.FC = () => {
     }
   };
 
+  const handleDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
+    dragStartPos.current = { x: e.target.x(), y: e.target.y() };
+  };
+
   const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>, id: string) => {
+    if (mode !== 'edit') return;
     const el = elements[id];
     if (!el) return;
 
@@ -126,9 +149,28 @@ export const VenueCanvas: React.FC = () => {
       gridConfig
     );
 
+    const dx = snapped.x - (dragStartPos.current?.x || e.target.x());
+    const dy = snapped.y - (dragStartPos.current?.y || e.target.y());
+
     e.target.x(snapped.x);
     e.target.y(snapped.y);
+
+    if (selectedIds.includes(id) && selectedIds.length > 1) {
+        moveElements(selectedIds.filter(sid => sid !== id), dx, dy);
+        dragStartPos.current = { x: snapped.x, y: snapped.y };
+    }
+
     setSnapGuides(snapped.guides);
+  };
+
+  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>, id: string) => {
+    if (!dragStartPos.current) return;
+
+    updateElement(id, { x: e.target.x(), y: e.target.y() });
+    setSnapGuides([]);
+    rebuildIndex();
+    saveHistory();
+    dragStartPos.current = null;
   };
 
   const renderGrid = () => {
@@ -175,15 +217,12 @@ export const VenueCanvas: React.FC = () => {
           x={el.x}
           y={el.y}
           rotation={el.rotation}
-          draggable={true}
+          draggable={mode === 'edit'}
+          onDragStart={handleDragStart}
           onDragMove={(e) => handleDragMove(e, id)}
-          onDragEnd={(e) => {
-            updateElement(id, { x: e.target.x(), y: e.target.y() });
-            setSnapGuides([]);
-            rebuildIndex();
-            saveHistory();
-          }}
+          onDragEnd={(e) => handleDragEnd(e, id)}
           onClick={(e) => {
+            if (mode !== 'edit') return;
             e.cancelBubble = true;
             selectElements([id], e.evt.shiftKey);
           }}
@@ -199,18 +238,15 @@ export const VenueCanvas: React.FC = () => {
           key={id}
           element={el as any}
           isSelected={selectedIds.includes(id)}
-          draggable={true}
+              draggable={mode === 'edit'}
           onSelect={(e) => {
+                if (mode !== 'edit') return;
             e.cancelBubble = true;
             selectElements([id], e.evt.shiftKey);
           }}
+              onDragStart={handleDragStart}
           onDragMove={(e) => handleDragMove(e, id)}
-          onDragEnd={(e) => {
-            updateElement(id, { x: e.target.x(), y: e.target.y() });
-            setSnapGuides([]);
-            rebuildIndex();
-            saveHistory();
-          }}
+              onDragEnd={(e) => handleDragEnd(e, id)}
           onTransformEnd={(e) => {
             const node = e.target;
             updateElement(id, {
@@ -235,18 +271,21 @@ export const VenueCanvas: React.FC = () => {
           key={id}
           element={el as any}
           isSelected={selectedIds.includes(id)}
-          draggable={true}
+              draggable={mode === 'edit'}
           onSelect={(e) => {
             e.cancelBubble = true;
-            selectElements([id], e.evt.shiftKey);
+                if (mode === 'edit') {
+                    selectElements([id], e.evt.shiftKey);
+                } else {
+                    // Selection in view mode (booking)
+                    if (el.type === 'seat' && (el as any).status === 'available') {
+                        selectElements([id], true);
+                    }
+                }
           }}
+              onDragStart={handleDragStart}
           onDragMove={(e) => handleDragMove(e, id)}
-          onDragEnd={(e) => {
-            updateElement(id, { x: e.target.x(), y: e.target.y() });
-            setSnapGuides([]);
-            rebuildIndex();
-            saveHistory();
-          }}
+              onDragEnd={(e) => handleDragEnd(e, id)}
         />
       );
     }

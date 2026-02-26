@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useVenueStore } from '../store/useVenueStore';
-import { CornerRadius, ShapeElement } from '../types/venue';
-import { generateRectLayout, generateArcLayout } from '../utils/layout';
+import { CornerRadius, ShapeElement, VenueElement } from '../types/venue';
+import { generateRectLayout } from '../utils/layout';
+import { Circle as CircleIcon, Square, ChevronLeft } from 'lucide-react';
 
 export const PropertyPanel: React.FC = () => {
   const { elements, selectedIds, updateElement, addElement, saveHistory } = useVenueStore();
@@ -11,29 +12,60 @@ export const PropertyPanel: React.FC = () => {
   const [genRows, setGenRows] = useState(5);
   const [genCols, setGenCols] = useState(10);
 
+  const { mode } = useVenueStore();
+
+  if (mode === 'view') return null;
+
   if (!element) return (
-    <div className="w-80 border-l bg-white p-6 shadow-sm overflow-y-auto">
-      <h2 className="text-lg font-bold mb-4">Propiedades</h2>
-      <p className="text-gray-500 text-sm">Selecciona un elemento para editar.</p>
+    <div className="w-80 border-l bg-white p-6 shadow-sm overflow-y-auto font-sans">
+      <h2 className="text-lg font-bold mb-6 text-gray-800">Escena</h2>
+      <div className="space-y-2">
+        {useVenueStore.getState().elementIds.map(id => {
+            const el = useVenueStore.getState().elements[id];
+            if (!el || el.parentId) return null;
+            return (
+                <div
+                    key={id}
+                    onClick={() => useVenueStore.getState().selectElements([id])}
+                    className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-100"
+                >
+                    <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+                        {el.type === 'seat' ? <CircleIcon size={14} /> : <Square size={14} />}
+                    </div>
+                    <span className="text-sm font-medium text-gray-600">{el.name}</span>
+                </div>
+            );
+        })}
+      </div>
+      {useVenueStore.getState().elementIds.length === 0 && (
+          <p className="text-gray-400 text-sm mt-4 text-center">No hay elementos en el lienzo.</p>
+      )}
     </div>
   );
 
-  const handleUpdate = (updates: any) => {
+  const handleUpdate = (updates: Partial<VenueElement>) => {
     if (selectedId) updateElement(selectedId, updates);
   };
 
   const handleCornerRadius = (corner: keyof CornerRadius, value: number) => {
-    const current = (element as any).cornerRadius || { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
+    const shape = element as ShapeElement;
+    const current = shape.cornerRadius || { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
     const next = typeof current === 'number'
         ? { topLeft: current, topRight: current, bottomLeft: current, bottomRight: current }
         : { ...current };
-    next[corner] = value;
-    handleUpdate({ cornerRadius: next });
+    (next as any)[corner] = value;
+    handleUpdate({ cornerRadius: next } as Partial<ShapeElement>);
   };
 
   return (
-    <div className="w-80 border-l bg-white p-6 shadow-sm overflow-y-auto">
-      <h2 className="text-lg font-bold mb-4">Propiedades: {element.name}</h2>
+    <div className="w-80 border-l bg-white p-6 shadow-sm overflow-y-auto font-sans">
+      <button
+        onClick={() => useVenueStore.getState().selectElements([])}
+        className="flex items-center gap-1 text-blue-600 font-bold text-xs uppercase mb-4 hover:underline"
+      >
+        <ChevronLeft size={14} /> Volver a Escena
+      </button>
+      <h2 className="text-lg font-bold mb-6 text-gray-800">Propiedades</h2>
 
       <div className="space-y-4">
         <section>
@@ -99,13 +131,13 @@ export const PropertyPanel: React.FC = () => {
           <section>
             <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Border Radius</label>
             <div className="grid grid-cols-2 gap-2">
-              {['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].map((corner) => (
+              {(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'] as const).map((corner) => (
                 <div key={corner}>
                   <label className="text-[10px] text-gray-400">{corner}</label>
                   <input
                     type="number"
-                    value={((element as any).cornerRadius as any)?.[corner] || 0}
-                    onChange={(e) => handleCornerRadius(corner as any, parseInt(e.target.value))}
+                    value={((element as ShapeElement).cornerRadius as CornerRadius)?.[corner] || 0}
+                    onChange={(e) => handleCornerRadius(corner, parseInt(e.target.value))}
                     className="w-full px-2 py-1 border rounded text-sm"
                   />
                 </div>

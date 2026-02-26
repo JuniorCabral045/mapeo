@@ -70,6 +70,7 @@ export interface GridConfig {
 }
 
 export interface VenueState {
+  mode: 'edit' | 'view';
   elements: Record<string, VenueElement>;
   elementIds: string[]; // For Z-Index ordering
   selectedIds: string[];

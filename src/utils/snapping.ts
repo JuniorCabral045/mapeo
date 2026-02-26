@@ -1,7 +1,7 @@
-import { BBox, VenueElement, GridConfig } from '../types/venue';
+import { GridConfig } from '../types/venue';
 import RBush from 'rbush';
 
-interface InternalBBox {
+export interface InternalBBox {
   minX: number;
   minY: number;
   maxX: number;

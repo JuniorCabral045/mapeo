@@ -6,22 +6,14 @@ import {
   VenueState,
   ViewState,
   GridConfig,
-  CornerRadius,
-  ElementType
 } from '../types/venue';
-
-interface BBox {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  id: string;
-}
+import { InternalBBox } from '../utils/snapping';
 
 interface VenueStore extends VenueState {
   // Actions
   addElement: (element: VenueElement) => void;
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
+  moveElements: (ids: string[], dx: number, dy: number) => void;
   deleteElements: (ids: string[]) => void;
 
   selectElements: (ids: string[], toggle?: boolean) => void;
@@ -29,6 +21,7 @@ interface VenueStore extends VenueState {
 
   setViewState: (updates: Partial<ViewState>) => void;
   setGridConfig: (updates: Partial<GridConfig>) => void;
+  setMode: (mode: 'edit' | 'view') => void;
 
   // History
   saveHistory: () => void;
@@ -42,6 +35,8 @@ interface VenueStore extends VenueState {
   // Spatial Index
   spatialIndex: RBush<BBox>;
   rebuildIndex: () => void;
+
+  setState: (state: Partial<VenueStore>) => void;
 
   // Hierarchy
   group: (ids: string[]) => void;
@@ -67,6 +62,7 @@ const DEFAULT_VIEW: ViewState = {
 
 export const useVenueStore = create<VenueStore>()(
   subscribeWithSelector((set, get) => ({
+    mode: 'edit',
     elements: {},
     elementIds: [],
     selectedIds: [],
@@ -100,8 +96,22 @@ export const useVenueStore = create<VenueStore>()(
           elements: { ...state.elements, [id]: updated }
         };
       });
-      // We don't rebuild index on every tick of drag, but we should after drag ends
-      // The canvas component will trigger rebuild after interaction
+    },
+
+    moveElements: (ids, dx, dy) => {
+      set((state) => {
+        const newElements = { ...state.elements };
+        ids.forEach(id => {
+          if (newElements[id]) {
+            newElements[id] = {
+              ...newElements[id],
+              x: newElements[id].x + dx,
+              y: newElements[id].y + dy
+            };
+          }
+        });
+        return { elements: newElements };
+      });
     },
 
     deleteElements: (ids) => {
@@ -135,6 +145,8 @@ export const useVenueStore = create<VenueStore>()(
     setViewState: (updates) => set((state) => ({ viewState: { ...state.viewState, ...updates } })),
 
     setGridConfig: (updates) => set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
+
+    setMode: (mode) => set({ mode, selectedIds: [] }),
 
     saveHistory: () => {
       set((state) => {
@@ -207,13 +219,11 @@ export const useVenueStore = create<VenueStore>()(
 
     rebuildIndex: () => {
       const { elements, elementIds } = get();
-      const index = new RBush<BBox>();
-      const items: BBox[] = elementIds.map(id => {
+      const index = new RBush<InternalBBox>();
+      const items: InternalBBox[] = elementIds.map(id => {
         const el = elements[id];
-        // Simplified bbox for circle/rect/arc
-        // In a real app we'd calculate exactly based on rotation
-        const w = (el as any).width || (el as any).radius * 2 || 20;
-        const h = (el as any).height || (el as any).radius * 2 || 20;
+        const w = ('width' in el ? el.width : ('radius' in el ? (el.radius || 0) * 2 : 20));
+        const h = ('height' in el ? el.height : ('radius' in el ? (el.radius || 0) * 2 : 20));
         return {
           minX: el.x,
           minY: el.y,
@@ -231,13 +241,15 @@ export const useVenueStore = create<VenueStore>()(
       const { elements, elementIds } = get();
 
       const groupId = `group-${Date.now()}`;
-      // Calculate group bounding box
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let minX = Infinity, minY = Infinity;
+      let maxZ = 0;
       ids.forEach(id => {
         const el = elements[id];
-        minX = Math.min(minX, el.x);
-        minY = Math.min(minY, el.y);
-        // ... (simplified)
+        if (el) {
+            minX = Math.min(minX, el.x);
+            minY = Math.min(minY, el.y);
+            maxZ = Math.max(maxZ, el.zIndex);
+        }
       });
 
       const newGroup: VenueElement = {
@@ -250,7 +262,7 @@ export const useVenueStore = create<VenueStore>()(
         visible: true,
         locked: false,
         opacity: 1,
-        zIndex: Math.max(...ids.map(id => elements[id]?.zIndex || 0)) + 1,
+        zIndex: maxZ + 1,
         childrenIds: ids,
       };
 
@@ -261,7 +273,7 @@ export const useVenueStore = create<VenueStore>()(
         });
         return {
           elements: nextElements,
-          elementIds: [...state.elementIds, groupId],
+          elementIds: [...elementIds, groupId],
           selectedIds: [groupId]
         };
       });
@@ -287,6 +299,8 @@ export const useVenueStore = create<VenueStore>()(
       });
       get().saveHistory();
     },
+
+    setState: (updates) => set(updates),
 
     setDragging: (dragging) => set({ isDragging: dragging }),
   }))
