@@ -1,52 +1,86 @@
-export type SeatStatus = 'available' | 'occupied' | 'reserved' | 'blocked' | 'selected';
+export type ElementType = 'seat' | 'section' | 'group' | 'stage' | 'shape';
+export type SectionType = 'rectangle' | 'circle' | 'arc';
+export type SeatStatus = 'available' | 'occupied' | 'blocked' | 'reserved' | 'selected';
+
+export interface CornerRadius {
+  topLeft: number;
+  topRight: number;
+  bottomLeft: number;
+  bottomRight: number;
+}
 
 export interface BaseElement {
   id: string;
+  type: ElementType;
+  parentId?: string;
+  name: string;
   x: number;
   y: number;
-  rotation?: number;
-  opacity?: number;
-  price?: number;
-  color?: string;
-  borderColor?: string;
-  borderWidth?: number;
+  rotation: number;
+  visible: boolean;
+  locked: boolean;
+  opacity: number;
+  zIndex: number;
+}
+
+export interface ShapeElement extends BaseElement {
+  type: 'section' | 'stage' | 'shape';
+  width: number;
+  height: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+  cornerRadius?: CornerRadius | number; // Support for independent corners
+  isActive: boolean; // For sections (gray out if inactive)
+  sectionType: SectionType;
+  radius?: number; // For circles/arcs
+  innerRadius?: number; // For arcs (hollow)
+  angle?: number; // For arcs
 }
 
 export interface Seat extends BaseElement {
+  type: 'seat';
+  sectionId?: string;
   row: string;
   number: string;
   status: SeatStatus;
-  sectionId?: string;
-  radius?: number; // Size
+  price: number;
+  radius: number;
+  color?: string;
 }
 
-export type SectionType = 'rectangle' | 'circle' | 'polygon' | 'stage';
-
-export interface Section extends BaseElement {
-  name: string;
-  type: SectionType;
-  width?: number;
-  height?: number;
-  radius?: number;
-  borderRadius?: number;
-  points?: number[]; // For polygon
-  isActive: boolean;
+export interface VenueGroup extends BaseElement {
+  type: 'group';
+  childrenIds: string[];
 }
 
-export interface VenueLayout {
-  id: string;
-  name: string;
-  seats: Seat[];
-  sections: Section[];
-  gridSize: number;
-  snapToGrid: boolean;
+export type VenueElement = ShapeElement | Seat | VenueGroup;
+
+export interface ViewState {
+  scale: number;
+  x: number;
+  y: number;
 }
 
-export interface EditorState {
-  history: VenueLayout[];
-  historyIndex: number;
-  current: VenueLayout;
+export interface GridConfig {
+  enabled: boolean;
+  visible: boolean;
+  size: number;
+  snapToElements: boolean;
+}
+
+export interface VenueState {
+  elements: Record<string, VenueElement>;
+  elementIds: string[]; // For Z-Index ordering
   selectedIds: string[];
-  mode: 'edit' | 'view';
-  tool: 'select' | 'add-seat' | 'add-section-rect' | 'add-section-circle' | 'add-section-polygon' | 'add-stage';
+  viewState: ViewState;
+  gridConfig: GridConfig;
+  venueName: string;
+
+  // History
+  history: Array<Record<string, VenueElement>>;
+  historyIndex: number;
+
+  // Clipboard
+  clipboard: VenueElement[] | null;
 }

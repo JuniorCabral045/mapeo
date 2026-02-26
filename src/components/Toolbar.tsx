@@ -1,172 +1,119 @@
 import React from 'react';
 import {
   MousePointer2,
-  Circle as CircleIcon,
   Square,
-  Trash2,
+  Circle as CircleIcon,
+  Flag,
   Undo2,
   Redo2,
-  Save,
-  Upload,
-  Eye,
-  Edit3,
-  Plus,
-  Grid3X3,
-  Flag
+  Copy,
+  ClipboardPaste,
+  Trash2,
+  LayoutGrid,
+  Group as GroupIcon,
+  Ungroup
 } from 'lucide-react';
-import { EditorState } from '../types/venue';
+import { useVenueStore } from '../store/useVenueStore';
+import { stadiumTemplate, theaterTemplate } from '../utils/templates';
 
-interface ToolbarProps {
-  state: EditorState;
-  dispatch: any;
-  onSave: () => void;
-  onLoad: () => void;
-  onOpenGridGenerator: () => void;
-}
-
-export const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch, onSave, onLoad, onOpenGridGenerator }) => {
-  const tools = [
-    { id: 'select', icon: MousePointer2, label: 'Seleccionar' },
-    { id: 'add-seat', icon: Plus, label: 'Añadir Asiento' },
-    { id: 'add-section-rect', icon: Square, label: 'Sección Rect' },
-    { id: 'add-section-circle', icon: CircleIcon, label: 'Sección Circ' },
-    { id: 'add-stage', icon: Flag, label: 'Añadir Escenario' },
-  ];
-
-  const handleAddSeat = () => {
-    const id = `seat-${Date.now()}`;
-    dispatch({
-      type: 'ADD_SEAT',
-      seat: {
-        id,
-        x: 100,
-        y: 100,
-        row: '1',
-        number: '1',
-        status: 'available',
-        price: 50,
-        radius: 8,
-        opacity: 1,
-      }
-    });
-  };
+export const Toolbar: React.FC = () => {
+  const {
+    undo, redo, historyIndex, history,
+    copy, paste,
+    selectedIds, deleteElements,
+    addElement, saveHistory
+  } = useVenueStore();
 
   const handleAddSection = (type: 'rectangle' | 'circle' | 'stage') => {
-    const id = `section-${Date.now()}`;
-    dispatch({
-      type: 'ADD_SECTION',
-      section: {
-        id,
-        name: type === 'stage' ? 'Escenario' : 'Nueva Sección',
-        type: type === 'stage' ? 'stage' : type,
-        x: 150,
-        y: 150,
-        width: type === 'circle' ? undefined : 200,
-        height: type === 'circle' ? undefined : 150,
-        radius: type === 'circle' ? 100 : undefined,
-        color: type === 'stage' ? '#475569' : '#3b82f6',
-        isActive: true,
-        opacity: type === 'stage' ? 1 : 0.4,
-      }
+    const id = `${type}-${Date.now()}`;
+    addElement({
+      id,
+      type: type === 'stage' ? 'stage' : 'section',
+      name: type.toUpperCase(),
+      x: 200,
+      y: 200,
+      width: 200,
+      height: 150,
+      rotation: 0,
+      visible: true,
+      locked: false,
+      opacity: type === 'stage' ? 1 : 0.4,
+      zIndex: 5,
+      fill: type === 'stage' ? '#475569' : '#3b82f6',
+      isActive: true,
+      sectionType: type === 'circle' ? 'circle' : 'rectangle',
+      cornerRadius: 0,
+      radius: type === 'circle' ? 100 : undefined
     });
   };
 
   return (
-    <div className="h-16 border-b bg-white flex items-center justify-between px-4 shadow-sm z-50">
-      <div className="flex items-center gap-2">
-        <div className="flex bg-gray-100 p-1 rounded-lg mr-4">
-          <button
-            onClick={() => dispatch({ type: 'SET_MODE', mode: 'edit' })}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              state.mode === 'edit' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Edit3 size={16} />
-            Editor
-          </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_MODE', mode: 'view' })}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              state.mode === 'view' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Eye size={16} />
-            Vista
+    <div className="h-14 border-b bg-white flex items-center justify-between px-4 shadow-sm z-[100] sticky top-0">
+      <div className="flex items-center gap-1">
+        <div className="flex items-center bg-gray-100 p-1 rounded-md mr-4">
+          <button className="p-1.5 px-3 bg-white shadow-sm rounded text-blue-600 text-sm font-medium flex items-center gap-2">
+            <MousePointer2 size={16} /> Select
           </button>
         </div>
 
-        {state.mode === 'edit' && (
-          <>
-            <div className="h-6 w-px bg-gray-200 mx-2" />
-            <div className="flex gap-1">
-              {tools.map((tool) => (
-                <button
-                  key={tool.id}
-                  onClick={() => {
-                      if (tool.id === 'add-seat') handleAddSeat();
-                      else if (tool.id === 'add-section-rect') handleAddSection('rectangle');
-                      else if (tool.id === 'add-section-circle') handleAddSection('circle');
-                      else if (tool.id === 'add-stage') handleAddSection('stage');
-                      else dispatch({ type: 'SET_TOOL', tool: tool.id as any });
-                  }}
-                  className={`p-2 rounded-md transition-colors ${
-                    state.tool === tool.id ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  title={tool.label}
-                >
-                  <tool.icon size={20} />
-                </button>
-              ))}
-              <button
-                onClick={onOpenGridGenerator}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-                title="Generador de Grilla"
-              >
-                <Grid3X3 size={20} />
-              </button>
-            </div>
-            <div className="h-6 w-px bg-gray-200 mx-2" />
-            <div className="flex gap-1">
-              <button
-                onClick={() => dispatch({ type: 'UNDO' })}
-                disabled={state.historyIndex < 0}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-30"
-              >
-                <Undo2 size={20} />
-              </button>
-              <button
-                onClick={() => dispatch({ type: 'REDO' })}
-                disabled={state.historyIndex >= state.history.length - 1}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-30"
-              >
-                <Redo2 size={20} />
-              </button>
-              <button
-                onClick={() => dispatch({ type: 'DELETE_SELECTED' })}
-                disabled={state.selectedIds.length === 0}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-30"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
-          </>
-        )}
+        <div className="flex items-center gap-1 border-r pr-2 mr-2">
+          <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-gray-100 rounded" title="Rectángulo"><Square size={20} /></button>
+          <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-gray-100 rounded" title="Círculo"><CircleIcon size={20} /></button>
+          <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-gray-100 rounded" title="Escenario/Cancha"><Flag size={20} /></button>
+        </div>
+
+        <div className="flex items-center gap-1 border-r pr-2 mr-2">
+          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 hover:bg-gray-100 rounded disabled:opacity-30"><Undo2 size={20} /></button>
+          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 hover:bg-gray-100 rounded disabled:opacity-30"><Redo2 size={20} /></button>
+        </div>
+
+        <div className="flex items-center gap-1 border-r pr-2 mr-2">
+          <button
+            onClick={() => useVenueStore.getState().group(selectedIds)}
+            disabled={selectedIds.length < 2}
+            className="p-2 hover:bg-gray-100 rounded disabled:opacity-30"
+            title="Agrupar"
+          >
+            <GroupIcon size={20} />
+          </button>
+          <button
+            onClick={() => selectedIds.length === 1 && useVenueStore.getState().ungroup(selectedIds[0])}
+            disabled={selectedIds.length !== 1 || !useVenueStore.getState().elements[selectedIds[0]]?.type.includes('group')}
+            className="p-2 hover:bg-gray-100 rounded disabled:opacity-30"
+            title="Desagrupar"
+          >
+            <Ungroup size={20} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button onClick={copy} disabled={selectedIds.length === 0} className="p-2 hover:bg-gray-100 rounded disabled:opacity-30" title="Copiar"><Copy size={20} /></button>
+          <button onClick={() => paste()} className="p-2 hover:bg-gray-100 rounded" title="Pegar"><ClipboardPaste size={20} /></button>
+          <button onClick={() => deleteElements(selectedIds)} disabled={selectedIds.length === 0} className="p-2 text-red-600 hover:bg-red-50 rounded disabled:opacity-30"><Trash2 size={20} /></button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
         <button
-            onClick={onLoad}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md"
+          onClick={() => {
+            const tmpl = stadiumTemplate();
+            Object.values(tmpl).forEach(el => useVenueStore.getState().addElement(el));
+          }}
+          className="text-xs font-medium bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded flex items-center gap-2"
         >
-          <Upload size={18} />
-          Importar
+          <LayoutGrid size={14} /> Estadio
         </button>
         <button
-            onClick={onSave}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-md shadow-sm"
+          onClick={() => {
+            const tmpl = theaterTemplate();
+            Object.values(tmpl).forEach(el => useVenueStore.getState().addElement(el));
+          }}
+          className="text-xs font-medium bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded flex items-center gap-2"
         >
-          <Save size={18} />
-          Guardar
+          <LayoutGrid size={14} /> Teatro
+        </button>
+        <button className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-blue-700 shadow-sm">
+          Guardar Proyecto
         </button>
       </div>
     </div>

@@ -1,67 +1,50 @@
-# Arquitectura del Sistema de Mapeo de Recintos
+# Arquitectura Profesional: Editor de Recintos v2
 
-Este sistema está diseñado para ser una herramienta profesional de diseño y visualización de recintos, utilizando tecnologías modernas y escalables.
+Esta arquitectura ha sido diseñada para ofrecer una experiencia similar a herramientas como Figma, priorizando la **precisión**, el **rendimiento** (soporte para +5,000 elementos) y la **extensibilidad**.
 
-## 1. Stack Tecnológico
-- **Frontend**: React 18 con TypeScript para un desarrollo robusto y tipado.
-- **Renderizado**: `react-konva` (basado en HTML5 Canvas), ideal para manejar miles de elementos interactivos con alto rendimiento.
-- **Estilos**: Tailwind CSS para una interfaz moderna y responsiva.
-- **Iconografía**: Lucide React.
+## 🚀 Tecnologías Core
+- **React + TypeScript**: Base sólida y tipado estricto.
+- **Konva + React-Konva**: Motor de renderizado en Canvas 2D de alto rendimiento.
+- **Zustand**: Gestión de estado global ligera y optimizada para eventos de alta frecuencia.
+- **RBush**: Indexación espacial (R-Tree) para snapping y colisiones ultra-rápidas.
 
-## 2. Arquitectura de Estado
-El sistema utiliza un patrón de **Unidirectional Data Flow** con un hook personalizado `useVenueStore`.
+## 🏗️ Estructura de Datos (Jerarquía)
+El sistema utiliza un modelo de datos plano (`Record<string, Element>`) para acceso O(1), pero mantiene una jerarquía lógica mediante `parentId` y `childrenIds`.
 
-- **State Object**: Contiene el layout actual (asientos, secciones), historial para deshacer/rehacer, y el estado de la UI (herramientas, selección).
-- **Reducer**: Maneja transformaciones inmutables del estado.
-- **History**: Implementado mediante un stack de estados anteriores, permitiendo `Undo` y `Redo` de forma nativa.
-
-## 3. Modelo de Datos (JSON)
-El diseño se guarda en un formato JSON estructurado:
-
-```json
-{
-  "id": "venue-1",
-  "name": "Estadio Nacional",
-  "gridSize": 20,
-  "snapToGrid": true,
-  "seats": [
-    {
-      "id": "seat-1",
-      "x": 100,
-      "y": 100,
-      "rotation": 0,
-      "row": "A",
-      "number": "1",
-      "status": "available",
-      "price": 50,
-      "opacity": 1
-    }
-  ],
-  "sections": [
-    {
-      "id": "section-1",
-      "name": "Platea VIP",
-      "type": "rectangle",
-      "x": 50,
-      "y": 50,
-      "width": 300,
-      "height": 200,
-      "color": "#3b82f6",
-      "isActive": true,
-      "borderRadius": 10
-    }
-  ]
+```typescript
+interface BaseElement {
+  id: string;
+  type: 'seat' | 'section' | 'group' | 'stage';
+  x: number;
+  y: number;
+  rotation: number;
+  parentId?: string;
 }
 ```
 
-## 4. Funcionalidades de Escalabilidad
-- **Snap to Grid**: Garantiza alineación automática de elementos.
-- **Multi-selección**: Permite editar propiedades de cientos de asientos simultáneamente.
-- **Transformer**: Manejo visual de redimensionamiento y rotación.
-- **Modos Segregados**: El modo visualización desactiva todas las funciones de edición y optimiza la interacción para el usuario final.
+## 🛠️ Sistemas Implementados
 
-## 5. Recomendaciones para Producción
-1. **Optimización de Canvas**: Para recintos de >10,000 asientos, implementar "Layering" (capas) para separar elementos estáticos de dinámicos.
-2. **Backend**: Implementar una API REST o GraphQL para persistir los JSON en una base de datos NoSQL (MongoDB/PostgreSQL JSONB).
-3. **Colaboración**: Usar WebSockets (Socket.io) si se requiere edición multi-usuario en tiempo real.
-4. **Accesibilidad**: Añadir etiquetas ARIA y navegación por teclado para los modos de visualización.
+### 1. Motor de Snapping Inteligente
+Utiliza una estructura R-Tree (RBush) para encontrar elementos cercanos en microsegundos.
+- **Snap a Grilla**: Redondeo dinámico basado en configuración.
+- **Snap entre Elementos**: Alineación automática de bordes y centros (vertical/horizontal).
+- **Guías Visuales**: Líneas dinámicas que aparecen al detectar una alineación.
+
+### 2. Formas Personalizadas y Border Radius
+Para superar la limitación de Konva de un solo valor de radio, se utiliza `SVG Path commands`.
+- Soporte para `topLeft`, `topRight`, `bottomLeft`, `bottomRight` independientes.
+- Permite crear formas complejas como escenarios en arco o secciones irregulares.
+
+### 3. Engine de Generación de Asientos
+- **Layout Rectangular**: Distribución basada en filas y columnas con espaciado ajustable.
+- **Layout en Arco**: Distribución radial para teatros y estadios circulares/ovalados.
+
+### 4. Gestión de Estado y UX
+- **Undo/Redo**: Stack de historia con persistencia de estado completo.
+- **Clipboard**: Sistema de copiar/pegar con soporte para offsets estilo Figma.
+- **Multi-selección**: Selección mediante caja (marquee) y Shift+Click.
+
+## 📈 Recomendaciones para Escalar
+1. **Capa de Selección**: Mantener el Transformer en una capa separada o usar `listening={false}` en elementos estáticos durante el drag.
+2. **Caching**: Utilizar `element.cache()` en grupos de asientos que no cambian frecuentemente para reducir el número de llamadas de dibujo.
+3. **Virtualización**: Para >10,000 asientos, implementar una lógica que solo renderice elementos dentro del viewport del usuario (basado en el index espacial).
