@@ -4,6 +4,7 @@ import Konva from 'konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { CustomShape } from './CustomShape';
 import { Seat as SeatComponent } from './Seat';
+import { RealisticPitch } from './RealisticPitch';
 import { calculateSnapping, SnappedPos } from '../../utils/snapping';
 
 export const VenueCanvas: React.FC = () => {
@@ -233,6 +234,18 @@ export const VenueCanvas: React.FC = () => {
     }
 
     if (el.type === 'section' || el.type === 'stage' || el.type === 'shape') {
+      if (el.type === 'stage' && el.name.toLowerCase().includes('cancha')) {
+          return (
+              <RealisticPitch
+                  key={id}
+                  x={el.x}
+                  y={el.y}
+                  width={el.width}
+                  height={el.height}
+                  rotation={el.rotation}
+              />
+          );
+      }
       return (
         <CustomShape
           key={id}
@@ -293,8 +306,12 @@ export const VenueCanvas: React.FC = () => {
     return null;
   };
 
+  const isZoomedOut = viewState.scale < 0.4;
+  const isVeryZoomedOut = viewState.scale < 0.15;
+  const isExtremeZoomedOut = viewState.scale < 0.08;
+
   return (
-    <div className="w-full h-full bg-[#f9fafb] overflow-hidden outline-none">
+    <div className="w-full h-full bg-[#f8fafc] overflow-hidden outline-none">
       <Stage
         width={window.innerWidth - 320}
         height={window.innerHeight - 56}

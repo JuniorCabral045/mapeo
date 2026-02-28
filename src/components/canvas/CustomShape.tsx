@@ -52,17 +52,35 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
     };
 
     if (sectionType === 'rectangle' || element.type === 'stage') {
-      if (typeof cornerRadius === 'object') {
-        const pathData = createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius);
-        return <Path {...commonProps} data={pathData} />;
-      }
       return (
-        <Rect
-          {...commonProps}
-          width={width}
-          height={height}
-          cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
-        />
+        <Group>
+          {/* Main Shape */}
+          {typeof cornerRadius === 'object' ? (
+            <Path {...commonProps} data={createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius)} />
+          ) : (
+            <Rect
+              {...commonProps}
+              width={width}
+              height={height}
+              cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
+            />
+          )}
+
+          {/* Subtle Inner Bevel for Stages */}
+          {element.type === 'stage' && (
+            <Rect
+              x={4}
+              y={4}
+              width={width - 8}
+              height={height - 8}
+              stroke="white"
+              strokeWidth={1}
+              opacity={0.1}
+              listening={false}
+              cornerRadius={typeof cornerRadius === 'number' ? Math.max(0, cornerRadius - 4) : 0}
+            />
+          )}
+        </Group>
       );
     }
 

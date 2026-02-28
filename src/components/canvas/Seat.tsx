@@ -1,6 +1,7 @@
-import React from 'react';
-import { Circle } from 'react-konva';
+import React, { useRef, useEffect } from 'react';
+import { Circle, Rect, Group } from 'react-konva';
 import { Seat as SeatType } from '../../types/venue';
+import Konva from 'konva';
 
 interface SeatProps {
   element: SeatType;
@@ -9,6 +10,7 @@ interface SeatProps {
   onDragMove?: (e: any) => void;
   onDragEnd: (e: any) => void;
   draggable: boolean;
+  simplified?: boolean;
 }
 
 export const Seat: React.FC<SeatProps> = ({
@@ -17,9 +19,19 @@ export const Seat: React.FC<SeatProps> = ({
   onSelect,
   onDragMove,
   onDragEnd,
-  draggable
+  draggable,
+  simplified = false
 }) => {
+  const groupRef = useRef<Konva.Group>(null);
   const { id, x, y, radius, status, locked, opacity, color } = element;
+
+  useEffect(() => {
+    if (groupRef.current && !isSelected && !draggable) {
+      groupRef.current.cache();
+    } else if (groupRef.current) {
+      groupRef.current.clearCache();
+    }
+  }, [isSelected, draggable, status, color, opacity]);
 
   const getStatusColor = () => {
     if (isSelected) return '#10b981';
@@ -33,21 +45,63 @@ export const Seat: React.FC<SeatProps> = ({
     }
   };
 
+  if (simplified) {
+    return (
+      <Circle
+        id={id}
+        x={x}
+        y={y}
+        radius={radius * 1.2}
+        fill={getStatusColor()}
+        listening={false}
+      />
+    );
+  }
+
   return (
-    <Circle
+    <Group
       id={id}
       x={x}
       y={y}
-      radius={radius}
-      fill={getStatusColor()}
-      opacity={opacity}
-      stroke={isSelected ? '#059669' : 'rgba(0,0,0,0.1)'}
-      strokeWidth={isSelected ? 1.5 : 0.5}
+      ref={groupRef}
       draggable={draggable && !locked}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onClick={onSelect}
       onTap={onSelect}
-    />
+    >
+      {/* Subtle Shadow */}
+      <Circle
+        radius={radius}
+        fill="black"
+        opacity={0.1}
+        offsetY={-1}
+        listening={false}
+      />
+      {/* Seat Base */}
+      <Rect
+        x={-radius}
+        y={-radius}
+        width={radius * 2}
+        height={radius * 2}
+        cornerRadius={radius * 0.4}
+        fill={getStatusColor()}
+        opacity={opacity}
+        stroke={isSelected ? '#059669' : 'rgba(0,0,0,0.1)'}
+        strokeWidth={isSelected ? 1.5 : 0.5}
+        perfectDrawEnabled={false}
+      />
+      {/* Seat Detail (Backrest line) */}
+      <Rect
+        x={-radius * 0.7}
+        y={-radius * 0.8}
+        width={radius * 1.4}
+        height={radius * 0.4}
+        cornerRadius={radius * 0.1}
+        fill="white"
+        opacity={0.2}
+        listening={false}
+      />
+    </Group>
   );
 };

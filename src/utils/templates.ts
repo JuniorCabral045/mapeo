@@ -1,4 +1,5 @@
-import { VenueElement } from '../types/venue';
+import { VenueElement, Seat } from '../types/venue';
+import { generateRectLayout } from './layout';
 
 export const stadiumTemplate = (): Record<string, VenueElement> => {
   const elements: Record<string, VenueElement> = {};
@@ -37,9 +38,9 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
   ];
 
   tribunas.forEach((t, i) => {
-    const id = `section-tribuna-${i}-${Date.now()}`;
-    elements[id] = {
-      id,
+    const sectionId = `section-tribuna-${i}-${Date.now()}`;
+    const section: any = {
+      id: sectionId,
       type: 'section',
       name: t.name,
       x: t.x,
@@ -56,6 +57,21 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
       sectionType: 'rectangle',
       cornerRadius: t.radius as any
     };
+    elements[sectionId] = section;
+
+    // Mass generate seats for each section to show scale
+    const rows = i < 2 ? 15 : 20;
+    const cols = i < 2 ? 30 : 10;
+    const seats = generateRectLayout(section, {
+        rows,
+        cols,
+        rowSpacing: 6,
+        colSpacing: 6,
+        seatRadius: 2.5,
+        startRow: 'A',
+        startNum: 1
+    });
+    seats.forEach(s => elements[s.id] = s);
   });
 
   return elements;
@@ -95,9 +111,9 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
   ];
 
   plateas.forEach((p, i) => {
-    const id = `section-platea-${i}-${Date.now()}`;
-    elements[id] = {
-      id,
+    const sectionId = `section-platea-${i}-${Date.now()}`;
+    const section: any = {
+      id: sectionId,
       type: 'section',
       name: p.name,
       x: p.x,
@@ -114,6 +130,18 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
       sectionType: 'rectangle',
       cornerRadius: 15
     };
+    elements[sectionId] = section;
+
+    const seats = generateRectLayout(section, {
+        rows: 8,
+        cols: 20 + i * 5,
+        rowSpacing: 8,
+        colSpacing: 8,
+        seatRadius: 3,
+        startRow: 'A',
+        startNum: 1
+    });
+    seats.forEach(s => elements[s.id] = s);
   });
 
   return elements;

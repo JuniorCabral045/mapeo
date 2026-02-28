@@ -33,7 +33,7 @@ interface VenueStore extends VenueState {
   paste: (atMouse?: { x: number, y: number }) => void;
 
   // Spatial Index
-  spatialIndex: RBush<BBox>;
+  spatialIndex: RBush<InternalBBox>;
   rebuildIndex: () => void;
 
   setState: (state: Partial<VenueStore>) => void;
@@ -74,7 +74,7 @@ export const useVenueStore = create<VenueStore>()(
     historyIndex: -1,
     clipboard: null,
 
-    spatialIndex: new RBush<BBox>(),
+    spatialIndex: new RBush<InternalBBox>(),
     isDragging: false,
 
     addElement: (element) => {
