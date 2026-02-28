@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useVenueStore } from '../store/useVenueStore';
 import { CornerRadius, ShapeElement, VenueElement } from '../types/venue';
-import { generateRectLayout } from '../utils/layout';
+import { generateRectLayout, generateArcLayout } from '../utils/layout';
 import {
   Circle as CircleIcon,
   Square,
@@ -225,21 +225,52 @@ export const PropertyPanel: React.FC = () => {
                 <input type="number" value={genCols} onChange={e => setGenCols(parseInt(e.target.value))} className="w-full px-2 py-1.5 bg-white border border-blue-100 rounded text-sm font-bold text-blue-700 focus:ring-2 focus:ring-blue-500/20 outline-none"/>
               </div>
             </div>
-            <button
-              onClick={() => {
-                const seats = (element as ShapeElement).sectionType === 'rectangle'
-                  ? generateRectLayout(element as ShapeElement, {
-                      rows: genRows, cols: genCols, rowSpacing: 10, colSpacing: 10,
-                      seatRadius: 8, startRow: 'A', startNum: 1
-                    })
-                  : [];
-                seats.forEach(s => addElement(s));
-                saveHistory();
-              }}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
-            >
-              Generar Cuadrícula
-            </button>
+            <div className="space-y-3">
+                <button
+                onClick={() => {
+                    // Remove existing seats for this section first
+                    const currentIds = useVenueStore.getState().elementIds;
+                    const seatsToRemove = currentIds.filter(id => {
+                        const el = useVenueStore.getState().elements[id];
+                        return el.type === 'seat' && (el as any).sectionId === element.id;
+                    });
+                    if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
+
+                    const seats = (element as ShapeElement).sectionType === 'rectangle'
+                    ? generateRectLayout(element as ShapeElement, {
+                        rows: genRows, cols: genCols, rowSpacing: 10, colSpacing: 10,
+                        seatRadius: 8, startRow: 'A', startNum: 1
+                        })
+                    : [];
+                    seats.forEach(s => addElement(s));
+                    saveHistory();
+                }}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                >
+                Generar Rectangular
+                </button>
+                <button
+                onClick={() => {
+                    const currentIds = useVenueStore.getState().elementIds;
+                    const seatsToRemove = currentIds.filter(id => {
+                        const el = useVenueStore.getState().elements[id];
+                        return el.type === 'seat' && (el as any).sectionId === element.id;
+                    });
+                    if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
+
+                    const seats = generateArcLayout(element as ShapeElement, {
+                        rows: genRows, cols: genCols, rowSpacing: 15, colSpacing: 10,
+                        seatRadius: 8, startRow: 'A', startNum: 1,
+                        innerRadius: 200, startAngle: 180, endAngle: 360
+                    });
+                    seats.forEach(s => addElement(s));
+                    saveHistory();
+                }}
+                className="w-full bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200"
+                >
+                Generar Curva (Arco)
+                </button>
+            </div>
           </section>
         )}
 

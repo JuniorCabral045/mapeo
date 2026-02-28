@@ -36,6 +36,7 @@ export interface ShapeElement extends BaseElement {
   radius?: number; // For circles/arcs
   innerRadius?: number; // For arcs (hollow)
   angle?: number; // For arcs
+  basePrice?: number; // Section default price
 }
 
 export interface Seat extends BaseElement {
@@ -44,7 +45,7 @@ export interface Seat extends BaseElement {
   row: string;
   number: string;
   status: SeatStatus;
-  price: number;
+  price?: number; // Individual override (if undefined, use section basePrice)
   radius: number;
   color?: string;
 }
@@ -69,6 +70,12 @@ export interface GridConfig {
   snapToElements: boolean;
 }
 
+export interface SeatState {
+  status: SeatStatus;
+  userId?: string;
+  expiresAt?: number;
+}
+
 export interface VenueState {
   mode: 'edit' | 'view';
   elements: Record<string, VenueElement>;
@@ -77,6 +84,9 @@ export interface VenueState {
   viewState: ViewState;
   gridConfig: GridConfig;
   venueName: string;
+
+  // Live State (Availability/Booking)
+  liveState: Record<string, SeatState>;
 
   // History
   history: Array<Record<string, VenueElement>>;

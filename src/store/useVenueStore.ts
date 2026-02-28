@@ -6,6 +6,8 @@ import {
   VenueState,
   ViewState,
   GridConfig,
+  SeatStatus,
+  SeatState
 } from '../types/venue';
 import { InternalBBox } from '../utils/snapping';
 
@@ -22,6 +24,8 @@ interface VenueStore extends VenueState {
   setViewState: (updates: Partial<ViewState>) => void;
   setGridConfig: (updates: Partial<GridConfig>) => void;
   setMode: (mode: 'edit' | 'view') => void;
+  setLiveState: (updates: Record<string, SeatState>) => void;
+  updateSeatStatus: (id: string, status: SeatStatus) => void;
 
   // History
   saveHistory: () => void;
@@ -69,6 +73,7 @@ export const useVenueStore = create<VenueStore>()(
     viewState: DEFAULT_VIEW,
     gridConfig: DEFAULT_GRID,
     venueName: 'Nuevo Recinto',
+    liveState: {},
 
     history: [],
     historyIndex: -1,
@@ -147,6 +152,15 @@ export const useVenueStore = create<VenueStore>()(
     setGridConfig: (updates) => set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
 
     setMode: (mode) => set({ mode, selectedIds: [] }),
+
+    setLiveState: (liveState) => set({ liveState }),
+
+    updateSeatStatus: (id, status) => set(state => ({
+      liveState: {
+        ...state.liveState,
+        [id]: { ...state.liveState[id], status }
+      }
+    })),
 
     saveHistory: () => {
       set((state) => {

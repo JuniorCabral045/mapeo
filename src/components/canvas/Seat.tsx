@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Circle, Rect, Group } from 'react-konva';
+import { Circle, Rect, Group, Text } from 'react-konva';
 import { Seat as SeatType } from '../../types/venue';
 import Konva from 'konva';
 
@@ -11,6 +11,7 @@ interface SeatProps {
   onDragEnd: (e: any) => void;
   draggable: boolean;
   simplified?: boolean;
+  showLabels?: 'none' | 'row' | 'all';
 }
 
 export const Seat: React.FC<SeatProps> = ({
@@ -20,18 +21,19 @@ export const Seat: React.FC<SeatProps> = ({
   onDragMove,
   onDragEnd,
   draggable,
-  simplified = false
+  simplified = false,
+  showLabels = 'none'
 }) => {
   const groupRef = useRef<Konva.Group>(null);
-  const { id, x, y, radius, status, locked, opacity, color } = element;
+  const { id, x, y, radius, status, locked, opacity, color, row, number } = element;
 
   useEffect(() => {
-    if (groupRef.current && !isSelected && !draggable) {
+    if (groupRef.current && !isSelected && !draggable && showLabels === 'none') {
       groupRef.current.cache();
     } else if (groupRef.current) {
       groupRef.current.clearCache();
     }
-  }, [isSelected, draggable, status, color, opacity]);
+  }, [isSelected, draggable, status, color, opacity, showLabels]);
 
   const getStatusColor = () => {
     if (isSelected) return '#10b981';
@@ -102,6 +104,23 @@ export const Seat: React.FC<SeatProps> = ({
         opacity={0.2}
         listening={false}
       />
+      {/* Labels */}
+      {showLabels !== 'none' && (
+          <Text
+            text={showLabels === 'row' ? row : number}
+            x={-radius}
+            y={-radius}
+            width={radius * 2}
+            height={radius * 2}
+            align="center"
+            verticalAlign="middle"
+            fontSize={radius * 0.8}
+            fill="white"
+            fontStyle="bold"
+            listening={false}
+            opacity={0.9}
+          />
+      )}
     </Group>
   );
 };

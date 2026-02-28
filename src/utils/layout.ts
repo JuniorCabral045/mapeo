@@ -27,7 +27,7 @@ export const generateRectLayout = (
   for (let r = 0; r < rows; r++) {
     const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
     for (let c = 0; c < cols; c++) {
-      const id = `seat-${Date.now()}-${r}-${c}`;
+      const id = `seat-${container.id}-${r}-${c}`;
       seats.push({
         id,
         type: 'seat',
@@ -43,7 +43,7 @@ export const generateRectLayout = (
         row: rowLabel,
         number: (startNum + c).toString(),
         status: 'available',
-        price: 50,
+        price: undefined,
         radius: seatRadius,
       });
     }
@@ -54,7 +54,7 @@ export const generateRectLayout = (
 
 export const generateArcLayout = (
   container: ShapeElement,
-  params: LayoutParams & { innerRadius: number, outerRadius: number, startAngle: number, endAngle: number }
+  params: LayoutParams & { innerRadius: number, startAngle: number, endAngle: number }
 ): Seat[] => {
   const seats: Seat[] = [];
   const { rows, cols, rowSpacing, seatRadius, startRow, startNum, innerRadius, startAngle, endAngle } = params;
@@ -70,7 +70,7 @@ export const generateArcLayout = (
       const angle = startAngle + c * angleStep;
       const rad = (angle * Math.PI) / 180;
 
-      const id = `seat-arc-${Date.now()}-${r}-${c}`;
+      const id = `seat-arc-${container.id}-${r}-${c}`;
       seats.push({
         id,
         type: 'seat',
@@ -86,7 +86,7 @@ export const generateArcLayout = (
         row: rowLabel,
         number: (startNum + c).toString(),
         status: 'available',
-        price: 50,
+        price: undefined,
         radius: seatRadius,
       });
     }

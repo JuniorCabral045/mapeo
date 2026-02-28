@@ -20,7 +20,7 @@ function App() {
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
       <Toolbar />
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 relative bg-slate-100/50">
+        <main className="flex-1 relative bg-slate-100/50 touch-none">
           <VenueCanvas />
 
           {/* Zoom Controls */}
@@ -50,52 +50,71 @@ function App() {
             </button>
           </div>
 
-          {/* Booking / View Mode HUD */}
+          {/* Booking / View Mode HUD (Mobile Bottom Sheet) */}
           {mode === 'view' && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-white/95 backdrop-blur-md border border-slate-200/60 p-4 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center justify-between gap-6 z-50 transition-all animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex items-center gap-6 px-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Disponible</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 bg-slate-200 rounded-full" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ocupado</span>
-                        </div>
-                      </div>
-                      <div className="h-10 w-px bg-slate-100" />
-                      <div>
-                        <div className="text-xl font-black text-slate-900 tabular-nums">
-                            {selectedIds.length}
-                        </div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                            Asientos Seleccionados
-                        </div>
-                      </div>
-                  </div>
+              <div className={`absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 p-6 rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] z-50 transition-all transform duration-500 ${selectedIds.length > 0 ? 'translate-y-0' : 'translate-y-12'}`}>
+                  <div className="max-w-xl mx-auto flex flex-col gap-5">
+                      {/* Pull Indicator */}
+                      <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto" />
 
-                  <div className="flex items-center gap-3">
-                      {selectedIds.length > 0 && (
-                          <div className="text-right mr-2">
-                              <div className="text-[10px] font-bold text-slate-400 uppercase">Subtotal</div>
-                              <div className="text-lg font-black text-blue-600">${selectedIds.length * 45}</div>
+                      <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                              <div className="flex items-center gap-3 mb-1">
+                                  <div className="text-3xl font-black text-slate-900 tabular-nums">
+                                      {selectedIds.length}
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Asientos</span>
+                              </div>
+                              <div className="flex gap-4">
+                                  <div className="flex items-center gap-1.5">
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase">Disponible</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                      <div className="w-2 h-2 bg-slate-200 rounded-full" />
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase">Ocupado</span>
+                                  </div>
+                              </div>
                           </div>
-                      )}
+
+                          <div className="text-right">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Precio Total</div>
+                              <div className="text-3xl font-black text-blue-600 tabular-nums">
+                                  ${selectedIds.length * 45}
+                              </div>
+                          </div>
+                      </div>
+
                       <button
-                        className="bg-blue-600 text-white pl-6 pr-4 py-3 rounded-2xl text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-3 group disabled:opacity-30 disabled:grayscale disabled:shadow-none"
+                        className="w-full bg-blue-600 text-white py-4 rounded-2xl text-base font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center justify-center gap-3 group disabled:opacity-30 disabled:grayscale disabled:shadow-none"
                         disabled={selectedIds.length === 0}
                       >
                           {selectedIds.length > 0 ? (
                               <>
-                                CONTINUAR <ShoppingBag size={18} className="group-hover:translate-x-1 transition-transform" />
+                                CONTINUAR <ShoppingBag size={20} className="group-hover:translate-x-1 transition-transform" />
                               </>
                           ) : (
                               <>
-                                SELECCIONA TUS ASIENTOS <CheckCircle2 size={18} className="opacity-40" />
+                                SELECCIONA TUS ASIENTOS <CheckCircle2 size={20} className="opacity-40" />
                               </>
                           )}
                       </button>
+
+                      {/* Selected Items Detail (Optional) */}
+                      {selectedIds.length > 0 && (
+                          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                              {selectedIds.slice(0, 10).map(id => (
+                                  <div key={id} className="bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-600 whitespace-nowrap">
+                                      {useVenueStore.getState().elements[id]?.name || id}
+                                  </div>
+                              ))}
+                              {selectedIds.length > 10 && (
+                                  <div className="bg-slate-50 px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-400">
+                                      +{selectedIds.length - 10} más
+                                  </div>
+                              )}
+                          </div>
+                      )}
                   </div>
               </div>
           )}

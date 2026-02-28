@@ -279,12 +279,14 @@ export const VenueCanvas: React.FC = () => {
     }
 
     if (el.type === 'seat') {
+      const showLabels = isExtremeZoomedOut ? 'none' : isVeryZoomedOut ? 'row' : 'all';
       return (
         <SeatComponent
           key={id}
           element={el as any}
           isSelected={selectedIds.includes(id)}
-              draggable={mode === 'edit'}
+          draggable={mode === 'edit'}
+          showLabels={showLabels}
           onSelect={(e) => {
             e.cancelBubble = true;
                 if (mode === 'edit') {
@@ -292,7 +294,13 @@ export const VenueCanvas: React.FC = () => {
                 } else {
                     // Selection in view mode (booking)
                     if (el.type === 'seat' && (el as any).status === 'available') {
-                        selectElements([id], true);
+                        // In mobile-first, tap to select/deselect
+                        const isAlreadySelected = selectedIds.includes(id);
+                        if (isAlreadySelected) {
+                            selectElements(selectedIds.filter(sid => sid !== id));
+                        } else {
+                            selectElements([...selectedIds, id]);
+                        }
                     }
                 }
           }}
@@ -309,6 +317,7 @@ export const VenueCanvas: React.FC = () => {
   const isZoomedOut = viewState.scale < 0.4;
   const isVeryZoomedOut = viewState.scale < 0.15;
   const isExtremeZoomedOut = viewState.scale < 0.08;
+  const isUltraZoomedOut = viewState.scale < 0.03;
 
   return (
     <div className="w-full h-full bg-[#f8fafc] overflow-hidden outline-none">
@@ -332,6 +341,10 @@ export const VenueCanvas: React.FC = () => {
           {elementIds.map(id => {
             const el = elements[id];
             if (!el || el.parentId) return null;
+
+            // Basic Culling (Skip seats if too small and not selected)
+            if (isUltraZoomedOut && el.type === 'seat' && !selectedIds.includes(id)) return null;
+
             return renderElement(id);
           })}
 
