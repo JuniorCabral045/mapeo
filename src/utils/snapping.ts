@@ -78,3 +78,10 @@ export const calculateSnapping = (
 
   return { x: snappedX, y: snappedY, guides };
 };
+
+export const snapToGrid = (x: number, y: number, gridSize: number) => {
+  return {
+    x: Math.round(x / gridSize) * gridSize,
+    y: Math.round(y / gridSize) * gridSize
+  };
+};

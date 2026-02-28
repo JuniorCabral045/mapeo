@@ -8,7 +8,6 @@ import {
   Copy,
   ClipboardPaste,
   Trash2,
-  LayoutGrid,
   Group as GroupIcon,
   Ungroup,
   Eye,
@@ -16,7 +15,9 @@ import {
   Download,
   Upload,
   Trophy,
-  Mic2
+  Mic2,
+  MousePointer2,
+  Plus
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { stadiumTemplate, theaterTemplate } from '../utils/templates';
@@ -37,16 +38,16 @@ export const Toolbar: React.FC = () => {
       id,
       type: type === 'stage' ? 'stage' : 'section',
       name: type.toUpperCase(),
-      x: 200,
-      y: 200,
+      x: 300,
+      y: 300,
       width: 200,
       height: 150,
       rotation: 0,
       visible: true,
       locked: false,
-      opacity: type === 'stage' ? 1 : 0.4,
+      opacity: type === 'stage' ? 1 : 0.2,
       zIndex: 5,
-      fill: type === 'stage' ? '#475569' : '#3b82f6',
+      fill: type === 'stage' ? '#1E293B' : '#3b82f6',
       isActive: true,
       sectionType: type === 'circle' ? 'circle' : 'rectangle',
       cornerRadius: 0,
@@ -60,7 +61,7 @@ export const Toolbar: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'recinto.json';
+    link.download = 'venue-layout.json';
     link.click();
   };
 
@@ -82,119 +83,102 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="h-16 border-b bg-white/80 backdrop-blur-md flex items-center justify-between px-6 shadow-sm z-[100] sticky top-0 font-sans">
-      <div className="flex items-center gap-1">
-        <div className="flex items-center bg-slate-100 p-1 rounded-2xl mr-8">
-          <button
-            onClick={() => setMode('edit')}
-            className={`p-1.5 px-6 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
-              mode === 'edit' ? 'bg-white shadow-lg shadow-indigo-100 text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <PenLine size={16} /> Editor
-          </button>
-          <button
-            onClick={() => setMode('view')}
-            className={`p-1.5 px-6 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
-              mode === 'view' ? 'bg-white shadow-lg shadow-indigo-100 text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Eye size={16} /> Vista
-          </button>
-        </div>
-
-        {mode === 'edit' && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100 shadow-inner">
-              <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-white hover:shadow-sm hover:text-blue-600 rounded-md text-gray-400 transition-all" title="Rectángulo"><Square size={18} /></button>
-              <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-white hover:shadow-sm hover:text-blue-600 rounded-md text-gray-400 transition-all" title="Círculo"><CircleIcon size={18} /></button>
-              <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-white hover:shadow-sm hover:text-blue-600 rounded-md text-gray-400 transition-all" title="Escenario/Cancha"><Flag size={18} /></button>
-            </div>
-
-            <div className="h-6 w-px bg-gray-200 mx-1" />
-
-            <div className="flex items-center gap-1">
-              <button onClick={undo} disabled={historyIndex <= 0} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-20 transition-all shadow-sm active:translate-y-px"><Undo2 size={18} /></button>
-              <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-20 transition-all shadow-sm active:translate-y-px"><Redo2 size={18} /></button>
-            </div>
-
-            <div className="h-6 w-px bg-gray-200 mx-1" />
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => useVenueStore.getState().group(selectedIds)}
-                disabled={selectedIds.length < 2}
-                className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-20 transition-all shadow-sm active:translate-y-px"
-                title="Agrupar"
-              >
-                <GroupIcon size={18} />
-              </button>
-              <button
-                onClick={() => selectedIds.length === 1 && useVenueStore.getState().ungroup(selectedIds[0])}
-                disabled={selectedIds.length !== 1 || !useVenueStore.getState().elements[selectedIds[0]]?.type.includes('group')}
-                className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-20 transition-all shadow-sm active:translate-y-px"
-                title="Desagrupar"
-              >
-                <Ungroup size={18} />
-              </button>
-            </div>
-
-            <div className="h-6 w-px bg-gray-200 mx-1" />
-
-            <div className="flex items-center gap-1">
-              <button onClick={copy} disabled={selectedIds.length === 0} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 disabled:opacity-20 transition-all shadow-sm active:translate-y-px" title="Copiar"><Copy size={18} /></button>
-              <button onClick={() => paste()} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-all shadow-sm active:translate-y-px" title="Pegar"><ClipboardPaste size={18} /></button>
-              <button onClick={() => deleteElements(selectedIds)} disabled={selectedIds.length === 0} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-20 transition-all shadow-sm active:translate-y-px" title="Eliminar"><Trash2 size={18} /></button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-4">
-        {mode === 'edit' && (
-            <div className="flex items-center gap-2 mr-2">
+    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-4">
+        {/* Main Mode Toggle & Action Bar */}
+        <div className="bg-[#1E293B]/80 backdrop-blur-xl border border-slate-700/50 p-2 rounded-2xl shadow-2xl flex items-center gap-2 ring-1 ring-white/5">
+            <div className="flex items-center bg-slate-900/50 p-1 rounded-xl">
                 <button
-                    onClick={() => {
-                        const tmpl = stadiumTemplate();
-                        Object.values(tmpl).forEach(el => addElement(el));
-                        useVenueStore.getState().rebuildIndex();
-                    }}
-                    className="group relative px-4 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center gap-2 shadow-sm active:translate-y-0.5"
+                    onClick={() => setMode('edit')}
+                    className={`px-6 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all ${
+                        mode === 'edit' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'
+                    }`}
                 >
-                    <Trophy size={14} className="text-gray-400 group-hover:text-blue-500 transition-colors" /> Estadio
+                    <PenLine size={14} strokeWidth={3} /> Editor
                 </button>
                 <button
-                    onClick={() => {
-                        const tmpl = theaterTemplate();
-                        Object.values(tmpl).forEach(el => addElement(el));
-                        useVenueStore.getState().rebuildIndex();
-                    }}
-                    className="group relative px-4 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center gap-2 shadow-sm active:translate-y-0.5"
+                    onClick={() => setMode('view')}
+                    className={`px-6 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all ${
+                        mode === 'view' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'
+                    }`}
                 >
-                    <Mic2 size={14} className="text-gray-400 group-hover:text-blue-500 transition-colors" /> Teatro
+                    <Eye size={14} strokeWidth={3} /> Viewer
                 </button>
             </div>
-        )}
 
-        <div className="flex items-center gap-1 mr-4">
-            <label className="cursor-pointer p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Importar JSON">
-                <Upload size={20} />
-                <input type="file" className="hidden" accept=".json" onChange={importJSON} />
-            </label>
+            <div className="h-6 w-px bg-slate-700/50 mx-1" />
 
-            <button
-                onClick={exportJSON}
-                className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                title="Exportar JSON"
-            >
-            <Download size={20} />
+            {/* Quick Template Buttons */}
+            {mode === 'edit' && (
+                <>
+                    <button
+                        onClick={() => {
+                            const tmpl = stadiumTemplate();
+                            Object.values(tmpl).forEach(el => addElement(el));
+                            useVenueStore.getState().rebuildIndex();
+                        }}
+                        className="p-2.5 bg-slate-800/50 border border-slate-700/50 hover:border-blue-500/30 hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 rounded-xl transition-all shadow-sm group"
+                        title="Stadium Layout"
+                    >
+                        <Trophy size={18} className="group-hover:scale-110 transition-transform" />
+                    </button>
+                    <button
+                        onClick={() => {
+                            const tmpl = theaterTemplate();
+                            Object.values(tmpl).forEach(el => addElement(el));
+                            useVenueStore.getState().rebuildIndex();
+                        }}
+                        className="p-2.5 bg-slate-800/50 border border-slate-700/50 hover:border-blue-500/30 hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 rounded-xl transition-all shadow-sm group"
+                        title="Theater Layout"
+                    >
+                        <Mic2 size={18} className="group-hover:scale-110 transition-transform" />
+                    </button>
+
+                    <div className="h-6 w-px bg-slate-700/50 mx-1" />
+                </>
+            )}
+
+            {/* File Operations */}
+            <div className="flex items-center gap-1.5 px-1">
+                <label className="cursor-pointer p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Import JSON">
+                    <Upload size={18} />
+                    <input type="file" className="hidden" accept=".json" onChange={importJSON} />
+                </label>
+                <button onClick={exportJSON} className="p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Export JSON">
+                    <Download size={18} />
+                </button>
+            </div>
+
+            <button className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-md">
+                SAVE PROJECT
             </button>
         </div>
 
-        <button className="bg-indigo-600 text-white px-7 py-2.5 rounded-2xl text-sm font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-md">
-          Guardar Proyecto
-        </button>
-      </div>
+        {/* Secondary Toolbar (Editor Tools) */}
+        {mode === 'edit' && (
+            <div className="flex items-center gap-3 animate-in slide-in-from-top-4 duration-500">
+                {/* Selection & Drawing Tools */}
+                <div className="bg-[#1E293B]/60 backdrop-blur-md border border-slate-700/40 p-1.5 rounded-2xl flex items-center gap-1 shadow-xl">
+                    <button className="p-2 bg-blue-600/20 text-blue-400 rounded-xl" title="Select Tool"><MousePointer2 size={16} strokeWidth={3}/></button>
+                    <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Rectangle"><Plus size={16} strokeWidth={3}/></button>
+                    <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Circle"><CircleIcon size={16} strokeWidth={3}/></button>
+                    <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Stage"><Flag size={16} strokeWidth={3}/></button>
+                </div>
+
+                {/* History Controls */}
+                <div className="bg-[#1E293B]/60 backdrop-blur-md border border-slate-700/40 p-1.5 rounded-2xl flex items-center gap-1 shadow-xl">
+                    <button onClick={undo} disabled={historyIndex <= 0} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 rounded-xl transition-colors"><Undo2 size={16} strokeWidth={3}/></button>
+                    <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 rounded-xl transition-colors"><Redo2 size={16} strokeWidth={3}/></button>
+                </div>
+
+                {/* Operations */}
+                <div className="bg-[#1E293B]/60 backdrop-blur-md border border-slate-700/40 p-1.5 rounded-2xl flex items-center gap-1 shadow-xl">
+                    <button onClick={copy} disabled={selectedIds.length === 0} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 rounded-xl transition-colors"><Copy size={16} strokeWidth={3}/></button>
+                    <button onClick={() => paste()} className="p-2 text-slate-400 hover:text-white rounded-xl transition-colors"><ClipboardPaste size={16} strokeWidth={3}/></button>
+                    <button onClick={() => useVenueStore.getState().group(selectedIds)} disabled={selectedIds.length < 2} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 rounded-xl transition-colors"><GroupIcon size={16} strokeWidth={3}/></button>
+                    <button onClick={() => deleteElements(selectedIds)} disabled={selectedIds.length === 0} className="p-2 text-red-500/70 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-20 rounded-xl transition-colors"><Trash2 size={16} strokeWidth={3}/></button>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

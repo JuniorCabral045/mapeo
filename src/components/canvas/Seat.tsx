@@ -28,6 +28,7 @@ export const Seat: React.FC<SeatProps> = ({
   const { id, x, y, radius, status, locked, opacity, color, row, number } = element;
 
   useEffect(() => {
+    // We only cache if it's not being interacted with or selected
     if (groupRef.current && !isSelected && !draggable && showLabels === 'none') {
       groupRef.current.cache();
     } else if (groupRef.current) {
@@ -36,14 +37,14 @@ export const Seat: React.FC<SeatProps> = ({
   }, [isSelected, draggable, status, color, opacity, showLabels]);
 
   const getStatusColor = () => {
-    if (isSelected) return '#10b981'; // Green for selected
+    if (isSelected) return '#3B82F6'; // Brighter Blue for selected
     if (color) return color;
     switch (status) {
-      case 'available': return '#6366f1'; // Modern Indigo for available
-      case 'occupied': return '#cbd5e1'; // Soft Gray for occupied
-      case 'blocked': return '#94a3b8';  // Muted Slate for blocked
-      case 'reserved': return '#f59e0b'; // Amber for reserved
-      default: return '#e2e8f0';
+      case 'available': return '#2DD4BF'; // Teal for available (as per reference)
+      case 'occupied': return '#1E293B';  // Deep Slate for occupied (blends with bg)
+      case 'blocked': return '#334155';   // Slate for blocked
+      case 'reserved': return '#F59E0B';  // Amber
+      default: return '#1E293B';
     }
   };
 
@@ -51,13 +52,15 @@ export const Seat: React.FC<SeatProps> = ({
 
   if (simplified) {
     return (
-      <Circle
+      <Rect
         id={id}
-        x={x}
-        y={y}
-        radius={radius * 1.1}
+        x={x - radius}
+        y={y - radius}
+        width={radius * 2}
+        height={radius * 2}
+        cornerRadius={radius * 0.4}
         fill={seatColor}
-        opacity={status === 'occupied' ? 0.4 : 1}
+        opacity={status === 'occupied' ? 0.3 : 1}
         listening={false}
       />
     );
@@ -75,43 +78,48 @@ export const Seat: React.FC<SeatProps> = ({
       onClick={onSelect}
       onTap={onSelect}
     >
-      {/* Soft Glow for Selected */}
+      {/* Outer Glow for Selected */}
       {isSelected && (
-          <Circle
-            radius={radius * 1.5}
-            fill="#10b981"
-            opacity={0.2}
+          <Rect
+            x={-(radius * 1.3)}
+            y={-(radius * 1.3)}
+            width={radius * 2.6}
+            height={radius * 2.6}
+            cornerRadius={radius * 0.6}
+            fill="#3B82F6"
+            opacity={0.15}
             listening={false}
           />
       )}
 
-      {/* Seat Base - Simple Rounded Rect */}
+      {/* Seat Base - High Fidelity Rounded Rect */}
       <Rect
         x={-radius}
         y={-radius}
         width={radius * 2}
         height={radius * 2}
-        cornerRadius={radius * 0.5}
+        cornerRadius={radius * 0.4}
         fill={seatColor}
-        opacity={status === 'occupied' ? 0.5 : opacity}
-        stroke={isSelected ? '#059669' : 'white'}
-        strokeWidth={isSelected ? 1.5 : 0.5}
-        shadowBlur={isSelected ? 10 : 0}
-        shadowColor="#10b981"
+        opacity={status === 'occupied' ? 0.4 : opacity}
+        stroke={isSelected ? '#60A5FA' : (status === 'occupied' ? '#0F172A' : '#FFFFFF')}
+        strokeWidth={isSelected ? 1.5 : (status === 'occupied' ? 0.5 : 0.1)}
+        shadowBlur={isSelected ? 8 : 0}
+        shadowColor="#3B82F6"
+        shadowOpacity={0.4}
         perfectDrawEnabled={false}
       />
 
-      {/* Subtle Dot instead of full labels when row is needed */}
+      {/* Subtle Marker for Zoomed Out */}
       {showLabels === 'row' && (
           <Circle
-            radius={radius * 0.3}
+            radius={radius * 0.2}
             fill="white"
-            opacity={0.5}
+            opacity={0.3}
             listening={false}
           />
       )}
 
-      {/* High-quality Label when zoomed in */}
+      {/* Seat Number - Modern Monospace font for CAD look */}
       {showLabels === 'all' && (
           <Text
             text={number}
@@ -121,11 +129,12 @@ export const Seat: React.FC<SeatProps> = ({
             height={radius * 2}
             align="center"
             verticalAlign="middle"
-            fontSize={radius * 0.9}
-            fill="white"
+            fontSize={radius * 0.8}
+            fill={status === 'occupied' ? '#475569' : 'white'}
+            fontFamily="monospace"
             fontStyle="bold"
             listening={false}
-            opacity={0.9}
+            opacity={status === 'occupied' ? 0.5 : 0.8}
           />
       )}
     </Group>

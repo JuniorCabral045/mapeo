@@ -3,123 +3,189 @@ import { Toolbar } from './components/Toolbar';
 import { VenueCanvas } from './components/canvas/VenueCanvas';
 import { PropertyPanel } from './components/PropertyPanel';
 import { useVenueStore } from './store/useVenueStore';
-import { Plus, Minus, Maximize, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { Plus, Minus, Maximize, ShoppingBag, Bell, LayoutGrid, Map as MapIcon, Settings, UserCircle, Search, HelpCircle } from 'lucide-react';
 
 function App() {
-  const { selectedIds, mode, viewState, setViewState } = useVenueStore();
+  const { selectedIds, mode, viewState, setViewState, elements } = useVenueStore();
 
   const handleZoom = (delta: number) => {
     setViewState({ scale: Math.max(0.05, Math.min(5, viewState.scale * delta)) });
   };
 
   const resetZoom = () => {
-      setViewState({ scale: 0.8, x: 100, y: 100 });
+      setViewState({ scale: 1, x: 100, y: 100 });
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
-      <Toolbar />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0B0F19] text-slate-300 font-sans selection:bg-blue-500/30">
+      {/* Header Bar */}
+      <header className="h-14 border-b border-slate-800 bg-[#0B1220] flex items-center justify-between px-6 z-[100] shrink-0">
+        <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                <MapIcon size={18} strokeWidth={2.5} />
+            </div>
+            <h1 className="text-sm font-black text-white tracking-tight uppercase">VenueMaster <span className="text-blue-500">CAD</span></h1>
+        </div>
+
+        <nav className="flex items-center gap-1">
+            {['Dashboard', 'Events', 'Map Editor', 'Settings'].map((item) => (
+                <button
+                    key={item}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        item === 'Map Editor' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                >
+                    {item}
+                </button>
+            ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 mr-4 border-r border-slate-800 pr-4">
+                <button className="p-2 text-slate-400 hover:text-white transition-colors relative">
+                    <Bell size={18} />
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0B1220]" />
+                </button>
+                <button className="p-2 text-slate-400 hover:text-white transition-colors"><Search size={18} /></button>
+            </div>
+            <button className="flex items-center gap-2 pl-2 group">
+                <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 group-hover:border-blue-500 transition-colors" />
+                <UserCircle size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+            </button>
+        </div>
+      </header>
+
+      {/* Main CAD Interface */}
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 relative bg-slate-100/50 touch-none">
+        {/* Left Venue Tools (Admin Only) */}
+        {mode === 'edit' && (
+            <aside className="w-64 border-r border-slate-800 bg-[#0B1220] flex flex-col shrink-0">
+                <div className="p-4 pt-6">
+                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 px-2">Venue Tools</h2>
+                    <div className="space-y-1">
+                        {[
+                            { icon: LayoutGrid, label: 'Sections', active: false },
+                            { icon: MapIcon, label: 'Seat Map', active: true },
+                            { icon: Bell, label: 'Pricing Tiers', active: false },
+                            { icon: Settings, label: 'Entrances', active: false }
+                        ].map(tool => (
+                            <button
+                                key={tool.label}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                    tool.active ? 'bg-blue-600/10 text-blue-400 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.2)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                                }`}
+                            >
+                                <tool.icon size={16} className={tool.active ? 'text-blue-500' : 'text-slate-500'} />
+                                {tool.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-auto p-4 border-t border-slate-800/50">
+                    <button className="w-full flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-white text-xs font-bold transition-colors">
+                        <HelpCircle size={16} /> Help & Tutorials
+                    </button>
+                </div>
+            </aside>
+        )}
+
+        <main className="flex-1 relative bg-[#0F172A] touch-none group overflow-hidden">
+          {/* Sub-toolbar inside Canvas (Floating) */}
+          <Toolbar />
+
           <VenueCanvas />
 
-          {/* Zoom Controls */}
-          <div className="absolute bottom-8 right-8 flex flex-col gap-2 z-50">
-            <div className="bg-white rounded-xl shadow-2xl shadow-blue-900/10 border border-slate-200 overflow-hidden flex flex-col">
-                <button
-                    onClick={() => handleZoom(1.2)}
-                    className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-all border-b border-slate-100"
-                    title="Aumentar Zoom"
-                >
-                    <Plus size={20} strokeWidth={2.5} />
-                </button>
-                <button
-                    onClick={() => handleZoom(0.8)}
-                    className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-all"
-                    title="Disminuir Zoom"
-                >
-                    <Minus size={20} strokeWidth={2.5} />
-                </button>
+          {/* Canvas HUD Controls */}
+          <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-50">
+            <div className="bg-[#1E293B]/80 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden flex flex-col p-1">
+                <button onClick={() => handleZoom(1.1)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Zoom In"><Plus size={18} /></button>
+                <div className="h-px bg-slate-700/50 mx-2" />
+                <button onClick={() => handleZoom(0.9)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Zoom Out"><Minus size={18} /></button>
             </div>
             <button
                 onClick={resetZoom}
-                className="w-12 h-12 bg-white rounded-xl shadow-2xl shadow-blue-900/10 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-all"
-                title="Restablecer Vista"
+                className="w-12 h-12 bg-[#1E293B]/80 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700 transition-all"
+                title="Reset View"
             >
-                <Maximize size={18} strokeWidth={2.5} />
+                <Maximize size={18} />
             </button>
           </div>
 
-          {/* Booking / View Mode HUD (Mobile Bottom Sheet) */}
-          {mode === 'view' && (
-              <div className={`absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200 p-6 rounded-t-[3rem] shadow-[0_-20px_60px_rgba(0,0,0,0.08)] z-50 transition-all transform duration-500 ease-out ${selectedIds.length > 0 ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
-                  <div className="max-w-xl mx-auto flex flex-col gap-6">
-                      {/* Pull Indicator */}
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mx-auto" />
+          {/* Status Bar (CAD Style) */}
+          <footer className="absolute bottom-0 left-0 right-0 h-8 bg-[#0B1220]/90 backdrop-blur-sm border-t border-slate-800 flex items-center justify-between px-4 z-[90]">
+            <div className="flex items-center gap-6 text-[10px] font-bold text-slate-500 font-mono">
+                <div className="flex gap-4">
+                    <span>X: {Math.round(viewState.x)}m</span>
+                    <span>Y: {Math.round(viewState.y)}m</span>
+                </div>
+                <div className="h-3 w-px bg-slate-800" />
+                <span className="text-slate-400">Selection: {selectedIds.length > 0 ? `${selectedIds.length} Elements` : 'None'}</span>
+            </div>
 
-                      <div className="flex items-center justify-between px-2">
-                          <div className="flex flex-col">
-                              <div className="flex items-center gap-3 mb-1">
-                                  <div className="text-3xl font-black text-slate-900 tabular-nums">
-                                      {selectedIds.length}
-                                  </div>
-                                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Asientos</span>
-                              </div>
-                              <div className="flex gap-4">
-                                  <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase">Disponible</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 bg-slate-200 rounded-full" />
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase">Ocupado</span>
-                                  </div>
-                              </div>
-                          </div>
+            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-[#2DD4BF] rounded-full" /> Available
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" /> Selected
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-slate-700 rounded-full" /> Occupied
+                </div>
+                <div className="h-3 w-px bg-slate-800 ml-2" />
+                <span className="text-slate-300 ml-2">{Math.round(viewState.scale * 100)}%</span>
+            </div>
+          </footer>
 
-                          <div className="text-right">
-                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Precio Total</div>
-                              <div className="text-3xl font-black text-blue-600 tabular-nums">
-                                  ${selectedIds.length * 45}
-                              </div>
-                          </div>
-                      </div>
+          {/* View Mode Booking Summary */}
+          {mode === 'view' && selectedIds.length > 0 && (
+              <div className="absolute top-6 right-6 bottom-14 w-80 z-50 animate-in slide-in-from-right-10 duration-500">
+                <div className="bg-[#1E293B]/90 backdrop-blur-xl border border-slate-700/50 p-6 rounded-3xl shadow-2xl flex flex-col h-full overflow-hidden">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex flex-col">
+                            <h3 className="text-lg font-black text-white">Your Selection</h3>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{selectedIds.length} Seats Picked</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                            <ShoppingBag size={20} />
+                        </div>
+                    </div>
 
-                      <button
-                        className="w-full bg-indigo-600 text-white py-5 rounded-3xl text-lg font-black hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 flex items-center justify-center gap-3 group disabled:opacity-30 disabled:grayscale disabled:shadow-none"
-                        disabled={selectedIds.length === 0}
-                      >
-                          {selectedIds.length > 0 ? (
-                              <>
-                                CONTINUAR <ShoppingBag size={20} className="group-hover:translate-x-1 transition-transform" />
-                              </>
-                          ) : (
-                              <>
-                                SELECCIONA TUS ASIENTOS <CheckCircle2 size={20} className="opacity-40" />
-                              </>
-                          )}
-                      </button>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                        {selectedIds.map(id => {
+                            const el = elements[id];
+                            return (
+                                <div key={id} className="bg-slate-800/50 border border-slate-700/30 p-3 rounded-2xl flex items-center justify-between group hover:border-blue-500/30 transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-[#2DD4BF]/20 flex items-center justify-center text-[#2DD4BF] text-[10px] font-black">
+                                            {el?.type === 'seat' ? (el as any).number : '?'}
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-black text-white">Row {(el as any).row}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Standard Tier</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs font-black text-blue-400">$45.00</span>
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                      {/* Selected Items Detail (Optional) */}
-                      {selectedIds.length > 0 && (
-                          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                              {selectedIds.slice(0, 10).map(id => (
-                                  <div key={id} className="bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-600 whitespace-nowrap">
-                                      {useVenueStore.getState().elements[id]?.name || id}
-                                  </div>
-                              ))}
-                              {selectedIds.length > 10 && (
-                                  <div className="bg-slate-50 px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-400">
-                                      +{selectedIds.length - 10} más
-                                  </div>
-                              )}
-                          </div>
-                      )}
-                  </div>
+                    <div className="mt-6 pt-6 border-t border-slate-800">
+                        <div className="flex items-center justify-between mb-6">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Amount</span>
+                            <span className="text-2xl font-black text-white">${selectedIds.length * 45}.00</span>
+                        </div>
+                        <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-blue-600/20 transition-all active:scale-95">
+                            PROCEED TO CHECKOUT
+                        </button>
+                    </div>
+                </div>
               </div>
           )}
         </main>
-        <PropertyPanel />
+        {mode === 'edit' && <PropertyPanel />}
       </div>
     </div>
   );

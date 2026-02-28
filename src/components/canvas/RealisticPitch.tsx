@@ -2,19 +2,36 @@ import React from 'react';
 import { Group, Rect, Circle, Line } from 'react-konva';
 
 interface RealisticPitchProps {
+  id?: string;
   x: number;
   y: number;
   width: number;
   height: number;
   rotation: number;
+  draggable?: boolean;
+  onClick?: (e: any) => void;
+  onDragMove?: (e: any) => void;
+  onDragEnd?: (e: any) => void;
 }
 
-export const RealisticPitch: React.FC<RealisticPitchProps> = ({ x, y, width, height, rotation }) => {
+export const RealisticPitch: React.FC<RealisticPitchProps> = ({
+    id, x, y, width, height, rotation,
+    draggable, onClick, onDragMove, onDragEnd
+}) => {
   const stripeCount = 10;
   const stripeWidth = width / stripeCount;
 
   return (
-    <Group x={x} y={y} rotation={rotation}>
+    <Group
+        id={id}
+        x={x}
+        y={y}
+        rotation={rotation}
+        draggable={draggable}
+        onClick={onClick}
+        onDragMove={onDragMove}
+        onDragEnd={onDragEnd}
+    >
       {/* Outer Border (Concrete/Track) */}
       <Rect
         x={-width * 0.1}

@@ -13,7 +13,10 @@ import {
   Type,
   Palette,
   Layout,
-  MousePointer2
+  MousePointer2,
+  Settings2,
+  DollarSign,
+  Maximize2
 } from 'lucide-react';
 
 export const PropertyPanel: React.FC = () => {
@@ -23,18 +26,22 @@ export const PropertyPanel: React.FC = () => {
 
   const [genRows, setGenRows] = useState(5);
   const [genCols, setGenCols] = useState(10);
+  const [arcRadius, setArcRadius] = useState(200);
+  const [arcAngle, setArcAngle] = useState(120);
 
   const { mode } = useVenueStore();
 
   if (mode === 'view') return null;
 
   if (!element) return (
-    <div className="w-80 border-l bg-slate-50/50 flex flex-col shadow-sm overflow-hidden font-sans">
-      <div className="p-6 bg-white border-b">
-        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Escena</h2>
-        <p className="text-xs text-slate-500 mt-1">Gestiona las capas y elementos</p>
+    <aside className="w-80 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden">
+      <div className="p-6 border-b border-slate-800 bg-slate-900/50">
+        <h2 className="text-sm font-black text-white tracking-tight uppercase flex items-center gap-2">
+            <LayoutGrid size={16} className="text-blue-500" /> Elements
+        </h2>
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Total {useVenueStore.getState().elementIds.length} Layers</p>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
         {useVenueStore.getState().elementIds.map(id => {
             const el = useVenueStore.getState().elements[id];
             if (!el || el.parentId) return null;
@@ -49,33 +56,33 @@ export const PropertyPanel: React.FC = () => {
                             useVenueStore.getState().selectElements([id]);
                         }
                     }}
-                    className={`group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
+                    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
                         isSelected
-                        ? 'bg-white border-indigo-100 text-indigo-600 shadow-md translate-x-1'
-                        : 'border-transparent bg-transparent text-slate-600 hover:bg-white hover:shadow-sm'
+                        ? 'bg-blue-600/10 border-blue-500/30 text-blue-400 shadow-lg shadow-blue-900/20 translate-x-1'
+                        : 'border-transparent bg-slate-800/20 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
                     }`}
                 >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                        isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'
                     }`}>
-                        {el.type === 'seat' ? <CircleIcon size={12} /> : el.type === 'stage' ? <Flag size={12} /> : <Square size={12} />}
+                        {el.type === 'seat' ? <CircleIcon size={12} strokeWidth={3} /> : el.type === 'stage' ? <Flag size={12} strokeWidth={3} /> : <Square size={12} strokeWidth={3} />}
                     </div>
-                    <span className="text-sm font-bold truncate flex-1">{el.name}</span>
-                    {el.locked && <Lock size={12} className="text-slate-300" />}
+                    <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-xs font-black truncate">{el.name}</span>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase">{el.type}</span>
+                    </div>
+                    {el.locked && <Lock size={12} className="text-slate-600" />}
                 </div>
             );
         })}
         {useVenueStore.getState().elementIds.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
-                <LayoutGrid size={48} className="mb-2" />
-                <p className="text-sm">Lienzo vacío</p>
+            <div className="flex flex-col items-center justify-center py-24 text-center opacity-20 grayscale">
+                <LayoutGrid size={48} className="mb-4" />
+                <p className="text-xs font-black uppercase tracking-widest">Canvas Empty</p>
             </div>
         )}
       </div>
-      <div className="p-4 bg-gray-50 border-t text-[10px] text-gray-400 uppercase font-bold tracking-widest text-center">
-        {useVenueStore.getState().elementIds.length} Objetos en Total
-      </div>
-    </div>
+    </aside>
   );
 
   const handleUpdate = (updates: Partial<VenueElement>) => {
@@ -93,142 +100,92 @@ export const PropertyPanel: React.FC = () => {
   };
 
   return (
-    <div className="w-80 border-l bg-white shadow-sm overflow-hidden flex flex-col font-sans">
-      <div className="p-4 border-b flex items-center justify-between bg-gray-50/50">
+    <aside className="w-80 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden animate-in slide-in-from-right-10 duration-500">
+      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
         <button
             onClick={() => useVenueStore.getState().selectElements([])}
-            className="flex items-center gap-1 text-gray-500 font-bold text-[10px] uppercase hover:text-blue-600 transition-colors"
+            className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-widest hover:text-blue-400 transition-colors"
         >
-            <ChevronLeft size={14} /> Escena
+            <ChevronLeft size={16} /> All Layers
         </button>
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Editor</span>
+        <span className="text-[10px] font-black text-blue-500/50 uppercase tracking-[0.2em]">Config</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+        {/* Basic Info Section */}
         <section>
-          <div className="flex items-center gap-2 mb-4 text-slate-900">
-            <Type size={16} className="text-indigo-600" />
-            <h2 className="text-lg font-bold tracking-tight">Propiedades</h2>
+          <div className="flex items-center gap-2 mb-4 text-white">
+            <Settings2 size={16} className="text-blue-500" />
+            <h2 className="text-xs font-black uppercase tracking-widest">Properties</h2>
           </div>
-          <div className="space-y-1">
-             <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Nombre del Objeto</label>
-             <input
-                type="text"
-                value={element.name}
-                onChange={(e) => handleUpdate({ name: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-             />
+          <div className="space-y-4">
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Selection Info</label>
+                <div className="flex gap-2">
+                    <div className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2">
+                        <span className="text-[9px] text-slate-500 block">Section</span>
+                        <span className="text-xs font-black text-white">{element.name}</span>
+                    </div>
+                    <div className="w-20 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2">
+                        <span className="text-[9px] text-slate-500 block">Type</span>
+                        <span className="text-xs font-black text-white uppercase">{element.type}</span>
+                    </div>
+                </div>
+             </div>
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Display Name</label>
+                <input
+                    type="text"
+                    value={element.name}
+                    onChange={(e) => handleUpdate({ name: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-xs font-black text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
+                />
+             </div>
           </div>
         </section>
 
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Sliders size={14} className="text-indigo-600" />
-            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Transformación</label>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] text-gray-400 font-bold uppercase">X</label>
-              <input
-                type="number"
-                value={Math.round(element.x)}
-                onChange={(e) => handleUpdate({ x: parseInt(e.target.value) })}
-                className="w-full px-2 py-1.5 bg-gray-50 border border-gray-100 rounded text-sm font-medium focus:border-blue-500 outline-none"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-gray-400 font-bold uppercase">Y</label>
-              <input
-                type="number"
-                value={Math.round(element.y)}
-                onChange={(e) => handleUpdate({ y: parseInt(e.target.value) })}
-                className="w-full px-2 py-1.5 bg-gray-50 border border-gray-100 rounded text-sm font-medium focus:border-blue-500 outline-none"
-              />
-            </div>
-            {(element as any).width !== undefined && (
-              <>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-gray-400 font-bold uppercase">W</label>
-                  <input
-                    type="number"
-                    value={Math.round((element as any).width)}
-                    onChange={(e) => handleUpdate({ width: parseInt(e.target.value) })}
-                    className="w-full px-2 py-1.5 bg-gray-50 border border-gray-100 rounded text-sm font-medium focus:border-blue-500 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-gray-400 font-bold uppercase">H</label>
-                  <input
-                    type="number"
-                    value={Math.round((element as any).height)}
-                    onChange={(e) => handleUpdate({ height: parseInt(e.target.value) })}
-                    className="w-full px-2 py-1.5 bg-gray-50 border border-gray-100 rounded text-sm font-medium focus:border-blue-500 outline-none"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-          <div className="mt-4 space-y-1">
-            <label className="text-[10px] text-gray-400 font-bold uppercase">Rotación</label>
-            <div className="flex items-center gap-2">
-                <input
-                    type="range" min="0" max="360"
-                    value={element.rotation}
-                    onChange={(e) => handleUpdate({ rotation: parseInt(e.target.value) })}
-                    className="flex-1"
-                />
-                <input
-                    type="number"
-                    value={Math.round(element.rotation)}
-                    onChange={(e) => handleUpdate({ rotation: parseInt(e.target.value) })}
-                    className="w-16 px-2 py-1 bg-gray-50 border border-gray-100 rounded text-xs font-bold text-center"
-                />
-            </div>
-          </div>
-        </section>
-
-        {(element.type === 'section' || element.type === 'stage') && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Layout size={14} className="text-blue-600" />
-              <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Geometría</label>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'] as const).map((corner) => (
-                <div key={corner} className="space-y-1">
-                  <label className="text-[10px] text-gray-400 font-bold uppercase">{corner}</label>
-                  <input
-                    type="number"
-                    value={((element as ShapeElement).cornerRadius as CornerRadius)?.[corner] || 0}
-                    onChange={(e) => handleCornerRadius(corner, parseInt(e.target.value))}
-                    className="w-full px-2 py-1.5 bg-gray-50 border border-gray-100 rounded text-xs font-medium focus:border-blue-500 outline-none"
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
+        {/* Layout Generator Tool (Inspired by Image 1) */}
         {(element.type === 'section') && (
-          <section className="p-4 bg-blue-50/50 rounded-xl border border-blue-100/50">
-            <div className="flex items-center gap-2 mb-4">
-                <LayoutGrid size={14} className="text-blue-600" />
-                <label className="text-[10px] font-bold uppercase text-blue-600 tracking-wider">Generador</label>
+          <section className="bg-blue-600/5 rounded-[2rem] border border-blue-500/10 p-6 shadow-inner">
+            <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-500">
+                    <LayoutGrid size={16} />
+                </div>
+                <div>
+                    <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest leading-none mb-1">Layout Generator</h3>
+                    <p className="text-[9px] text-blue-500/60 font-bold">Auto-generate seat patterns</p>
+                </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="space-y-1">
-                <label className="text-[10px] text-blue-400 font-bold uppercase">Filas</label>
-                <input type="number" value={genRows} onChange={e => setGenRows(parseInt(e.target.value))} className="w-full px-2 py-1.5 bg-white border border-blue-100 rounded text-sm font-bold text-blue-700 focus:ring-2 focus:ring-blue-500/20 outline-none"/>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Radius / Curvature</label>
+                    <span className="text-[10px] font-black text-blue-400">{arcRadius}m</span>
+                </div>
+                <input type="range" min="50" max="1000" value={arcRadius} onChange={e => setArcRadius(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"/>
+
+                <div className="flex justify-between pt-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Arc Angle</label>
+                    <span className="text-[10px] font-black text-blue-400">{arcAngle}°</span>
+                </div>
+                <input type="range" min="30" max="360" value={arcAngle} onChange={e => setArcAngle(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"/>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-blue-400 font-bold uppercase">Cols</label>
-                <input type="number" value={genCols} onChange={e => setGenCols(parseInt(e.target.value))} className="w-full px-2 py-1.5 bg-white border border-blue-100 rounded text-sm font-bold text-blue-700 focus:ring-2 focus:ring-blue-500/20 outline-none"/>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Rows</label>
+                    <input type="number" value={genRows} onChange={e => setGenRows(parseInt(e.target.value))} className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-xl text-xs font-black text-white focus:border-blue-500 outline-none"/>
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Seats per Row</label>
+                    <input type="number" value={genCols} onChange={e => setGenCols(parseInt(e.target.value))} className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-xl text-xs font-black text-white focus:border-blue-500 outline-none"/>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3">
+
+              <div className="pt-2">
                 <button
                 onClick={() => {
-                    // Remove existing seats for this section first
                     const currentIds = useVenueStore.getState().elementIds;
                     const seatsToRemove = currentIds.filter(id => {
                         const el = useVenueStore.getState().elements[id];
@@ -241,101 +198,118 @@ export const PropertyPanel: React.FC = () => {
                         rows: genRows, cols: genCols, rowSpacing: 10, colSpacing: 10,
                         seatRadius: 8, startRow: 'A', startNum: 1
                         })
-                    : [];
-                    seats.forEach(s => addElement(s));
-                    saveHistory();
-                }}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
-                >
-                Generar Rectangular
-                </button>
-                <button
-                onClick={() => {
-                    const currentIds = useVenueStore.getState().elementIds;
-                    const seatsToRemove = currentIds.filter(id => {
-                        const el = useVenueStore.getState().elements[id];
-                        return el.type === 'seat' && (el as any).sectionId === element.id;
-                    });
-                    if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
-
-                    const seats = generateArcLayout(element as ShapeElement, {
+                    : generateArcLayout(element as ShapeElement, {
                         rows: genRows, cols: genCols, rowSpacing: 15, colSpacing: 10,
                         seatRadius: 8, startRow: 'A', startNum: 1,
-                        innerRadius: 200, startAngle: 180, endAngle: 360
+                        innerRadius: arcRadius, startAngle: 180 - (arcAngle/2), endAngle: 180 + (arcAngle/2)
                     });
                     seats.forEach(s => addElement(s));
                     saveHistory();
                 }}
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-2xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 group"
                 >
-                Generar Curva (Arco)
+                GENERATE LAYOUT <Maximize2 size={14} className="group-hover:scale-110 transition-transform" />
                 </button>
+              </div>
             </div>
           </section>
         )}
 
-        <section>
-            <div className="flex items-center gap-2 mb-4">
-                <MousePointer2 size={14} className="text-blue-600" />
-                <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Interacción</label>
+        {/* Pricing & Appearance */}
+        <section className="space-y-6">
+            <div className="flex items-center gap-2 text-white">
+                <DollarSign size={16} className="text-blue-500" />
+                <h2 className="text-xs font-black uppercase tracking-widest">Pricing & Tiers</h2>
             </div>
-            <div className="space-y-3">
-                <label className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-transparent">
-                    <span className="text-xs text-gray-700 font-bold uppercase tracking-tight">Bloqueado</span>
+
+            <div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-slate-500">Tier Color</span>
                     <input
-                        type="checkbox"
-                        checked={element.locked}
-                        onChange={e => handleUpdate({ locked: e.target.checked })}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        type="color"
+                        value={(element as any).fill || '#2DD4BF'}
+                        onChange={(e) => handleUpdate({ fill: e.target.value })}
+                        className="w-10 h-6 border-none p-0 cursor-pointer bg-transparent rounded overflow-hidden"
                     />
-                </label>
-                {(element.type === 'section') && (
-                <label className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-transparent">
-                    <span className="text-xs text-gray-700 font-bold uppercase tracking-tight">Zona Activa</span>
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Base Price ($)</label>
                     <input
-                        type="checkbox"
-                        checked={(element as ShapeElement).isActive}
-                        onChange={e => handleUpdate({ isActive: e.target.checked })}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        type="number"
+                        value={(element as any).basePrice || 45}
+                        onChange={(e) => handleUpdate({ basePrice: parseInt(e.target.value) })}
+                        className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-xl text-xs font-black text-blue-400 outline-none"
                     />
-                </label>
-                )}
+                </div>
             </div>
         </section>
 
+        {/* Transformation Section */}
         <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Palette size={14} className="text-indigo-600" />
-            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Apariencia</label>
+          <div className="flex items-center gap-2 mb-4 text-white">
+            <Sliders size={16} className="text-blue-500" />
+            <h2 className="text-xs font-black uppercase tracking-widest">Transformation</h2>
           </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-              <label className="text-xs font-bold text-slate-600 uppercase">Relleno</label>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-slate-400 uppercase">{(element as any).fill || '#000'}</span>
-                <input
-                    type="color"
-                    value={(element as any).fill || '#6366f1'}
-                    onChange={(e) => handleUpdate({ fill: e.target.value })}
-                    className="w-6 h-6 border-none p-0 cursor-pointer bg-transparent"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+                { label: 'X POS', value: element.x, key: 'x' },
+                { label: 'Y POS', value: element.y, key: 'y' },
+                { label: 'WIDTH', value: (element as any).width, key: 'width' },
+                { label: 'HEIGHT', value: (element as any).height, key: 'height' },
+            ].map(prop => prop.value !== undefined && (
+                <div key={prop.key} className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{prop.label}</label>
+                    <input
+                        type="number"
+                        value={Math.round(prop.value)}
+                        onChange={(e) => handleUpdate({ [prop.key]: parseInt(e.target.value) })}
+                        className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-xl text-xs font-black text-white focus:border-blue-500 outline-none transition-colors"
+                    />
+                </div>
+            ))}
+          </div>
+          <div className="mt-6 space-y-3">
+            <div className="flex justify-between items-center">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Rotation</label>
+                <span className="text-xs font-black text-white">{Math.round(element.rotation)}°</span>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <label className="text-xs font-bold text-slate-600 uppercase">Opacidad</label>
-                <span className="text-xs font-bold text-indigo-600">{Math.round(element.opacity * 100)}%</span>
-              </div>
-              <input
-                type="range" min="0" max="1" step="0.1"
-                value={element.opacity}
-                onChange={(e) => handleUpdate({ opacity: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-            </div>
+            <input
+                type="range" min="0" max="360"
+                value={element.rotation}
+                onChange={(e) => handleUpdate({ rotation: parseInt(e.target.value) })}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
           </div>
         </section>
+
+        {/* Interaction Controls */}
+        <section>
+            <div className="flex items-center gap-2 mb-4 text-white">
+                <MousePointer2 size={16} className="text-blue-500" />
+                <h2 className="text-xs font-black uppercase tracking-widest">Interaction</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+                <button
+                    onClick={() => handleUpdate({ locked: !element.locked })}
+                    className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                        element.locked ? 'bg-amber-600/10 border-amber-500/30 text-amber-500 shadow-lg shadow-amber-900/10' : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                >
+                    <Lock size={14} strokeWidth={3} /> {element.locked ? 'Locked' : 'Unlocked'}
+                </button>
+                {(element.type === 'section') && (
+                    <button
+                        onClick={() => handleUpdate({ isActive: !(element as ShapeElement).isActive })}
+                        className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                            (element as ShapeElement).isActive ? 'bg-blue-600/10 border-blue-500/30 text-blue-400 shadow-lg shadow-blue-900/10' : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white opacity-50'
+                        }`}
+                    >
+                        {(element as ShapeElement).isActive ? 'Active' : 'Inactive'}
+                    </button>
+                )}
+            </div>
+        </section>
       </div>
-    </div>
+    </aside>
   );
 };
