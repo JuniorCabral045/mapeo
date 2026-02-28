@@ -76,8 +76,11 @@ export interface SeatState {
   expiresAt?: number;
 }
 
+export type EditorTool = 'select' | 'pan';
+
 export interface VenueState {
   mode: 'edit' | 'view';
+  currentTool: EditorTool;
   elements: Record<string, VenueElement>;
   elementIds: string[]; // For Z-Index ordering
   selectedIds: string[];

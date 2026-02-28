@@ -17,6 +17,7 @@ import {
   Trophy,
   Mic2,
   MousePointer2,
+  Hand,
   Plus
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
@@ -25,6 +26,7 @@ import { stadiumTemplate, theaterTemplate } from '../utils/templates';
 export const Toolbar: React.FC = () => {
   const {
     mode, setMode,
+    currentTool, setTool,
     undo, redo, historyIndex, history,
     copy, paste,
     selectedIds, deleteElements,
@@ -158,7 +160,24 @@ export const Toolbar: React.FC = () => {
             <div className="flex items-center gap-3 animate-in slide-in-from-top-4 duration-500">
                 {/* Selection & Drawing Tools */}
                 <div className="bg-[#1E293B]/60 backdrop-blur-md border border-slate-700/40 p-1.5 rounded-2xl flex items-center gap-1 shadow-xl">
-                    <button className="p-2 bg-blue-600/20 text-blue-400 rounded-xl" title="Select Tool"><MousePointer2 size={16} strokeWidth={3}/></button>
+                    <button
+                        onClick={() => setTool('select')}
+                        className={`p-2 rounded-xl transition-all ${
+                            currentTool === 'select' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Select Tool"
+                    >
+                        <MousePointer2 size={16} strokeWidth={3}/>
+                    </button>
+                    <button
+                        onClick={() => setTool('pan')}
+                        className={`p-2 rounded-xl transition-all ${
+                            currentTool === 'pan' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Pan Tool"
+                    >
+                        <Hand size={16} strokeWidth={3}/>
+                    </button>
                     <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Rectangle"><Plus size={16} strokeWidth={3}/></button>
                     <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Circle"><CircleIcon size={16} strokeWidth={3}/></button>
                     <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Stage"><Flag size={16} strokeWidth={3}/></button>

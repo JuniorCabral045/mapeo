@@ -3,7 +3,7 @@ import { Toolbar } from './components/Toolbar';
 import { VenueCanvas } from './components/canvas/VenueCanvas';
 import { PropertyPanel } from './components/PropertyPanel';
 import { useVenueStore } from './store/useVenueStore';
-import { Plus, Minus, Maximize, ShoppingBag, Bell, LayoutGrid, Map as MapIcon, Settings, UserCircle, Search, HelpCircle } from 'lucide-react';
+import { Plus, Minus, Maximize, ShoppingBag, Map as MapIcon } from 'lucide-react';
 
 function App() {
   const { selectedIds, mode, viewState, setViewState, elements } = useVenueStore();
@@ -28,7 +28,7 @@ function App() {
         </div>
 
         <nav className="flex items-center gap-1">
-            {['Dashboard', 'Events', 'Map Editor', 'Settings'].map((item) => (
+            {['Map Editor'].map((item) => (
                 <button
                     key={item}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -41,17 +41,7 @@ function App() {
         </nav>
 
         <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 mr-4 border-r border-slate-800 pr-4">
-                <button className="p-2 text-slate-400 hover:text-white transition-colors relative">
-                    <Bell size={18} />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0B1220]" />
-                </button>
-                <button className="p-2 text-slate-400 hover:text-white transition-colors"><Search size={18} /></button>
-            </div>
-            <button className="flex items-center gap-2 pl-2 group">
-                <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 group-hover:border-blue-500 transition-colors" />
-                <UserCircle size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
-            </button>
+            {/* Minimal Header (Profile Removed) */}
         </div>
       </header>
 
@@ -64,10 +54,7 @@ function App() {
                     <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 px-2">Venue Tools</h2>
                     <div className="space-y-1">
                         {[
-                            { icon: LayoutGrid, label: 'Sections', active: false },
                             { icon: MapIcon, label: 'Seat Map', active: true },
-                            { icon: Bell, label: 'Pricing Tiers', active: false },
-                            { icon: Settings, label: 'Entrances', active: false }
                         ].map(tool => (
                             <button
                                 key={tool.label}
@@ -80,12 +67,6 @@ function App() {
                             </button>
                         ))}
                     </div>
-                </div>
-
-                <div className="mt-auto p-4 border-t border-slate-800/50">
-                    <button className="w-full flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-white text-xs font-bold transition-colors">
-                        <HelpCircle size={16} /> Help & Tutorials
-                    </button>
                 </div>
             </aside>
         )}

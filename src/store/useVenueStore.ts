@@ -24,6 +24,7 @@ interface VenueStore extends VenueState {
   setViewState: (updates: Partial<ViewState>) => void;
   setGridConfig: (updates: Partial<GridConfig>) => void;
   setMode: (mode: 'edit' | 'view') => void;
+  setTool: (tool: 'select' | 'pan') => void;
   setLiveState: (updates: Record<string, SeatState>) => void;
   updateSeatStatus: (id: string, status: SeatStatus) => void;
 
@@ -67,6 +68,7 @@ const DEFAULT_VIEW: ViewState = {
 export const useVenueStore = create<VenueStore>()(
   subscribeWithSelector((set, get) => ({
     mode: 'edit',
+    currentTool: 'select',
     elements: {},
     elementIds: [],
     selectedIds: [],
@@ -152,6 +154,8 @@ export const useVenueStore = create<VenueStore>()(
     setGridConfig: (updates) => set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
 
     setMode: (mode) => set({ mode, selectedIds: [] }),
+
+    setTool: (tool) => set({ currentTool: tool }),
 
     setLiveState: (liveState) => set({ liveState }),
 

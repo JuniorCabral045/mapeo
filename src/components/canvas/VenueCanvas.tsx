@@ -11,7 +11,7 @@ export const VenueCanvas: React.FC = () => {
   const {
     elements, elementIds, selectedIds,
     viewState, setViewState,
-    gridConfig, mode,
+    gridConfig, mode, currentTool,
     moveElements, selectElements, updateElement
   } = useVenueStore();
 
@@ -57,6 +57,8 @@ export const VenueCanvas: React.FC = () => {
   };
 
   const handleMouseDown = (e: any) => {
+    if (currentTool === 'pan') return;
+
     if (e.target === e.target.getStage()) {
       const stage = e.target.getStage();
       const pos = stage.getPointerPosition();
@@ -66,6 +68,8 @@ export const VenueCanvas: React.FC = () => {
   };
 
   const handleMouseMove = (e: any) => {
+    if (currentTool === 'pan') return;
+
     if (selectionBox) {
       const stage = e.target.getStage();
       const pos = stage.getPointerPosition();
@@ -141,8 +145,10 @@ export const VenueCanvas: React.FC = () => {
     return 'none';
   }, [viewState.scale]);
 
+  const cursorClass = currentTool === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair';
+
   return (
-    <div className="w-full h-full bg-[#0B0F19] overflow-hidden cursor-crosshair">
+    <div className={`w-full h-full bg-[#0B0F19] overflow-hidden ${cursorClass}`}>
       <Stage
         width={window.innerWidth}
         height={window.innerHeight}
@@ -155,7 +161,7 @@ export const VenueCanvas: React.FC = () => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         ref={stageRef}
-        draggable={!selectionBox}
+        draggable={currentTool === 'pan' || !selectionBox}
         onDragEnd={(e) => {
             if (e.target === stageRef.current) {
                 setViewState({ x: e.target.x(), y: e.target.y() });
@@ -186,8 +192,9 @@ export const VenueCanvas: React.FC = () => {
                 x={el.x}
                 y={el.y}
                 rotation={el.rotation}
-                draggable={mode === 'edit' && !el.locked}
+                draggable={mode === 'edit' && currentTool === 'select' && !el.locked}
                 onClick={(e) => {
+                    if (currentTool === 'pan') return;
                     e.cancelBubble = true;
                     if (mode === 'edit') selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
                 }}
@@ -237,9 +244,10 @@ export const VenueCanvas: React.FC = () => {
                 key={id}
                 element={el as any}
                 isSelected={isSelected}
-                draggable={mode === 'edit'}
+                draggable={mode === 'edit' && currentTool === 'select'}
                 showLabels={showLabels}
                 onSelect={(e) => {
+                    if (currentTool === 'pan') return;
                     e.cancelBubble = true;
                     if (mode === 'edit') selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
                     else {
