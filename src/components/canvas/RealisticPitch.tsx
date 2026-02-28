@@ -15,27 +15,33 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({ x, y, width, hei
 
   return (
     <Group x={x} y={y} rotation={rotation}>
-      {/* Grass Stripes */}
-      {Array.from({ length: stripeCount }).map((_, i) => (
-        <Rect
-          key={i}
-          x={i * stripeWidth}
-          y={0}
-          width={stripeWidth}
-          height={height}
-          fill={i % 2 === 0 ? '#2e7d32' : '#388e3c'}
-        />
-      ))}
-
       {/* Outer Border (Concrete/Track) */}
       <Rect
         x={-width * 0.1}
         y={-height * 0.1}
         width={width * 1.2}
         height={height * 1.2}
-        fill="#4b5563"
+        fill="#f8fafc"
+        stroke="#e2e8f0"
+        strokeWidth={1}
         cornerRadius={width * 0.05}
+        shadowBlur={20}
+        shadowColor="rgba(0,0,0,0.03)"
       />
+
+      {/* Grass Stripes */}
+      <Group clipX={0} clipY={0} clipWidth={width} clipHeight={height}>
+          {Array.from({ length: stripeCount }).map((_, i) => (
+            <Rect
+              key={i}
+              x={i * stripeWidth}
+              y={0}
+              width={stripeWidth}
+              height={height}
+              fill={i % 2 === 0 ? '#10b981' : '#059669'}
+            />
+          ))}
+      </Group>
 
       {/* Field Markings */}
       <Rect

@@ -52,12 +52,12 @@ function App() {
 
           {/* Booking / View Mode HUD (Mobile Bottom Sheet) */}
           {mode === 'view' && (
-              <div className={`absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 p-6 rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] z-50 transition-all transform duration-500 ${selectedIds.length > 0 ? 'translate-y-0' : 'translate-y-12'}`}>
-                  <div className="max-w-xl mx-auto flex flex-col gap-5">
+              <div className={`absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200 p-6 rounded-t-[3rem] shadow-[0_-20px_60px_rgba(0,0,0,0.08)] z-50 transition-all transform duration-500 ease-out ${selectedIds.length > 0 ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+                  <div className="max-w-xl mx-auto flex flex-col gap-6">
                       {/* Pull Indicator */}
-                      <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto" />
+                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mx-auto" />
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between px-2">
                           <div className="flex flex-col">
                               <div className="flex items-center gap-3 mb-1">
                                   <div className="text-3xl font-black text-slate-900 tabular-nums">
@@ -86,7 +86,7 @@ function App() {
                       </div>
 
                       <button
-                        className="w-full bg-blue-600 text-white py-4 rounded-2xl text-base font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center justify-center gap-3 group disabled:opacity-30 disabled:grayscale disabled:shadow-none"
+                        className="w-full bg-indigo-600 text-white py-5 rounded-3xl text-lg font-black hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 flex items-center justify-center gap-3 group disabled:opacity-30 disabled:grayscale disabled:shadow-none"
                         disabled={selectedIds.length === 0}
                       >
                           {selectedIds.length > 0 ? (

@@ -175,7 +175,7 @@ export const VenueCanvas: React.FC = () => {
   };
 
   const renderGrid = () => {
-    if (!gridConfig.visible) return null;
+    if (!gridConfig.visible || mode === 'view') return null;
     const size = gridConfig.size;
     const lines = [];
     const width = 5000;
@@ -186,9 +186,10 @@ export const VenueCanvas: React.FC = () => {
         <Line
           key={`v-${i}`}
           points={[i * size, 0, i * size, height]}
-          stroke="#f3f4f6"
-          strokeWidth={1 / viewState.scale}
+          stroke="#e2e8f0"
+          strokeWidth={0.5 / viewState.scale}
           listening={false}
+          opacity={0.4}
         />
       );
     }
@@ -197,9 +198,10 @@ export const VenueCanvas: React.FC = () => {
         <Line
           key={`h-${i}`}
           points={[0, i * size, width, i * size]}
-          stroke="#f3f4f6"
-          strokeWidth={1 / viewState.scale}
+          stroke="#e2e8f0"
+          strokeWidth={0.5 / viewState.scale}
           listening={false}
+          opacity={0.4}
         />
       );
     }
@@ -336,6 +338,15 @@ export const VenueCanvas: React.FC = () => {
         draggable={!selectionBox}
       >
         <Layer>
+          {/* Subtle Background */}
+          <Rect
+            x={-5000}
+            y={-5000}
+            width={10000}
+            height={10000}
+            fill="#f8fafc"
+          />
+
           {renderGrid()}
 
           {elementIds.map(id => {
@@ -359,30 +370,34 @@ export const VenueCanvas: React.FC = () => {
             />
           ))}
 
-          <Transformer
-            ref={transformerRef}
-            rotateEnabled={true}
-            anchorSize={8 / viewState.scale}
-            borderStroke="#3b82f6"
-            anchorStroke="#3b82f6"
-            anchorFill="white"
-            anchorCornerRadius={2}
-            boundBoxFunc={(oldBox, newBox) => {
-              if (newBox.width < 5 || newBox.height < 5) return oldBox;
-              return newBox;
-            }}
-          />
+          {mode === 'edit' && (
+            <>
+              <Transformer
+                ref={transformerRef}
+                rotateEnabled={true}
+                anchorSize={8 / viewState.scale}
+                borderStroke="#6366f1"
+                anchorStroke="#6366f1"
+                anchorFill="white"
+                anchorCornerRadius={2}
+                boundBoxFunc={(oldBox, newBox) => {
+                  if (newBox.width < 5 || newBox.height < 5) return oldBox;
+                  return newBox;
+                }}
+              />
 
-          {selectionBox && (
-            <Rect
-              x={Math.min(selectionBox.x1, selectionBox.x2)}
-              y={Math.min(selectionBox.y1, selectionBox.y2)}
-              width={Math.abs(selectionBox.x2 - selectionBox.x1)}
-              height={Math.abs(selectionBox.y2 - selectionBox.y1)}
-              fill="rgba(59, 130, 246, 0.1)"
-              stroke="#3b82f6"
-              strokeWidth={1 / viewState.scale}
-            />
+              {selectionBox && (
+                <Rect
+                  x={Math.min(selectionBox.x1, selectionBox.x2)}
+                  y={Math.min(selectionBox.y1, selectionBox.y2)}
+                  width={Math.abs(selectionBox.x2 - selectionBox.x1)}
+                  height={Math.abs(selectionBox.y2 - selectionBox.y1)}
+                  fill="rgba(99, 102, 241, 0.1)"
+                  stroke="#6366f1"
+                  strokeWidth={1 / viewState.scale}
+                />
+              )}
+            </>
           )}
         </Layer>
       </Stage>

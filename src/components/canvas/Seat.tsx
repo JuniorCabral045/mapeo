@@ -36,16 +36,18 @@ export const Seat: React.FC<SeatProps> = ({
   }, [isSelected, draggable, status, color, opacity, showLabels]);
 
   const getStatusColor = () => {
-    if (isSelected) return '#10b981';
+    if (isSelected) return '#10b981'; // Green for selected
     if (color) return color;
     switch (status) {
-      case 'available': return '#3b82f6';
-      case 'occupied': return '#ef4444';
-      case 'blocked': return '#64748b';
-      case 'reserved': return '#f59e0b';
-      default: return '#d1d5db';
+      case 'available': return '#6366f1'; // Modern Indigo for available
+      case 'occupied': return '#cbd5e1'; // Soft Gray for occupied
+      case 'blocked': return '#94a3b8';  // Muted Slate for blocked
+      case 'reserved': return '#f59e0b'; // Amber for reserved
+      default: return '#e2e8f0';
     }
   };
+
+  const seatColor = getStatusColor();
 
   if (simplified) {
     return (
@@ -53,8 +55,9 @@ export const Seat: React.FC<SeatProps> = ({
         id={id}
         x={x}
         y={y}
-        radius={radius * 1.2}
-        fill={getStatusColor()}
+        radius={radius * 1.1}
+        fill={seatColor}
+        opacity={status === 'occupied' ? 0.4 : 1}
         listening={false}
       />
     );
@@ -72,49 +75,53 @@ export const Seat: React.FC<SeatProps> = ({
       onClick={onSelect}
       onTap={onSelect}
     >
-      {/* Subtle Shadow */}
-      <Circle
-        radius={radius}
-        fill="black"
-        opacity={0.1}
-        offsetY={-1}
-        listening={false}
-      />
-      {/* Seat Base */}
+      {/* Soft Glow for Selected */}
+      {isSelected && (
+          <Circle
+            radius={radius * 1.5}
+            fill="#10b981"
+            opacity={0.2}
+            listening={false}
+          />
+      )}
+
+      {/* Seat Base - Simple Rounded Rect */}
       <Rect
         x={-radius}
         y={-radius}
         width={radius * 2}
         height={radius * 2}
-        cornerRadius={radius * 0.4}
-        fill={getStatusColor()}
-        opacity={opacity}
-        stroke={isSelected ? '#059669' : 'rgba(0,0,0,0.1)'}
+        cornerRadius={radius * 0.5}
+        fill={seatColor}
+        opacity={status === 'occupied' ? 0.5 : opacity}
+        stroke={isSelected ? '#059669' : 'white'}
         strokeWidth={isSelected ? 1.5 : 0.5}
+        shadowBlur={isSelected ? 10 : 0}
+        shadowColor="#10b981"
         perfectDrawEnabled={false}
       />
-      {/* Seat Detail (Backrest line) */}
-      <Rect
-        x={-radius * 0.7}
-        y={-radius * 0.8}
-        width={radius * 1.4}
-        height={radius * 0.4}
-        cornerRadius={radius * 0.1}
-        fill="white"
-        opacity={0.2}
-        listening={false}
-      />
-      {/* Labels */}
-      {showLabels !== 'none' && (
+
+      {/* Subtle Dot instead of full labels when row is needed */}
+      {showLabels === 'row' && (
+          <Circle
+            radius={radius * 0.3}
+            fill="white"
+            opacity={0.5}
+            listening={false}
+          />
+      )}
+
+      {/* High-quality Label when zoomed in */}
+      {showLabels === 'all' && (
           <Text
-            text={showLabels === 'row' ? row : number}
+            text={number}
             x={-radius}
             y={-radius}
             width={radius * 2}
             height={radius * 2}
             align="center"
             verticalAlign="middle"
-            fontSize={radius * 0.8}
+            fontSize={radius * 0.9}
             fill="white"
             fontStyle="bold"
             listening={false}

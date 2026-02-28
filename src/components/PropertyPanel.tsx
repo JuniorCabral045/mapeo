@@ -29,10 +29,10 @@ export const PropertyPanel: React.FC = () => {
   if (mode === 'view') return null;
 
   if (!element) return (
-    <div className="w-80 border-l bg-white flex flex-col shadow-sm overflow-hidden font-sans">
-      <div className="p-6 border-b">
-        <h2 className="text-lg font-bold text-gray-900 tracking-tight">Escena</h2>
-        <p className="text-xs text-gray-500 mt-1">Gestiona las capas y elementos</p>
+    <div className="w-80 border-l bg-slate-50/50 flex flex-col shadow-sm overflow-hidden font-sans">
+      <div className="p-6 bg-white border-b">
+        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Escena</h2>
+        <p className="text-xs text-slate-500 mt-1">Gestiona las capas y elementos</p>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
         {useVenueStore.getState().elementIds.map(id => {
@@ -49,19 +49,19 @@ export const PropertyPanel: React.FC = () => {
                             useVenueStore.getState().selectElements([id]);
                         }
                     }}
-                    className={`group flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all border ${
+                    className={`group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
                         isSelected
-                        ? 'bg-blue-50 border-blue-100 text-blue-700 shadow-sm'
-                        : 'border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                        ? 'bg-white border-indigo-100 text-indigo-600 shadow-md translate-x-1'
+                        : 'border-transparent bg-transparent text-slate-600 hover:bg-white hover:shadow-sm'
                     }`}
                 >
-                    <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                        isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                     }`}>
-                        {el.type === 'seat' ? <CircleIcon size={10} /> : el.type === 'stage' ? <Flag size={10} /> : <Square size={10} />}
+                        {el.type === 'seat' ? <CircleIcon size={12} /> : el.type === 'stage' ? <Flag size={12} /> : <Square size={12} />}
                     </div>
-                    <span className="text-sm font-semibold truncate flex-1">{el.name}</span>
-                    {el.locked && <Lock size={12} className="text-gray-400" />}
+                    <span className="text-sm font-bold truncate flex-1">{el.name}</span>
+                    {el.locked && <Lock size={12} className="text-slate-300" />}
                 </div>
             );
         })}
@@ -106,25 +106,25 @@ export const PropertyPanel: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         <section>
-          <div className="flex items-center gap-2 mb-4 text-gray-900">
-            <Type size={16} className="text-blue-600" />
+          <div className="flex items-center gap-2 mb-4 text-slate-900">
+            <Type size={16} className="text-indigo-600" />
             <h2 className="text-lg font-bold tracking-tight">Propiedades</h2>
           </div>
           <div className="space-y-1">
-             <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Nombre del Objeto</label>
+             <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Nombre del Objeto</label>
              <input
                 type="text"
                 value={element.name}
                 onChange={(e) => handleUpdate({ name: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
              />
           </div>
         </section>
 
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <Sliders size={14} className="text-blue-600" />
-            <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Transformación</label>
+            <Sliders size={14} className="text-indigo-600" />
+            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Transformación</label>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -305,17 +305,17 @@ export const PropertyPanel: React.FC = () => {
 
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <Palette size={14} className="text-blue-600" />
-            <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Apariencia</label>
+            <Palette size={14} className="text-indigo-600" />
+            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Apariencia</label>
           </div>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-              <label className="text-xs font-bold text-gray-600 uppercase">Relleno</label>
+            <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+              <label className="text-xs font-bold text-slate-600 uppercase">Relleno</label>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-gray-400 uppercase">{(element as any).fill || '#000'}</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">{(element as any).fill || '#000'}</span>
                 <input
                     type="color"
-                    value={(element as any).fill || '#3b82f6'}
+                    value={(element as any).fill || '#6366f1'}
                     onChange={(e) => handleUpdate({ fill: e.target.value })}
                     className="w-6 h-6 border-none p-0 cursor-pointer bg-transparent"
                 />
@@ -323,14 +323,14 @@ export const PropertyPanel: React.FC = () => {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <label className="text-xs font-bold text-gray-600 uppercase">Opacidad</label>
-                <span className="text-xs font-bold text-blue-600">{Math.round(element.opacity * 100)}%</span>
+                <label className="text-xs font-bold text-slate-600 uppercase">Opacidad</label>
+                <span className="text-xs font-bold text-indigo-600">{Math.round(element.opacity * 100)}%</span>
               </div>
               <input
                 type="range" min="0" max="1" step="0.1"
                 value={element.opacity}
                 onChange={(e) => handleUpdate({ opacity: parseFloat(e.target.value) })}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
             </div>
           </div>

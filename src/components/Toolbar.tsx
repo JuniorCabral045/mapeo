@@ -82,21 +82,21 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="h-16 border-b bg-white flex items-center justify-between px-6 shadow-sm z-[100] sticky top-0 font-sans">
+    <div className="h-16 border-b bg-white/80 backdrop-blur-md flex items-center justify-between px-6 shadow-sm z-[100] sticky top-0 font-sans">
       <div className="flex items-center gap-1">
-        <div className="flex items-center bg-gray-100 p-1 rounded-xl mr-8">
+        <div className="flex items-center bg-slate-100 p-1 rounded-2xl mr-8">
           <button
             onClick={() => setMode('edit')}
-            className={`p-1.5 px-5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
-              mode === 'edit' ? 'bg-white shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            className={`p-1.5 px-6 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
+              mode === 'edit' ? 'bg-white shadow-lg shadow-indigo-100 text-indigo-600' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <PenLine size={16} /> Editor
           </button>
           <button
             onClick={() => setMode('view')}
-            className={`p-1.5 px-5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
-              mode === 'view' ? 'bg-white shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            className={`p-1.5 px-6 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
+              mode === 'view' ? 'bg-white shadow-lg shadow-indigo-100 text-indigo-600' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Eye size={16} /> Vista
@@ -191,7 +191,7 @@ export const Toolbar: React.FC = () => {
             </button>
         </div>
 
-        <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-md">
+        <button className="bg-indigo-600 text-white px-7 py-2.5 rounded-2xl text-sm font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-md">
           Guardar Proyecto
         </button>
       </div>
