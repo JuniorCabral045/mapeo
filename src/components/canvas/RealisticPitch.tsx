@@ -18,9 +18,6 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
     id, x, y, width, height, rotation,
     draggable, onClick, onDragMove, onDragEnd
 }) => {
-  const stripeCount = 10;
-  const stripeWidth = width / stripeCount;
-
   return (
     <Group
         id={id}
@@ -32,84 +29,59 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}
     >
-      {/* Outer Border (Concrete/Track) */}
+      {/* Outer Border (Concrete/Support Area) */}
       <Rect
-        x={-width * 0.1}
-        y={-height * 0.1}
-        width={width * 1.2}
-        height={height * 1.2}
-        fill="#f8fafc"
-        stroke="#e2e8f0"
+        x={-width * 0.05}
+        y={-height * 0.05}
+        width={width * 1.1}
+        height={height * 1.1}
+        fill="#1E293B"
+        stroke="#334155"
         strokeWidth={1}
-        cornerRadius={width * 0.05}
-        shadowBlur={20}
-        shadowColor="rgba(0,0,0,0.03)"
+        cornerRadius={8}
       />
 
-      {/* Grass Stripes */}
-      <Group clipX={0} clipY={0} clipWidth={width} clipHeight={height}>
-          {Array.from({ length: stripeCount }).map((_, i) => (
-            <Rect
-              key={i}
-              x={i * stripeWidth}
-              y={0}
-              width={stripeWidth}
-              height={height}
-              fill={i % 2 === 0 ? '#10b981' : '#059669'}
-            />
-          ))}
-      </Group>
-
-      {/* Field Markings */}
+      {/* Main Stage Area (Gray Theme) */}
       <Rect
-        x={0}
-        y={0}
         width={width}
         height={height}
-        stroke="rgba(255,255,255,0.8)"
+        fill="#334155"
+        stroke="#475569"
         strokeWidth={2}
-        listening={false}
+        cornerRadius={4}
       />
 
-      {/* Half line */}
-      <Line
-        points={[width / 2, 0, width / 2, height]}
-        stroke="rgba(255,255,255,0.8)"
-        strokeWidth={2}
+      {/* Sub-Markings for better perspective (Grid-like) */}
+      <Group opacity={0.1}>
+        {Array.from({ length: 5 }).map((_, i) => (
+            <React.Fragment key={i}>
+                <Line points={[ (i+1) * (width/6), 0, (i+1) * (width/6), height]} stroke="white" strokeWidth={1} />
+                <Line points={[ 0, (i+1) * (height/6), width, (i+1) * (height/6)]} stroke="white" strokeWidth={1} />
+            </React.Fragment>
+        ))}
+      </Group>
+
+      {/* Stage Layout Indicators (Abstracted) */}
+      <Rect
+        x={width * 0.1}
+        y={height * 0.8}
+        width={width * 0.8}
+        height={height * 0.15}
+        fill="#1E293B"
+        cornerRadius={2}
+        opacity={0.5}
       />
 
-      {/* Center Circle */}
+      {/* Center Detail */}
       <Circle
         x={width / 2}
         y={height / 2}
-        radius={height / 5}
-        stroke="rgba(255,255,255,0.8)"
+        radius={Math.min(width, height) * 0.1}
+        stroke="#475569"
         strokeWidth={2}
+        dash={[10, 5]}
+        opacity={0.3}
       />
-      <Circle
-        x={width / 2}
-        y={height / 2}
-        radius={2}
-        fill="rgba(255,255,255,0.8)"
-      />
-
-      {/* Penalty Areas */}
-      <Group>
-        {/* Left */}
-        <Rect x={0} y={height / 4} width={width / 6} height={height / 2} stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
-        <Rect x={0} y={height * 0.35} width={width / 15} height={height * 0.3} stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
-        {/* Right */}
-        <Rect x={width - width / 6} y={height / 4} width={width / 6} height={height / 2} stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
-        <Rect x={width - width / 15} y={height * 0.35} width={width / 15} height={height * 0.3} stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
-      </Group>
-
-      {/* Corner Arcs */}
-      <Group opacity={0.8}>
-          <Circle x={0} y={0} radius={width/40} stroke="white" strokeWidth={2} />
-          <Circle x={width} y={0} radius={width/40} stroke="white" strokeWidth={2} />
-          <Circle x={0} y={height} radius={width/40} stroke="white" strokeWidth={2} />
-          <Circle x={width} y={height} radius={width/40} stroke="white" strokeWidth={2} />
-      </Group>
     </Group>
   );
 };

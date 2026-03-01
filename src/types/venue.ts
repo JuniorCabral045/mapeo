@@ -36,7 +36,6 @@ export interface ShapeElement extends BaseElement {
   radius?: number; // For circles/arcs
   innerRadius?: number; // For arcs (hollow)
   angle?: number; // For arcs
-  basePrice?: number; // Section default price
 }
 
 export interface Seat extends BaseElement {
@@ -45,7 +44,6 @@ export interface Seat extends BaseElement {
   row: string;
   number: string;
   status: SeatStatus;
-  price?: number; // Individual override (if undefined, use section basePrice)
   radius: number;
   color?: string;
 }

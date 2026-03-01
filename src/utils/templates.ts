@@ -1,6 +1,8 @@
 import { VenueElement, Seat } from '../types/venue';
 import { generateRectLayout } from './layout';
 
+const DEFAULT_SEAT_RADIUS = 3.5;
+
 export const stadiumTemplate = (): Record<string, VenueElement> => {
   const elements: Record<string, VenueElement> = {};
 
@@ -23,7 +25,7 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
     locked: true,
     opacity: 1,
     zIndex: 1,
-    fill: '#16a34a',
+    fill: '#1e293b',
     isActive: true,
     sectionType: 'rectangle',
     cornerRadius: 8
@@ -50,7 +52,7 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
       rotation: 0,
       visible: true,
       locked: false,
-      opacity: 0.6,
+      opacity: 0.4,
       zIndex: 2,
       fill: t.color,
       isActive: true,
@@ -60,14 +62,14 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
     elements[sectionId] = section;
 
     // Mass generate seats for each section to show scale
-    const rows = i < 2 ? 15 : 20;
-    const cols = i < 2 ? 30 : 10;
+    const rows = i < 2 ? 10 : 15;
+    const cols = i < 2 ? 25 : 8;
     const seats = generateRectLayout(section, {
         rows,
         cols,
-        rowSpacing: 6,
-        colSpacing: 6,
-        seatRadius: 2.5,
+        rowSpacing: 8,
+        colSpacing: 8,
+        seatRadius: DEFAULT_SEAT_RADIUS,
         startRow: 'A',
         startNum: 1
     });
@@ -123,7 +125,7 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
       rotation: 0,
       visible: true,
       locked: false,
-      opacity: 0.5,
+      opacity: 0.3,
       zIndex: 2,
       fill: p.color,
       isActive: true,
@@ -135,9 +137,9 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
     const seats = generateRectLayout(section, {
         rows: 8,
         cols: 20 + i * 5,
-        rowSpacing: 8,
-        colSpacing: 8,
-        seatRadius: 3,
+        rowSpacing: 10,
+        colSpacing: 10,
+        seatRadius: DEFAULT_SEAT_RADIUS,
         startRow: 'A',
         startNum: 1
     });

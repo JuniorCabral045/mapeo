@@ -43,7 +43,6 @@ export const generateRectLayout = (
         row: rowLabel,
         number: (startNum + c).toString(),
         status: 'available',
-        price: undefined,
         radius: seatRadius,
       });
     }
@@ -86,7 +85,6 @@ export const generateArcLayout = (
         row: rowLabel,
         number: (startNum + c).toString(),
         status: 'available',
-        price: undefined,
         radius: seatRadius,
       });
     }

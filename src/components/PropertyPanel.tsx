@@ -199,7 +199,7 @@ export const PropertyPanel: React.FC = () => {
                         seatRadius: 8, startRow: 'A', startNum: 1
                         })
                     : generateArcLayout(element as ShapeElement, {
-                        rows: genRows, cols: genCols, rowSpacing: 15, colSpacing: 10,
+                        rows: genRows, cols: genCols, rowSpacing: 12, colSpacing: 10,
                         seatRadius: 8, startRow: 'A', startNum: 1,
                         innerRadius: arcRadius, startAngle: 180 - (arcAngle/2), endAngle: 180 + (arcAngle/2)
                     });
@@ -215,30 +215,21 @@ export const PropertyPanel: React.FC = () => {
           </section>
         )}
 
-        {/* Pricing & Appearance */}
+        {/* Appearance */}
         <section className="space-y-6">
             <div className="flex items-center gap-2 text-white">
-                <DollarSign size={16} className="text-blue-500" />
-                <h2 className="text-xs font-black uppercase tracking-widest">Pricing & Tiers</h2>
+                <Palette size={16} className="text-blue-500" />
+                <h2 className="text-xs font-black uppercase tracking-widest">Appearance</h2>
             </div>
 
             <div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase text-slate-500">Tier Color</span>
+                    <span className="text-[10px] font-black uppercase text-slate-500">Element Color</span>
                     <input
                         type="color"
                         value={(element as any).fill || '#2DD4BF'}
                         onChange={(e) => handleUpdate({ fill: e.target.value })}
                         className="w-10 h-6 border-none p-0 cursor-pointer bg-transparent rounded overflow-hidden"
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Base Price ($)</label>
-                    <input
-                        type="number"
-                        value={(element as any).basePrice || 45}
-                        onChange={(e) => handleUpdate({ basePrice: parseInt(e.target.value) })}
-                        className="w-full px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-xl text-xs font-black text-blue-400 outline-none"
                     />
                 </div>
             </div>

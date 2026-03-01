@@ -144,22 +144,17 @@ function App() {
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-xs font-black text-white">Row {(el as any).row}</span>
-                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Standard Tier</span>
+                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Section: {elements[(el as any).sectionId]?.name || 'General'}</span>
                                         </div>
                                     </div>
-                                    <span className="text-xs font-black text-blue-400">$45.00</span>
                                 </div>
                             );
                         })}
                     </div>
 
                     <div className="mt-6 pt-6 border-t border-slate-800">
-                        <div className="flex items-center justify-between mb-6">
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Amount</span>
-                            <span className="text-2xl font-black text-white">${selectedIds.length * 45}.00</span>
-                        </div>
                         <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-blue-600/20 transition-all active:scale-95">
-                            PROCEED TO CHECKOUT
+                            CONFIRM SELECTION
                         </button>
                     </div>
                 </div>
