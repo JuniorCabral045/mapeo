@@ -15,7 +15,7 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
   elements[pitchId] = {
     id: pitchId,
     type: 'stage',
-    name: 'Cancha de Fútbol',
+    name: 'Estadio',
     x: centerX - 200,
     y: centerY - 125,
     width: 400,
@@ -31,15 +31,15 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
     cornerRadius: 8
   };
 
-  // Tribunas (Sections)
-  const tribunas = [
-    { name: 'Tribuna Norte', x: centerX - 225, y: centerY - 250, w: 450, h: 100, color: '#3b82f6', radius: { topLeft: 50, topRight: 50, bottomLeft: 0, bottomRight: 0 } },
-    { name: 'Tribuna Sur', x: centerX - 225, y: centerY + 150, w: 450, h: 100, color: '#3b82f6', radius: { topLeft: 0, topRight: 0, bottomLeft: 50, bottomRight: 50 } },
-    { name: 'Tribuna Este', x: centerX + 225, y: centerY - 125, w: 120, h: 250, color: '#2563eb', radius: { topLeft: 0, topRight: 50, bottomLeft: 0, bottomRight: 50 } },
-    { name: 'Tribuna Oeste', x: centerX - 345, y: centerY - 125, w: 120, h: 250, color: '#2563eb', radius: { topLeft: 50, topRight: 0, bottomLeft: 50, bottomRight: 0 } },
+  // Sectores (Tribunas)
+  const sectores = [
+    { name: 'Sector Norte', x: centerX - 200, y: centerY - 260, w: 400, h: 120, color: '#3b82f6', radius: { topLeft: 20, topRight: 20, bottomLeft: 0, bottomRight: 0 } },
+    { name: 'Sector Sur', x: centerX - 200, y: centerY + 140, w: 400, h: 120, color: '#3b82f6', radius: { topLeft: 0, topRight: 0, bottomLeft: 20, bottomRight: 20 } },
+    { name: 'Sector Este', x: centerX + 220, y: centerY - 125, w: 150, h: 250, color: '#2563eb', radius: { topLeft: 0, topRight: 20, bottomLeft: 0, bottomRight: 20 } },
+    { name: 'Sector Oeste', x: centerX - 370, y: centerY - 125, w: 150, h: 250, color: '#2563eb', radius: { topLeft: 20, topRight: 0, bottomLeft: 20, bottomRight: 0 } },
   ];
 
-  tribunas.forEach((t, i) => {
+  sectores.forEach((t, i) => {
     const sectionId = `section-tribuna-${i}-${Date.now()}`;
     const section: any = {
       id: sectionId,
@@ -62,14 +62,14 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
     elements[sectionId] = section;
 
     // Mass generate seats for each section to show scale
-    const rows = i < 2 ? 10 : 15;
-    const cols = i < 2 ? 25 : 8;
+    const rows = i < 2 ? 12 : 18;
+    const cols = i < 2 ? 22 : 10;
     const seats = generateRectLayout(section, {
         rows,
         cols,
-        rowSpacing: 8,
-        colSpacing: 8,
-        seatRadius: DEFAULT_SEAT_RADIUS,
+        rowSpacing: 4.5,
+        colSpacing: 4.5,
+        seatRadius: 3,
         startRow: 'A',
         startNum: 1
     });
@@ -106,13 +106,13 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
     cornerRadius: { topLeft: 10, topRight: 10, bottomLeft: 100, bottomRight: 100 }
   };
 
-  // Plateas (Sections)
-  const plateas = [
-    { name: 'Platea VIP', x: centerX - 250, y: startY + 180, w: 500, h: 120, color: '#9333ea' },
-    { name: 'Platea General', x: centerX - 300, y: startY + 320, w: 600, h: 150, color: '#3b82f6' },
+  // Sectores (Plateas)
+  const sectores = [
+    { name: 'Sector VIP', x: centerX - 250, y: startY + 180, w: 500, h: 120, color: '#9333ea' },
+    { name: 'Sector General', x: centerX - 300, y: startY + 320, w: 600, h: 150, color: '#3b82f6' },
   ];
 
-  plateas.forEach((p, i) => {
+  sectores.forEach((p, i) => {
     const sectionId = `section-platea-${i}-${Date.now()}`;
     const section: any = {
       id: sectionId,
@@ -137,9 +137,9 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
     const seats = generateRectLayout(section, {
         rows: 8,
         cols: 20 + i * 5,
-        rowSpacing: 10,
-        colSpacing: 10,
-        seatRadius: DEFAULT_SEAT_RADIUS,
+        rowSpacing: 5,
+        colSpacing: 5,
+        seatRadius: 3.5,
         startRow: 'A',
         startNum: 1
     });

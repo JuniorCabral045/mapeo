@@ -1,8 +1,9 @@
 import React from 'react';
-import { Group, Rect, Circle, Line } from 'react-konva';
+import { Group, Rect, Circle, Line, Text } from 'react-konva';
 
 interface RealisticPitchProps {
   id?: string;
+  name?: string;
   x: number;
   y: number;
   width: number;
@@ -15,7 +16,7 @@ interface RealisticPitchProps {
 }
 
 export const RealisticPitch: React.FC<RealisticPitchProps> = ({
-    id, x, y, width, height, rotation,
+    id, name, x, y, width, height, rotation,
     draggable, onClick, onDragMove, onDragEnd
 }) => {
   return (
@@ -45,7 +46,7 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
       <Rect
         width={width}
         height={height}
-        fill="#334155"
+        fill="#1e293b"
         stroke="#475569"
         strokeWidth={2}
         cornerRadius={4}
@@ -81,6 +82,21 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
         strokeWidth={2}
         dash={[10, 5]}
         opacity={0.3}
+      />
+
+      {/* Dynamic Name Label */}
+      <Text
+        text={name?.toUpperCase() || 'ESCENARIO'}
+        x={0}
+        y={height / 2 - 10}
+        width={width}
+        align="center"
+        fontSize={Math.max(12, width * 0.05)}
+        fontFamily="monospace"
+        fontStyle="bold"
+        fill="#94a3b8"
+        opacity={0.8}
+        listening={false}
       />
     </Group>
   );

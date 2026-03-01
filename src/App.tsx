@@ -28,11 +28,11 @@ function App() {
         </div>
 
         <nav className="flex items-center gap-1">
-            {['Map Editor'].map((item) => (
+            {['Editor de Mapa'].map((item) => (
                 <button
                     key={item}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        item === 'Map Editor' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        item === 'Editor de Mapa' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                     }`}
                 >
                     {item}
@@ -51,10 +51,10 @@ function App() {
         {mode === 'edit' && (
             <aside className="w-64 border-r border-slate-800 bg-[#0B1220] flex flex-col shrink-0">
                 <div className="p-4 pt-6">
-                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 px-2">Venue Tools</h2>
+                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 px-2">Herramientas</h2>
                     <div className="space-y-1">
                         {[
-                            { icon: MapIcon, label: 'Seat Map', active: true },
+                            { icon: MapIcon, label: 'Mapa de Asientos', active: true },
                         ].map(tool => (
                             <button
                                 key={tool.label}
@@ -80,14 +80,14 @@ function App() {
           {/* Canvas HUD Controls */}
           <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-50">
             <div className="bg-[#1E293B]/80 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden flex flex-col p-1">
-                <button onClick={() => handleZoom(1.1)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Zoom In"><Plus size={18} /></button>
+                <button onClick={() => handleZoom(1.1)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Aumentar Zoom"><Plus size={18} /></button>
                 <div className="h-px bg-slate-700/50 mx-2" />
-                <button onClick={() => handleZoom(0.9)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Zoom Out"><Minus size={18} /></button>
+                <button onClick={() => handleZoom(0.9)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Disminuir Zoom"><Minus size={18} /></button>
             </div>
             <button
                 onClick={resetZoom}
                 className="w-12 h-12 bg-[#1E293B]/80 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700 transition-all"
-                title="Reset View"
+                title="Restablecer Vista"
             >
                 <Maximize size={18} />
             </button>
@@ -101,18 +101,18 @@ function App() {
                     <span>Y: {Math.round(viewState.y)}m</span>
                 </div>
                 <div className="h-3 w-px bg-slate-800" />
-                <span className="text-slate-400">Selection: {selectedIds.length > 0 ? `${selectedIds.length} Elements` : 'None'}</span>
+                <span className="text-slate-400">Selección: {selectedIds.length > 0 ? `${selectedIds.length} Elementos` : 'Ninguno'}</span>
             </div>
 
             <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-[#2DD4BF] rounded-full" /> Available
+                    <div className="w-1.5 h-1.5 bg-[#2DD4BF] rounded-full" /> Disponible
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" /> Selected
+                    <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" /> Seleccionado
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-slate-700 rounded-full" /> Occupied
+                    <div className="w-1.5 h-1.5 bg-slate-700 rounded-full" /> Ocupado
                 </div>
                 <div className="h-3 w-px bg-slate-800 ml-2" />
                 <span className="text-slate-300 ml-2">{Math.round(viewState.scale * 100)}%</span>
@@ -125,8 +125,8 @@ function App() {
                 <div className="bg-[#1E293B]/90 backdrop-blur-xl border border-slate-700/50 p-6 rounded-3xl shadow-2xl flex flex-col h-full overflow-hidden">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex flex-col">
-                            <h3 className="text-lg font-black text-white">Your Selection</h3>
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{selectedIds.length} Seats Picked</p>
+                            <h3 className="text-lg font-black text-white">Tu Selección</h3>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{selectedIds.length} Asientos elegidos</p>
                         </div>
                         <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
                             <ShoppingBag size={20} />
@@ -143,8 +143,8 @@ function App() {
                                             {el?.type === 'seat' ? (el as any).number : '?'}
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-black text-white">Row {(el as any).row}</span>
-                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Section: {elements[(el as any).sectionId]?.name || 'General'}</span>
+                                            <span className="text-xs font-black text-white">Fila {(el as any).row}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Sector: {elements[(el as any).sectionId]?.name || 'General'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -154,7 +154,7 @@ function App() {
 
                     <div className="mt-6 pt-6 border-t border-slate-800">
                         <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-blue-600/20 transition-all active:scale-95">
-                            CONFIRM SELECTION
+                            CONFIRMAR SELECCIÓN
                         </button>
                     </div>
                 </div>

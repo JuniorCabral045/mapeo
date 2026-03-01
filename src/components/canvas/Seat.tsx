@@ -12,6 +12,7 @@ interface SeatProps {
   draggable: boolean;
   simplified?: boolean;
   showLabels?: 'none' | 'row' | 'all';
+  isInactive?: boolean;
 }
 
 export const Seat: React.FC<SeatProps> = ({
@@ -22,7 +23,8 @@ export const Seat: React.FC<SeatProps> = ({
   onDragEnd,
   draggable,
   simplified = false,
-  showLabels = 'none'
+  showLabels = 'none',
+  isInactive = false
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const { id, x, y, radius, status, locked, opacity, color, row, number } = element;
@@ -34,7 +36,7 @@ export const Seat: React.FC<SeatProps> = ({
     } else if (groupRef.current) {
       groupRef.current.clearCache();
     }
-  }, [isSelected, draggable, status, color, opacity, showLabels]);
+  }, [isSelected, draggable, status, color, opacity, showLabels, isInactive]);
 
   const getStatusColor = () => {
     if (isSelected) return '#3B82F6'; // Brighter Blue for selected
@@ -99,9 +101,9 @@ export const Seat: React.FC<SeatProps> = ({
         width={radius * 2}
         height={radius * 2}
         cornerRadius={radius * 0.4}
-        fill={seatColor}
-        opacity={status === 'occupied' ? 0.4 : opacity}
-        stroke={isSelected ? '#60A5FA' : (status === 'occupied' ? '#0F172A' : '#FFFFFF')}
+        fill={isInactive ? '#334155' : seatColor}
+        opacity={isInactive ? 0.2 : (status === 'occupied' ? 0.4 : opacity)}
+        stroke={isSelected ? '#60A5FA' : (status === 'occupied' ? '#0F172A' : (isInactive ? 'transparent' : '#FFFFFF'))}
         strokeWidth={isSelected ? 1.5 : (status === 'occupied' ? 0.5 : 0.1)}
         shadowBlur={isSelected ? 8 : 0}
         shadowColor="#3B82F6"

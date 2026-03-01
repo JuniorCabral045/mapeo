@@ -100,10 +100,10 @@ export const Toolbar: React.FC = () => {
                 <button
                     onClick={() => setMode('view')}
                     className={`px-6 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all ${
-                        mode === 'view' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'
+                        mode === 'view' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                     }`}
                 >
-                    <Eye size={14} strokeWidth={3} /> Viewer
+                    <Eye size={14} strokeWidth={3} /> Visualizador
                 </button>
             </div>
 
@@ -119,7 +119,7 @@ export const Toolbar: React.FC = () => {
                             useVenueStore.getState().rebuildIndex();
                         }}
                         className="p-2.5 bg-slate-800/50 border border-slate-700/50 hover:border-blue-500/30 hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 rounded-xl transition-all shadow-sm group"
-                        title="Stadium Layout"
+                        title="Plantilla Estadio"
                     >
                         <Trophy size={18} className="group-hover:scale-110 transition-transform" />
                     </button>
@@ -130,7 +130,7 @@ export const Toolbar: React.FC = () => {
                             useVenueStore.getState().rebuildIndex();
                         }}
                         className="p-2.5 bg-slate-800/50 border border-slate-700/50 hover:border-blue-500/30 hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 rounded-xl transition-all shadow-sm group"
-                        title="Theater Layout"
+                        title="Plantilla Teatro"
                     >
                         <Mic2 size={18} className="group-hover:scale-110 transition-transform" />
                     </button>
@@ -141,17 +141,17 @@ export const Toolbar: React.FC = () => {
 
             {/* File Operations */}
             <div className="flex items-center gap-1.5 px-1">
-                <label className="cursor-pointer p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Import JSON">
+                <label className="cursor-pointer p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Importar JSON">
                     <Upload size={18} />
                     <input type="file" className="hidden" accept=".json" onChange={importJSON} />
                 </label>
-                <button onClick={exportJSON} className="p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Export JSON">
+                <button onClick={exportJSON} className="p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Exportar JSON">
                     <Download size={18} />
                 </button>
             </div>
 
             <button className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-md">
-                SAVE PROJECT
+                GUARDAR PROYECTO
             </button>
         </div>
 
@@ -165,7 +165,7 @@ export const Toolbar: React.FC = () => {
                         className={`p-2 rounded-xl transition-all ${
                             currentTool === 'select' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-400 hover:text-white'
                         }`}
-                        title="Select Tool"
+                        title="Herramienta de Selección"
                     >
                         <MousePointer2 size={16} strokeWidth={3}/>
                     </button>
@@ -174,13 +174,13 @@ export const Toolbar: React.FC = () => {
                         className={`p-2 rounded-xl transition-all ${
                             currentTool === 'pan' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-400 hover:text-white'
                         }`}
-                        title="Pan Tool"
+                        title="Herramienta de Mano"
                     >
                         <Hand size={16} strokeWidth={3}/>
                     </button>
-                    <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Rectangle"><Plus size={16} strokeWidth={3}/></button>
-                    <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Circle"><CircleIcon size={16} strokeWidth={3}/></button>
-                    <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Stage"><Flag size={16} strokeWidth={3}/></button>
+                    <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Rectángulo"><Plus size={16} strokeWidth={3}/></button>
+                    <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Círculo"><CircleIcon size={16} strokeWidth={3}/></button>
+                    <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Escenario"><Flag size={16} strokeWidth={3}/></button>
                 </div>
 
                 {/* History Controls */}

@@ -214,6 +214,7 @@ export const VenueCanvas: React.FC = () => {
                 {el.type === 'stage' ? (
                    <RealisticPitch
                      id={id}
+                     name={el.name}
                      x={0} y={0}
                      width={shape.width} height={shape.height}
                      rotation={0}
@@ -240,15 +241,19 @@ export const VenueCanvas: React.FC = () => {
             if (el.type !== 'seat') return null;
             const isSelected = selectedIds.includes(id);
 
+            const section = el.sectionId ? elements[el.sectionId] as ShapeElement : null;
+            const isInactive = section && section.isActive === false;
+
             return (
               <Seat
                 key={id}
                 element={el as any}
                 isSelected={isSelected}
-                draggable={mode === 'edit' && currentTool === 'select'}
+                draggable={mode === 'edit' && currentTool === 'select' && !isInactive}
                 showLabels={showLabels}
+                isInactive={isInactive}
                 onSelect={(e) => {
-                    if (currentTool === 'pan') return;
+                    if (currentTool === 'pan' || (isInactive && mode === 'view')) return;
                     e.cancelBubble = true;
                     if (mode === 'edit') selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
                     else {
