@@ -47,38 +47,14 @@ function App() {
 
       {/* Main CAD Interface */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Venue Tools (Admin Only) */}
-        {mode === 'edit' && (
-            <aside className="w-64 border-r border-slate-800 bg-[#0B1220] flex flex-col shrink-0">
-                <div className="p-4 pt-6">
-                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 px-2">Herramientas</h2>
-                    <div className="space-y-1">
-                        {[
-                            { icon: MapIcon, label: 'Mapa de Asientos', active: true },
-                        ].map(tool => (
-                            <button
-                                key={tool.label}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                                    tool.active ? 'bg-blue-600/10 text-blue-400 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.2)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                                }`}
-                            >
-                                <tool.icon size={16} className={tool.active ? 'text-blue-500' : 'text-slate-500'} />
-                                {tool.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </aside>
-        )}
-
-        <main className="flex-1 relative bg-[#0F172A] touch-none group overflow-hidden">
+        <main className="flex-1 relative bg-[#0F172A] touch-none group">
           {/* Sub-toolbar inside Canvas (Floating) */}
           <Toolbar />
 
           <VenueCanvas />
 
           {/* Canvas HUD Controls */}
-          <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-50">
+          <div className="absolute bottom-12 right-6 flex flex-col gap-3 z-50">
             <div className="bg-[#1E293B]/80 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden flex flex-col p-1">
                 <button onClick={() => handleZoom(1.1)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700/50 transition-all rounded-lg" title="Aumentar Zoom"><Plus size={18} /></button>
                 <div className="h-px bg-slate-700/50 mx-2" />

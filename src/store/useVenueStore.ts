@@ -168,9 +168,12 @@ export const useVenueStore = create<VenueStore>()(
 
     saveHistory: () => {
       set((state) => {
-        const currentElements = JSON.parse(JSON.stringify(state.elements));
+        const snapshot = JSON.parse(JSON.stringify({
+          elements: state.elements,
+          elementIds: state.elementIds
+        }));
         const newHistory = state.history.slice(0, state.historyIndex + 1);
-        newHistory.push(currentElements);
+        newHistory.push(snapshot);
         if (newHistory.length > 50) newHistory.shift();
         return {
           history: newHistory,
@@ -183,9 +186,12 @@ export const useVenueStore = create<VenueStore>()(
       set((state) => {
         if (state.historyIndex <= 0) return state;
         const newIndex = state.historyIndex - 1;
+        const snapshot = JSON.parse(JSON.stringify(state.history[newIndex]));
         return {
-          elements: JSON.parse(JSON.stringify(state.history[newIndex])),
-          historyIndex: newIndex
+          elements: snapshot.elements,
+          elementIds: snapshot.elementIds,
+          historyIndex: newIndex,
+          selectedIds: []
         };
       });
       get().rebuildIndex();
@@ -195,9 +201,12 @@ export const useVenueStore = create<VenueStore>()(
       set((state) => {
         if (state.historyIndex >= state.history.length - 1) return state;
         const newIndex = state.historyIndex + 1;
+        const snapshot = JSON.parse(JSON.stringify(state.history[newIndex]));
         return {
-          elements: JSON.parse(JSON.stringify(state.history[newIndex])),
-          historyIndex: newIndex
+          elements: snapshot.elements,
+          elementIds: snapshot.elementIds,
+          historyIndex: newIndex,
+          selectedIds: []
         };
       });
       get().rebuildIndex();

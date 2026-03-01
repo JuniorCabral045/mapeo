@@ -224,9 +224,9 @@ export const VenueCanvas: React.FC = () => {
                     width={shape.width}
                     height={shape.height}
                     fill={shape.fill || '#3b82f6'}
-                    opacity={0.1}
+                    opacity={0.3}
                     stroke={isSelected ? '#3B82F6' : (shape.fill || '#3b82f6')}
-                    strokeWidth={isSelected ? 2 : 1}
+                    strokeWidth={isSelected ? 3 : 1.5}
                     dash={isSelected ? [] : [10, 5]}
                     cornerRadius={typeof shape.cornerRadius === 'number' ? shape.cornerRadius : 8}
                   />

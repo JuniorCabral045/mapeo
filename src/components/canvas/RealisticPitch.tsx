@@ -36,9 +36,9 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
         y={-height * 0.05}
         width={width * 1.1}
         height={height * 1.1}
-        fill="#1E293B"
-        stroke="#334155"
-        strokeWidth={1}
+        fill="#0f172a"
+        stroke="#1e293b"
+        strokeWidth={2}
         cornerRadius={8}
       />
 
@@ -47,8 +47,8 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
         width={width}
         height={height}
         fill="#1e293b"
-        stroke="#475569"
-        strokeWidth={2}
+        stroke="#334155"
+        strokeWidth={3}
         cornerRadius={4}
       />
 
@@ -91,11 +91,14 @@ export const RealisticPitch: React.FC<RealisticPitchProps> = ({
         y={height / 2 - 10}
         width={width}
         align="center"
-        fontSize={Math.max(12, width * 0.05)}
+        fontSize={Math.max(14, width * 0.06)}
         fontFamily="monospace"
         fontStyle="bold"
-        fill="#94a3b8"
-        opacity={0.8}
+        fill="#f8fafc"
+        shadowColor="black"
+        shadowBlur={10}
+        shadowOpacity={0.5}
+        opacity={1}
         listening={false}
       />
     </Group>

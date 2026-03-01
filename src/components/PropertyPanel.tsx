@@ -112,7 +112,7 @@ export const PropertyPanel: React.FC = () => {
         <span className="text-[10px] font-black text-blue-500/50 uppercase tracking-[0.2em]">Configuración</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin scrollbar-thumb-slate-800 pb-20">
         {/* Basic Info Section */}
         <section>
           <div className="flex items-center gap-2 mb-4 text-white">

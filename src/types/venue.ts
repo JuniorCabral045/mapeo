@@ -76,6 +76,11 @@ export interface SeatState {
 
 export type EditorTool = 'select' | 'pan';
 
+export interface HistorySnapshot {
+  elements: Record<string, VenueElement>;
+  elementIds: string[];
+}
+
 export interface VenueState {
   mode: 'edit' | 'view';
   currentTool: EditorTool;
@@ -90,7 +95,7 @@ export interface VenueState {
   liveState: Record<string, SeatState>;
 
   // History
-  history: Array<Record<string, VenueElement>>;
+  history: Array<HistorySnapshot>;
   historyIndex: number;
 
   // Clipboard
