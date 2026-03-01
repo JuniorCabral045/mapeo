@@ -35,7 +35,7 @@ export const PropertyPanel: React.FC = () => {
   if (mode === 'view') return null;
 
   if (!element) return (
-    <aside className="w-80 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden">
+    <aside className="w-96 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden">
       <div className="p-6 border-b border-slate-800 bg-slate-900/50">
         <h2 className="text-sm font-black text-white tracking-tight uppercase flex items-center gap-2">
             <LayoutGrid size={16} className="text-blue-500" /> Elementos
@@ -101,7 +101,7 @@ export const PropertyPanel: React.FC = () => {
   };
 
   return (
-    <aside className="w-80 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden animate-in slide-in-from-right-10 duration-500">
+    <aside className="w-96 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden animate-in slide-in-from-right-10 duration-500">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
         <button
             onClick={() => useVenueStore.getState().selectElements([])}
