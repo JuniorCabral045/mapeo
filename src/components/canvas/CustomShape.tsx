@@ -74,20 +74,6 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
             />
           )}
 
-          {/* Subtle Inner Bevel for Stages */}
-          {element.type === 'stage' && (
-            <Rect
-              x={4}
-              y={4}
-              width={width - 8}
-              height={height - 8}
-              stroke="white"
-              strokeWidth={1}
-              opacity={0.1}
-              listening={false}
-              cornerRadius={typeof cornerRadius === 'number' ? Math.max(0, cornerRadius - 4) : 0}
-            />
-          )}
         </Group>
       );
     }
