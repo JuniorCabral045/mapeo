@@ -43,10 +43,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
   const renderShape = () => {
     const commonProps = {
       id,
-      fill: isActive ? fill : '#e2e8f0',
-      stroke: isSelected ? '#3b82f6' : (stroke || 'transparent'),
-      strokeWidth: isSelected ? Math.max(1, strokeWidth || 0) : (strokeWidth || 0),
-      opacity: isActive ? opacity : 0.6,
+      fill: isActive ? (element.type === 'stage' ? '#1e293b' : fill) : '#334155',
       onClick: onSelect,
       onTap: onSelect,
     };
@@ -56,13 +53,24 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
         <Group>
           {/* Main Shape */}
           {typeof cornerRadius === 'object' ? (
-            <Path {...commonProps} data={createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius)} />
+            <Path
+              {...commonProps}
+              data={createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius)}
+              stroke={isSelected ? '#3B82F6' : (stroke || (isActive ? fill : '#94a3b8'))}
+              strokeWidth={isSelected ? 3 : 1.5}
+              dash={isSelected ? [] : [10, 5]}
+              opacity={isActive ? 0.3 : 0.1}
+            />
           ) : (
             <Rect
               {...commonProps}
               width={width}
               height={height}
               cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
+              stroke={isSelected ? '#3B82F6' : (stroke || (isActive ? fill : '#94a3b8'))}
+              strokeWidth={isSelected ? 3 : 1.5}
+              dash={isSelected ? [] : [10, 5]}
+              opacity={isActive ? 0.3 : 0.1}
             />
           )}
 

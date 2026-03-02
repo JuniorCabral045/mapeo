@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export const PropertyPanel: React.FC = () => {
-  const { elements, selectedIds, updateElement, addElement, saveHistory } = useVenueStore();
+  const { elements, elementIds, selectedIds, updateElement, addElement, saveHistory, selectElements } = useVenueStore();
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const element = selectedId ? elements[selectedId] : null;
 
@@ -40,11 +40,11 @@ export const PropertyPanel: React.FC = () => {
         <h2 className="text-sm font-black text-white tracking-tight uppercase flex items-center gap-2">
             <LayoutGrid size={16} className="text-blue-500" /> Elementos
         </h2>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Total {useVenueStore.getState().elementIds.length} Capas</p>
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Total {elementIds.length} Capas</p>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
-        {useVenueStore.getState().elementIds.map(id => {
-            const el = useVenueStore.getState().elements[id];
+        {elementIds.map(id => {
+            const el = elements[id];
             if (!el || el.parentId) return null;
             const isSelected = selectedIds.includes(id);
             return (
@@ -52,9 +52,9 @@ export const PropertyPanel: React.FC = () => {
                     key={id}
                     onClick={(e) => {
                         if (e.shiftKey) {
-                            useVenueStore.getState().selectElements([...selectedIds, id]);
+                            selectElements([...selectedIds, id]);
                         } else {
-                            useVenueStore.getState().selectElements([id]);
+                            selectElements([id]);
                         }
                     }}
                     className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
@@ -76,7 +76,7 @@ export const PropertyPanel: React.FC = () => {
                 </div>
             );
         })}
-        {useVenueStore.getState().elementIds.length === 0 && (
+        {elementIds.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center opacity-20 grayscale">
                 <LayoutGrid size={48} className="mb-4" />
                 <p className="text-xs font-black uppercase tracking-widest">Lienzo Vacío</p>
@@ -104,7 +104,7 @@ export const PropertyPanel: React.FC = () => {
     <aside className="w-96 border-l border-slate-800 bg-[#0B1220] flex flex-col shrink-0 font-sans shadow-2xl overflow-hidden animate-in slide-in-from-right-10 duration-500">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
         <button
-            onClick={() => useVenueStore.getState().selectElements([])}
+            onClick={() => selectElements([])}
             className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-widest hover:text-blue-400 transition-colors"
         >
             <ChevronLeft size={16} /> Todas las Capas
@@ -195,9 +195,9 @@ export const PropertyPanel: React.FC = () => {
               <div className="pt-2">
                 <button
                 onClick={() => {
-                    const currentIds = useVenueStore.getState().elementIds;
+                    const currentIds = elementIds;
                     const seatsToRemove = currentIds.filter(id => {
-                        const el = useVenueStore.getState().elements[id];
+                        const el = elements[id];
                         return el.type === 'seat' && (el as any).sectionId === element.id;
                     });
                     if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
@@ -212,8 +212,7 @@ export const PropertyPanel: React.FC = () => {
                         seatRadius: genSeatRadius, startRow: 'A', startNum: 1,
                         innerRadius: arcRadius, startAngle: 180 - (arcAngle/2), endAngle: 180 + (arcAngle/2)
                     });
-                    seats.forEach(s => addElement(s));
-                    saveHistory();
+                    useVenueStore.getState().addElements(seats);
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-2xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 group"
                 >

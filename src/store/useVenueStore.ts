@@ -14,6 +14,7 @@ import { InternalBBox } from '../utils/snapping';
 interface VenueStore extends VenueState {
   // Actions
   addElement: (element: VenueElement) => void;
+  addElements: (elements: VenueElement[]) => void;
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
   moveElements: (ids: string[], dx: number, dy: number) => void;
   deleteElements: (ids: string[]) => void;
@@ -94,6 +95,22 @@ export const useVenueStore = create<VenueStore>()(
       get().saveHistory();
     },
 
+    addElements: (newElementsArray) => {
+      set((state) => {
+        const nextElements = { ...state.elements };
+        const nextIds = [...state.elementIds];
+        newElementsArray.forEach(el => {
+          nextElements[el.id] = el;
+          if (!state.elementIds.includes(el.id)) {
+            nextIds.push(el.id);
+          }
+        });
+        return { elements: nextElements, elementIds: nextIds };
+      });
+      get().rebuildIndex();
+      get().saveHistory();
+    },
+
     updateElement: (id, updates) => {
       set((state) => {
         const element = state.elements[id];
@@ -103,6 +120,11 @@ export const useVenueStore = create<VenueStore>()(
           elements: { ...state.elements, [id]: updated }
         };
       });
+
+      // If position/size changed, rebuild index
+      if ('x' in updates || 'y' in updates || 'width' in updates || 'height' in updates || 'radius' in updates) {
+        get().rebuildIndex();
+      }
     },
 
     moveElements: (ids, dx, dy) => {

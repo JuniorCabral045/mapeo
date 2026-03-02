@@ -55,6 +55,7 @@ export const Toolbar: React.FC = () => {
       cornerRadius: 0,
       radius: type === 'circle' ? 100 : undefined
     });
+    useVenueStore.getState().selectElements([id]);
   };
 
   const exportJSON = () => {
@@ -115,8 +116,7 @@ export const Toolbar: React.FC = () => {
                     <button
                         onClick={() => {
                             const tmpl = stadiumTemplate();
-                            Object.values(tmpl).forEach(el => addElement(el));
-                            useVenueStore.getState().rebuildIndex();
+                            useVenueStore.getState().addElements(Object.values(tmpl));
                         }}
                         className="p-2.5 bg-slate-800/50 border border-slate-700/50 hover:border-blue-500/30 hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 rounded-xl transition-all shadow-sm group"
                         title="Plantilla Estadio"
@@ -126,8 +126,7 @@ export const Toolbar: React.FC = () => {
                     <button
                         onClick={() => {
                             const tmpl = theaterTemplate();
-                            Object.values(tmpl).forEach(el => addElement(el));
-                            useVenueStore.getState().rebuildIndex();
+                            useVenueStore.getState().addElements(Object.values(tmpl));
                         }}
                         className="p-2.5 bg-slate-800/50 border border-slate-700/50 hover:border-blue-500/30 hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 rounded-xl transition-all shadow-sm group"
                         title="Plantilla Teatro"

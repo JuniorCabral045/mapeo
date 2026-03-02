@@ -3,10 +3,10 @@ import { Toolbar } from './components/Toolbar';
 import { VenueCanvas } from './components/canvas/VenueCanvas';
 import { PropertyPanel } from './components/PropertyPanel';
 import { useVenueStore } from './store/useVenueStore';
-import { Plus, Minus, Maximize, ShoppingBag, Map as MapIcon } from 'lucide-react';
+import { Plus, Minus, Maximize, ShoppingBag, Map as MapIcon, Circle as CircleIcon, Flag, Square } from 'lucide-react';
 
 function App() {
-  const { selectedIds, mode, viewState, setViewState, elements } = useVenueStore();
+  const { selectedIds, mode, viewState, setViewState, elements, elementIds, selectElements } = useVenueStore();
 
   const handleZoom = (delta: number) => {
     setViewState({ scale: Math.max(0.05, Math.min(5, viewState.scale * delta)) });
@@ -47,6 +47,52 @@ function App() {
 
       {/* Main CAD Interface */}
       <div className="flex flex-1 overflow-hidden">
+        {/* Left Layer List */}
+        {mode === 'edit' && (
+            <aside className="w-72 border-r border-slate-800 bg-[#0B1220] flex flex-col shrink-0">
+                <div className="p-6 border-b border-slate-800 bg-slate-900/50">
+                    <h2 className="text-sm font-black text-white tracking-tight uppercase flex items-center gap-2">
+                        <MapIcon size={16} className="text-blue-500" /> Capas del Recinto
+                    </h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Total {elementIds.length} Capas</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
+                    {elementIds.map(id => {
+                        const el = elements[id];
+                        if (!el || el.parentId) return null;
+                        const isSelected = selectedIds.includes(id);
+                        return (
+                            <div
+                                key={id}
+                                onClick={(e) => {
+                                    if (e.shiftKey) {
+                                        selectElements([...selectedIds, id]);
+                                    } else {
+                                        selectElements([id]);
+                                    }
+                                }}
+                                className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
+                                    isSelected
+                                    ? 'bg-blue-600/10 border-blue-500/30 text-blue-400 shadow-lg shadow-blue-900/20 translate-x-1'
+                                    : 'border-transparent bg-slate-800/20 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                }`}
+                            >
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                                    isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'
+                                }`}>
+                                    {el.type === 'seat' ? <CircleIcon size={12} strokeWidth={3} /> : el.type === 'stage' ? <Flag size={12} strokeWidth={3} /> : <Square size={12} strokeWidth={3} />}
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                    <span className="text-xs font-black truncate">{el.name}</span>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase">{el.type === 'seat' ? 'asiento' : el.type === 'stage' ? 'escenario' : 'sector'}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </aside>
+        )}
+
         <main className="flex-1 relative bg-[#0F172A] touch-none group">
           {/* Sub-toolbar inside Canvas (Floating) */}
           <Toolbar />

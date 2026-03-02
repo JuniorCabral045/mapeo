@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Stage, Layer, Rect, Group, Transformer, Circle } from 'react-konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
-import { RealisticPitch } from './RealisticPitch';
+import { CustomShape } from './CustomShape';
 import { snapToGrid } from '../../utils/snapping';
 import Konva from 'konva';
 import { ShapeElement } from '../../types/venue';
@@ -17,11 +17,28 @@ export const VenueCanvas: React.FC = () => {
 
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 1000, height: 800 });
 
   // Selection Logic (Marquee)
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
 
   // Update Transformer Selection
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight
+        });
+      }
+    };
+
+    window.addEventListener('resize', updateSize);
+    updateSize();
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
   useEffect(() => {
     if (transformerRef.current) {
         const nodes = selectedIds
@@ -148,10 +165,10 @@ export const VenueCanvas: React.FC = () => {
   const cursorClass = currentTool === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair';
 
   return (
-    <div className={`w-full h-full bg-[#0B0F19] overflow-hidden ${cursorClass}`}>
+    <div ref={containerRef} className={`w-full h-full bg-[#0B0F19] overflow-hidden ${cursorClass}`}>
       <Stage
-        width={window.innerWidth}
-        height={window.innerHeight}
+        width={dimensions.width}
+        height={dimensions.height}
         scaleX={viewState.scale}
         scaleY={viewState.scale}
         x={viewState.x}
@@ -186,14 +203,12 @@ export const VenueCanvas: React.FC = () => {
             const isSelected = selectedIds.includes(id);
 
             return (
-              <Group
+              <CustomShape
                 key={id}
-                id={id}
-                x={el.x}
-                y={el.y}
-                rotation={el.rotation}
-                draggable={mode === 'edit' && currentTool === 'select' && !el.locked}
-                onClick={(e) => {
+                element={shape}
+                isSelected={isSelected}
+                draggable={mode === 'edit' && currentTool === 'select'}
+                onSelect={(e) => {
                     if (currentTool === 'pan') return;
                     e.cancelBubble = true;
                     if (mode === 'edit') selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
@@ -209,29 +224,22 @@ export const VenueCanvas: React.FC = () => {
                     updateElement(id, { x: e.target.x(), y: e.target.y() });
                     useVenueStore.getState().saveHistory();
                 }}
-                opacity={shape.isActive ? el.opacity : el.opacity * 0.3}
-              >
-                {el.type === 'stage' ? (
-                   <RealisticPitch
-                     id={id}
-                     name={el.name}
-                     x={0} y={0}
-                     width={shape.width} height={shape.height}
-                     rotation={0}
-                   />
-                ) : (
-                  <Rect
-                    width={shape.width}
-                    height={shape.height}
-                    fill={shape.fill || '#3b82f6'}
-                    opacity={0.3}
-                    stroke={isSelected ? '#3B82F6' : (shape.fill || '#3b82f6')}
-                    strokeWidth={isSelected ? 3 : 1.5}
-                    dash={isSelected ? [] : [10, 5]}
-                    cornerRadius={typeof shape.cornerRadius === 'number' ? shape.cornerRadius : 8}
-                  />
-                )}
-              </Group>
+                onTransformEnd={(e) => {
+                    const node = e.target;
+                    const scaleX = node.scaleX();
+                    const scaleY = node.scaleY();
+                    node.scaleX(1);
+                    node.scaleY(1);
+                    updateElement(id, {
+                        x: node.x(),
+                        y: node.y(),
+                        width: Math.max(5, node.width() * scaleX),
+                        height: Math.max(5, node.height() * scaleY),
+                        rotation: node.rotation()
+                    });
+                    useVenueStore.getState().saveHistory();
+                }}
+              />
             );
           })}
 

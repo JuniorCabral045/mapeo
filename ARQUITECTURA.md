@@ -24,6 +24,10 @@ interface BaseElement {
 
 ## 🛠️ Sistemas Implementados
 
+### 0. Layout Responsive (CAD Layout)
+- El entorno de trabajo se adapta automáticamente al tamaño del contenedor mediante un `ResizeObserver` integrado en `VenueCanvas`.
+- Estructura de tres paneles: Listado de Capas (Izquierda), Canvas (Centro), Panel de Propiedades (Derecha).
+
 ### 1. Motor de Snapping Inteligente
 Utiliza una estructura R-Tree (RBush) para encontrar elementos cercanos en microsegundos.
 - **Snap a Grilla**: Redondeo dinámico basado en configuración.
@@ -31,8 +35,9 @@ Utiliza una estructura R-Tree (RBush) para encontrar elementos cercanos en micro
 - **Guías Visuales**: Líneas dinámicas que aparecen al detectar una alineación.
 
 ### 2. Formas Personalizadas y Border Radius
-Para superar la limitación de Konva de un solo valor de radio, se utiliza `SVG Path commands`.
-- Soporte para `topLeft`, `topRight`, `bottomLeft`, `bottomRight` independientes.
+Para superar la limitación de Konva de un solo valor de radio, se utiliza el componente `CustomShape` basado en `SVG Path commands`.
+- Soporte para `topLeft`, `topRight`, `bottomLeft`, `bottomRight` independientes mediante `createRoundedRectPath`.
+- Integración nativa con el motor de transformaciones de Konva para redimensionado preciso.
 - Permite crear formas complejas como escenarios en arco o secciones irregulares.
 
 ### 3. Engine de Generación de Asientos
@@ -40,7 +45,7 @@ Para superar la limitación de Konva de un solo valor de radio, se utiliza `SVG 
 - **Layout en Arco**: Distribución radial para teatros y estadios circulares/ovalados.
 
 ### 4. Gestión de Estado y UX
-- **Undo/Redo**: Stack de historia con persistencia de estado completo.
+- **Undo/Redo**: Sistema robusto de snapshots que sincroniza el estado de los elementos y su orden de apilado (z-index), evitando desincronización de IDs.
 - **Clipboard**: Sistema de copiar/pegar con soporte para offsets estilo Figma.
 - **Multi-selección**: Selección mediante caja (marquee) y Shift+Click.
 
