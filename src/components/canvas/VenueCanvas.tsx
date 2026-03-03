@@ -1,18 +1,18 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { Stage, Layer, Rect, Group, Transformer, Circle } from 'react-konva';
+import { Stage, Layer, Rect, Group, Transformer } from 'react-konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
 import { snapToGrid } from '../../utils/snapping';
 import Konva from 'konva';
-import { ShapeElement } from '../../types/venue';
+import { ShapeElement, Seat as SeatType } from '../../types/venue';
 
 export const VenueCanvas: React.FC = () => {
   const { 
     elements, elementIds, selectedIds, 
     viewState, setViewState, 
     gridConfig, mode, currentTool,
-    moveElements, selectElements, updateElement
+    selectElements, updateElement
   } = useVenueStore();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -49,7 +49,7 @@ export const VenueCanvas: React.FC = () => {
     }
   }, [selectedIds]);
 
-  const handleWheel = (e: any) => {
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
@@ -73,30 +73,35 @@ export const VenueCanvas: React.FC = () => {
     });
   };
 
-  const handleMouseDown = (e: any) => {
+  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (currentTool === 'pan') return;
     
     if (e.target === e.target.getStage()) {
       const stage = e.target.getStage();
+      if (!stage) return;
       const pos = stage.getPointerPosition();
+      if (!pos) return;
       setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
       selectElements([]);
     }
   };
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (currentTool === 'pan') return;
 
     if (selectionBox) {
       const stage = e.target.getStage();
+      if (!stage) return;
       const pos = stage.getPointerPosition();
+      if (!pos) return;
       setSelectionBox({ ...selectionBox, x2: pos.x, y2: pos.y });
     }
   };
 
-  const handleMouseUp = (e: any) => {
+  const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (selectionBox) {
       const stage = e.target.getStage();
+      if (!stage) return;
       const box = {
         x: Math.min(selectionBox.x1, selectionBox.x2),
         y: Math.min(selectionBox.y1, selectionBox.y2),
@@ -250,12 +255,12 @@ export const VenueCanvas: React.FC = () => {
             const isSelected = selectedIds.includes(id);
 
             const section = el.sectionId ? elements[el.sectionId] as ShapeElement : null;
-            const isInactive = section && section.isActive === false;
+            const isInactive = section ? !section.isActive : false;
 
             return (
               <Seat
                 key={id}
-                element={el as any}
+                element={el as SeatType}
                 isSelected={isSelected}
                 draggable={mode === 'edit' && currentTool === 'select' && !isInactive}
                 showLabels={showLabels}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useVenueStore } from '../store/useVenueStore';
-import { CornerRadius, ShapeElement, VenueElement } from '../types/venue';
+import { ShapeElement, VenueElement, Seat } from '../types/venue';
 import { generateRectLayout, generateArcLayout } from '../utils/layout';
 import { 
   Circle as CircleIcon, 
@@ -10,17 +10,14 @@ import {
   Lock, 
   LayoutGrid, 
   Sliders, 
-  Type, 
   Palette,
-  Layout,
   MousePointer2,
   Settings2,
-  DollarSign,
   Maximize2
 } from 'lucide-react';
 
 export const PropertyPanel: React.FC = () => {
-  const { elements, elementIds, selectedIds, updateElement, addElement, saveHistory, selectElements } = useVenueStore();
+  const { elements, elementIds, selectedIds, updateElement, selectElements } = useVenueStore();
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const element = selectedId ? elements[selectedId] : null;
 
@@ -88,16 +85,6 @@ export const PropertyPanel: React.FC = () => {
 
   const handleUpdate = (updates: Partial<VenueElement>) => {
     if (selectedId) updateElement(selectedId, updates);
-  };
-
-  const handleCornerRadius = (corner: keyof CornerRadius, value: number) => {
-    const shape = element as ShapeElement;
-    const current = shape.cornerRadius || { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
-    const next = typeof current === 'number' 
-        ? { topLeft: current, topRight: current, bottomLeft: current, bottomRight: current }
-        : { ...current };
-    (next as any)[corner] = value;
-    handleUpdate({ cornerRadius: next } as Partial<ShapeElement>);
   };
 
   return (
@@ -195,10 +182,9 @@ export const PropertyPanel: React.FC = () => {
               <div className="pt-2">
                 <button 
                 onClick={() => {
-                    const currentIds = elementIds;
-                    const seatsToRemove = currentIds.filter(id => {
+                    const seatsToRemove = elementIds.filter(id => {
                         const el = elements[id];
-                        return el.type === 'seat' && (el as any).sectionId === element.id;
+                        return el.type === 'seat' && (el as Seat).sectionId === element.id;
                     });
                     if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
 
@@ -235,7 +221,7 @@ export const PropertyPanel: React.FC = () => {
                     <span className="text-[10px] font-black uppercase text-slate-500">Color del Elemento</span>
                     <input 
                         type="color" 
-                        value={(element as any).fill || '#2DD4BF'} 
+                        value={(element as ShapeElement).fill || '#2DD4BF'} 
                         onChange={(e) => handleUpdate({ fill: e.target.value })}
                         className="w-10 h-6 border-none p-0 cursor-pointer bg-transparent rounded overflow-hidden"
                     />
@@ -253,8 +239,8 @@ export const PropertyPanel: React.FC = () => {
             {[
                 { label: 'POS X', value: element.x, key: 'x' },
                 { label: 'POS Y', value: element.y, key: 'y' },
-                { label: 'ANCHO', value: (element as any).width, key: 'width' },
-                { label: 'ALTO', value: (element as any).height, key: 'height' },
+                { label: 'ANCHO', value: (element as ShapeElement).width, key: 'width' },
+                { label: 'ALTO', value: (element as ShapeElement).height, key: 'height' },
             ].map(prop => prop.value !== undefined && (
                 <div key={prop.key} className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{prop.label}</label>

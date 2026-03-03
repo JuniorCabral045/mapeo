@@ -1,7 +1,5 @@
-import { VenueElement, Seat } from '../types/venue';
+import { VenueElement, ShapeElement } from '../types/venue';
 import { generateRectLayout } from './layout';
-
-const DEFAULT_SEAT_RADIUS = 3.5;
 
 export const stadiumTemplate = (): Record<string, VenueElement> => {
   const elements: Record<string, VenueElement> = {};
@@ -41,7 +39,7 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
 
   sectores.forEach((t, i) => {
     const sectionId = `section-tribuna-${i}-${Date.now()}`;
-    const section: any = {
+    const section: ShapeElement = {
       id: sectionId,
       type: 'section',
       name: t.name,
@@ -57,7 +55,7 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
       fill: t.color,
       isActive: true,
       sectionType: 'rectangle',
-      cornerRadius: t.radius as any
+      cornerRadius: t.radius
     };
     elements[sectionId] = section;
 
@@ -114,7 +112,7 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
 
   sectores.forEach((p, i) => {
     const sectionId = `section-platea-${i}-${Date.now()}`;
-    const section: any = {
+    const section: ShapeElement = {
       id: sectionId,
       type: 'section',
       name: p.name,

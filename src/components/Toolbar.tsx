@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  Square, 
   Circle as CircleIcon, 
   Flag, 
   Undo2, 
@@ -9,7 +8,6 @@ import {
   ClipboardPaste, 
   Trash2,
   Group as GroupIcon,
-  Ungroup,
   Eye,
   PenLine,
   Download,

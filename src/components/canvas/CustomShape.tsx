@@ -2,14 +2,15 @@ import React from 'react';
 import { Path, Group, Rect, Circle, Text } from 'react-konva';
 import { ShapeElement, CornerRadius } from '../../types/venue';
 import { createRoundedRectPath } from '../../utils/geometry';
+import Konva from 'konva';
 
 interface CustomShapeProps {
   element: ShapeElement;
   isSelected: boolean;
-  onSelect: (e: any) => void;
-  onDragMove?: (e: any) => void;
-  onDragEnd: (e: any) => void;
-  onTransformEnd: (e: any) => void;
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void;
   draggable: boolean;
 }
 
@@ -31,9 +32,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
     rotation,
     fill,
     stroke,
-    strokeWidth,
     cornerRadius,
-    opacity,
     sectionType,
     radius,
     name,
@@ -66,7 +65,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
               {...commonProps}
               width={width}
               height={height}
-              cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
+              cornerRadius={0}
               stroke={isSelected ? '#3B82F6' : (stroke || (isActive ? fill : '#94a3b8'))}
               strokeWidth={isSelected ? 3 : 1.5}
               dash={isSelected ? [] : [10, 5]}

@@ -1,12 +1,12 @@
-import React from 'react';
 import { Toolbar } from './components/Toolbar';
 import { VenueCanvas } from './components/canvas/VenueCanvas';
 import { PropertyPanel } from './components/PropertyPanel';
 import { useVenueStore } from './store/useVenueStore';
-import { Plus, Minus, Maximize, ShoppingBag, Map as MapIcon, Circle as CircleIcon, Flag, Square } from 'lucide-react';
+import { Plus, Minus, Maximize, ShoppingBag, Map as MapIcon } from 'lucide-react';
+import { Seat } from './types/venue';
 
 function App() {
-  const { selectedIds, mode, viewState, setViewState, elements, elementIds, selectElements } = useVenueStore();
+  const { selectedIds, mode, viewState, setViewState, elements } = useVenueStore();
   
   const handleZoom = (delta: number) => {
     setViewState({ scale: Math.max(0.05, Math.min(5, viewState.scale * delta)) });
@@ -116,11 +116,11 @@ function App() {
                                 <div key={id} className="bg-slate-800/50 border border-slate-700/30 p-3 rounded-2xl flex items-center justify-between group hover:border-blue-500/30 transition-all">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-lg bg-[#2DD4BF]/20 flex items-center justify-center text-[#2DD4BF] text-[10px] font-black">
-                                            {el?.type === 'seat' ? (el as any).number : '?'}
+                                            {el?.type === 'seat' ? (el as Seat).number : '?'}
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-black text-white">Fila {(el as any).row}</span>
-                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Sector: {elements[(el as any).sectionId]?.name || 'General'}</span>
+                                            <span className="text-xs font-black text-white">Fila {(el as Seat).row}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold uppercase">Sector: {elements[(el as Seat).sectionId || '']?.name || 'General'}</span>
                                         </div>
                                     </div>
                                 </div>

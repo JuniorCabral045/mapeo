@@ -6,9 +6,9 @@ import Konva from 'konva';
 interface SeatProps {
   element: SeatType;
   isSelected: boolean;
-  onSelect: (e: any) => void;
-  onDragMove?: (e: any) => void;
-  onDragEnd: (e: any) => void;
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   draggable: boolean;
   simplified?: boolean;
   showLabels?: 'none' | 'row' | 'all';
@@ -27,7 +27,7 @@ export const Seat: React.FC<SeatProps> = ({
   isInactive = false
 }) => {
   const groupRef = useRef<Konva.Group>(null);
-  const { id, x, y, radius, status, locked, opacity, color, row, number } = element;
+  const { id, x, y, radius, status, locked, opacity, color, number } = element;
 
   useEffect(() => {
     // We only cache if it's not being interacted with or selected
