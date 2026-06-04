@@ -1,25 +1,29 @@
 export const THEME = {
   colors: {
-    background: '#0F172A', // Deep Navy
-    surface: '#1E293B',    // Slate Blue (Panels)
-    surfaceLight: '#334155', // Lighter panels/hover
-    border: '#334155',
+    background: '#F8FAFC', // Light Slate (Light Mode)
+    surface: '#FFFFFF',    // White
+    surfaceLight: '#F1F5F9', // Light Gray hover
+    border: '#E2E8F0',
     text: {
-      primary: '#F8FAFC',
-      secondary: '#94A3B8',
-      muted: '#64748B',
+      primary: '#0F172A', // Dark Navy
+      secondary: '#64748B', // Slate
+      muted: '#94A3B8',
+    },
+    point: {
+      orange: '#FF6B00', // Stadium Orange
+      lila: '#8A5CF5',   // Tech Lila
     },
     accent: {
-      primary: '#3B82F6', // Bright Blue
-      secondary: '#2DD4BF', // Teal
+      primary: '#FF6B00', // Using Orange as primary
+      secondary: '#8A5CF5', // Using Lila as secondary
       danger: '#EF4444',
       warning: '#F59E0B',
     },
     status: {
       available: '#2DD4BF', // Teal
-      selected: '#3B82F6',  // Blue
-      occupied: '#334155',  // Dark Slate
-      blocked: '#475569',   // Slate
+      selected: '#FF6B00',  // Point Orange
+      occupied: '#CBD5E1',  // Light Gray
+      blocked: '#94A3B8',   // Slate
       reserved: '#F59E0B',  // Amber
     }
   },

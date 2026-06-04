@@ -135,8 +135,8 @@ export const VenueCanvas: React.FC = () => {
                 key={`v-${i}`}
                 x={i * size} y={0}
                 width={0.5} height={height}
-                fill={i % 5 === 0 ? "#1E293B" : "#0F172A"}
-                opacity={0.3}
+                fill={i % 5 === 0 ? "#CBD5E1" : "#E2E8F0"}
+                opacity={0.4}
                 listening={false}
             />
         );
@@ -147,8 +147,8 @@ export const VenueCanvas: React.FC = () => {
                 key={`h-${j}`}
                 x={0} y={j * size}
                 width={width} height={0.5}
-                fill={j % 5 === 0 ? "#1E293B" : "#0F172A"}
-                opacity={0.3}
+                fill={j % 5 === 0 ? "#CBD5E1" : "#E2E8F0"}
+                opacity={0.4}
                 listening={false}
             />
         );
@@ -165,7 +165,7 @@ export const VenueCanvas: React.FC = () => {
   const cursorClass = currentTool === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair';
 
   return (
-    <div ref={containerRef} className={`w-full h-full bg-[#0B0F19] overflow-hidden ${cursorClass}`}>
+    <div ref={containerRef} className={`w-full h-full bg-slate-50 overflow-hidden ${cursorClass}`}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -190,7 +190,7 @@ export const VenueCanvas: React.FC = () => {
           <Rect
             x={-2500} y={-2500}
             width={10000} height={10000}
-            fill="#0B0F19"
+            fill="#F8FAFC"
             listening={false}
           />
           {Grid}
@@ -294,8 +294,8 @@ export const VenueCanvas: React.FC = () => {
               y={Math.min(selectionBox.y1, selectionBox.y2) / viewState.scale - viewState.y / viewState.scale}
               width={Math.abs(selectionBox.x1 - selectionBox.x2) / viewState.scale}
               height={Math.abs(selectionBox.y1 - selectionBox.y2) / viewState.scale}
-              fill="rgba(59, 130, 246, 0.05)"
-              stroke="#3B82F6"
+              fill="rgba(255, 107, 0, 0.05)"
+              stroke="#FF6B00"
               strokeWidth={1 / viewState.scale}
               dash={[5, 3]}
             />
@@ -311,10 +311,10 @@ export const VenueCanvas: React.FC = () => {
                     if (newBox.width < 10 || newBox.height < 10) return oldBox;
                     return newBox;
                 }}
-                anchorFill="#3B82F6"
+                anchorFill="#FF6B00"
                 anchorStroke="#FFFFFF"
-                anchorCornerRadius={3}
-                borderStroke="#3B82F6"
+                anchorCornerRadius={4}
+                borderStroke="#FF6B00"
               />
           )}
         </Layer>

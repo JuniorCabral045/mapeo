@@ -43,7 +43,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
   const renderShape = () => {
     const commonProps = {
       id,
-      fill: isActive ? (element.type === 'stage' ? '#1e293b' : fill) : '#334155',
+      fill: isActive ? (element.type === 'stage' ? '#8A5CF5' : fill) : '#E2E8F0',
       onClick: onSelect,
       onTap: onSelect,
     };
@@ -56,10 +56,10 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
             <Path
               {...commonProps}
               data={createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius)}
-              stroke={isSelected ? '#3B82F6' : (stroke || (isActive ? fill : '#94a3b8'))}
+              stroke={isSelected ? '#FF6B00' : (stroke || (isActive ? fill : '#CBD5E1'))}
               strokeWidth={isSelected ? 3 : 1.5}
-              dash={isSelected ? [] : [10, 5]}
-              opacity={isActive ? 0.3 : 0.1}
+              dash={isSelected ? [] : [8, 4]}
+              opacity={isActive ? 0.4 : 0.2}
             />
           ) : (
             <Rect
@@ -67,10 +67,10 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
               width={width}
               height={height}
               cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
-              stroke={isSelected ? '#3B82F6' : (stroke || (isActive ? fill : '#94a3b8'))}
+              stroke={isSelected ? '#FF6B00' : (stroke || (isActive ? fill : '#CBD5E1'))}
               strokeWidth={isSelected ? 3 : 1.5}
-              dash={isSelected ? [] : [10, 5]}
-              opacity={isActive ? 0.3 : 0.1}
+              dash={isSelected ? [] : [8, 4]}
+              opacity={isActive ? 0.4 : 0.2}
             />
           )}
 
@@ -111,8 +111,8 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
           fill="white"
           fontStyle="bold"
           listening={false}
-          fontSize={Math.max(10, Math.min(width, height) / 6)}
-          opacity={0.9}
+          fontSize={Math.max(10, Math.min(width, height) / 8)}
+          opacity={isActive ? 1 : 0.5}
         />
       )}
     </Group>

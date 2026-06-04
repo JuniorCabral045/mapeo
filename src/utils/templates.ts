@@ -25,7 +25,7 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
     locked: true,
     opacity: 1,
     zIndex: 1,
-    fill: '#1e293b',
+    fill: '#8A5CF5',
     isActive: true,
     sectionType: 'rectangle',
     cornerRadius: 8
@@ -33,10 +33,10 @@ export const stadiumTemplate = (): Record<string, VenueElement> => {
 
   // Sectores (Tribunas)
   const sectores = [
-    { name: 'Sector Norte', x: centerX - 200, y: centerY - 260, w: 400, h: 120, color: '#3b82f6', radius: { topLeft: 20, topRight: 20, bottomLeft: 0, bottomRight: 0 } },
-    { name: 'Sector Sur', x: centerX - 200, y: centerY + 140, w: 400, h: 120, color: '#3b82f6', radius: { topLeft: 0, topRight: 0, bottomLeft: 20, bottomRight: 20 } },
-    { name: 'Sector Este', x: centerX + 220, y: centerY - 125, w: 150, h: 250, color: '#2563eb', radius: { topLeft: 0, topRight: 20, bottomLeft: 0, bottomRight: 20 } },
-    { name: 'Sector Oeste', x: centerX - 370, y: centerY - 125, w: 150, h: 250, color: '#2563eb', radius: { topLeft: 20, topRight: 0, bottomLeft: 20, bottomRight: 0 } },
+    { name: 'Sector Norte', x: centerX - 200, y: centerY - 260, w: 400, h: 120, color: '#FF6B00', radius: { topLeft: 20, topRight: 20, bottomLeft: 0, bottomRight: 0 } },
+    { name: 'Sector Sur', x: centerX - 200, y: centerY + 140, w: 400, h: 120, color: '#FF6B00', radius: { topLeft: 0, topRight: 0, bottomLeft: 20, bottomRight: 20 } },
+    { name: 'Sector Este', x: centerX + 220, y: centerY - 125, w: 150, h: 250, color: '#FF6B00', radius: { topLeft: 0, topRight: 20, bottomLeft: 0, bottomRight: 20 } },
+    { name: 'Sector Oeste', x: centerX - 370, y: centerY - 125, w: 150, h: 250, color: '#FF6B00', radius: { topLeft: 20, topRight: 0, bottomLeft: 20, bottomRight: 0 } },
   ];
 
   sectores.forEach((t, i) => {
@@ -108,8 +108,8 @@ export const theaterTemplate = (): Record<string, VenueElement> => {
 
   // Sectores (Plateas)
   const sectores = [
-    { name: 'Sector VIP', x: centerX - 250, y: startY + 180, w: 500, h: 120, color: '#9333ea' },
-    { name: 'Sector General', x: centerX - 300, y: startY + 320, w: 600, h: 150, color: '#3b82f6' },
+    { name: 'Sector VIP', x: centerX - 250, y: startY + 180, w: 500, h: 120, color: '#8A5CF5' },
+    { name: 'Sector General', x: centerX - 300, y: startY + 320, w: 600, h: 150, color: '#FF6B00' },
   ];
 
   sectores.forEach((p, i) => {

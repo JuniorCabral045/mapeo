@@ -39,14 +39,14 @@ export const Seat: React.FC<SeatProps> = ({
   }, [isSelected, draggable, status, color, opacity, showLabels, isInactive]);
 
   const getStatusColor = () => {
-    if (isSelected) return '#3B82F6'; // Brighter Blue for selected
+    if (isSelected) return '#FF6B00'; // Point Orange for selected
     if (color) return color;
     switch (status) {
-      case 'available': return '#2DD4BF'; // Teal for available (as per reference)
-      case 'occupied': return '#1E293B';  // Deep Slate for occupied (blends with bg)
-      case 'blocked': return '#334155';   // Slate for blocked
+      case 'available': return '#2DD4BF'; // Teal for available
+      case 'occupied': return '#CBD5E1';  // Light Gray for occupied
+      case 'blocked': return '#94A3B8';   // Slate for blocked
       case 'reserved': return '#F59E0B';  // Amber
-      default: return '#1E293B';
+      default: return '#CBD5E1';
     }
   };
 
@@ -88,7 +88,7 @@ export const Seat: React.FC<SeatProps> = ({
             width={radius * 2.6}
             height={radius * 2.6}
             cornerRadius={radius * 0.6}
-            fill="#3B82F6"
+            fill="#FF6B00"
             opacity={0.15}
             listening={false}
           />
@@ -101,12 +101,12 @@ export const Seat: React.FC<SeatProps> = ({
         width={radius * 2}
         height={radius * 2}
         cornerRadius={radius * 0.4}
-        fill={isInactive ? '#334155' : seatColor}
-        opacity={isInactive ? 0.2 : (status === 'occupied' ? 0.4 : opacity)}
-        stroke={isSelected ? '#60A5FA' : (status === 'occupied' ? '#0F172A' : (isInactive ? 'transparent' : '#FFFFFF'))}
+        fill={isInactive ? '#E2E8F0' : seatColor}
+        opacity={isInactive ? 0.3 : (status === 'occupied' ? 0.6 : opacity)}
+        stroke={isSelected ? '#FF6B00' : (status === 'occupied' ? '#CBD5E1' : (isInactive ? 'transparent' : '#FFFFFF'))}
         strokeWidth={isSelected ? 1.5 : (status === 'occupied' ? 0.5 : 0.1)}
         shadowBlur={isSelected ? 8 : 0}
-        shadowColor="#3B82F6"
+        shadowColor="#FF6B00"
         shadowOpacity={0.4}
         perfectDrawEnabled={false}
       />
