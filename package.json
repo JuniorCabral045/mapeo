@@ -1,26 +1,39 @@
 {
-  "name": "vite-react-typescript-starter",
-  "private": true,
-  "version": "0.0.0",
+  "name": "venue-mapper",
+  "description": "Librería React para mapear recintos (sectores y asientos) y mostrarlos en sistemas de venta/pedidos",
+  "version": "0.1.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/venue-mapper.js",
+  "module": "./dist/venue-mapper.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/venue-mapper.js"
+    },
+    "./styles.css": "./dist/style.css"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
   "dependencies": {
     "konva": "^10.2.0",
     "lucide-react": "^0.344.0",
-    "rbush": "^4.0.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "react-konva": "^18.2.14",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
-    "@types/rbush": "^4.0.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -30,9 +43,12 @@
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.9.0",
     "postcss": "^8.4.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vite-plugin-dts": "^5.0.3"
   }
 }
