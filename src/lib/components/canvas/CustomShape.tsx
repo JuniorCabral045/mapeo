@@ -31,13 +31,15 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
   const renderShape = () => {
     const commonProps = {
       id,
-      fill: isActive ? (element.type === 'stage' ? '#1e293b' : fill) : '#334155',
+      fill: isActive ? (element.type === 'stage' ? '#6F3E8F' : fill) : '#C7CBD4',
       onClick: onSelect,
       onTap: onSelect,
     };
 
     if (sectionType === 'rectangle' || element.type === 'stage') {
-      const strokeColor = isSelected ? '#3B82F6' : stroke || (isActive ? fill : '#94a3b8');
+      const strokeColor = isSelected ? '#FF6B01' : stroke || (isActive ? fill : '#9AA1AE');
+      // El escenario se pinta sólido (texto blanco encima); los sectores translúcidos
+      const shapeOpacity = element.type === 'stage' ? (isActive ? 0.95 : 0.4) : isActive ? 0.35 : 0.15;
       // Path para radios de esquina independientes; Rect para radio uniforme
       return typeof cornerRadius === 'object' ? (
         <Path
@@ -46,7 +48,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
           stroke={strokeColor}
           strokeWidth={isSelected ? 3 : 1.5}
           dash={isSelected ? [] : [10, 5]}
-          opacity={isActive ? 0.3 : 0.1}
+          opacity={shapeOpacity}
         />
       ) : (
         <Rect
@@ -57,7 +59,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
           stroke={strokeColor}
           strokeWidth={isSelected ? 3 : 1.5}
           dash={isSelected ? [] : [10, 5]}
-          opacity={isActive ? 0.3 : 0.1}
+          opacity={shapeOpacity}
         />
       );
     }

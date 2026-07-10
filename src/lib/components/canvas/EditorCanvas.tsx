@@ -121,8 +121,8 @@ export const EditorCanvas: React.FC = () => {
           key={`v-${i}`}
           x={i * size} y={0}
           width={0.5} height={height}
-          fill={i % 5 === 0 ? '#1E293B' : '#0F172A'}
-          opacity={0.3}
+          fill={i % 5 === 0 ? '#C9CEDA' : '#E2E5EC'}
+          opacity={0.6}
           listening={false}
         />
       );
@@ -133,8 +133,8 @@ export const EditorCanvas: React.FC = () => {
           key={`h-${j}`}
           x={0} y={j * size}
           width={width} height={0.5}
-          fill={j % 5 === 0 ? '#1E293B' : '#0F172A'}
-          opacity={0.3}
+          fill={j % 5 === 0 ? '#C9CEDA' : '#E2E5EC'}
+          opacity={0.6}
           listening={false}
         />
       );
@@ -159,7 +159,7 @@ export const EditorCanvas: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className={`w-full h-full bg-[#0B0F19] overflow-hidden ${cursorClass}`}>
+    <div ref={containerRef} className={`w-full h-full bg-[#F3F4F6] overflow-hidden ${cursorClass}`}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -180,7 +180,7 @@ export const EditorCanvas: React.FC = () => {
         }}
       >
         <Layer>
-          <Rect x={-2500} y={-2500} width={10000} height={10000} fill="#0B0F19" listening={false} />
+          <Rect x={-2500} y={-2500} width={10000} height={10000} fill="#F3F4F6" listening={false} />
           {Grid}
 
           {/* Sectores y escenarios primero */}
@@ -262,8 +262,8 @@ export const EditorCanvas: React.FC = () => {
               y={Math.min(selectionBox.y1, selectionBox.y2) / viewState.scale - viewState.y / viewState.scale}
               width={Math.abs(selectionBox.x1 - selectionBox.x2) / viewState.scale}
               height={Math.abs(selectionBox.y1 - selectionBox.y2) / viewState.scale}
-              fill="rgba(59, 130, 246, 0.05)"
-              stroke="#3B82F6"
+              fill="rgba(255, 107, 1, 0.06)"
+              stroke="#FF6B01"
               strokeWidth={1 / viewState.scale}
               dash={[5, 3]}
             />
@@ -277,10 +277,10 @@ export const EditorCanvas: React.FC = () => {
               if (newBox.width < 10 || newBox.height < 10) return oldBox;
               return newBox;
             }}
-            anchorFill="#3B82F6"
+            anchorFill="#FF6B01"
             anchorStroke="#FFFFFF"
             anchorCornerRadius={3}
-            borderStroke="#3B82F6"
+            borderStroke="#FF6B01"
           />
         </Layer>
       </Stage>

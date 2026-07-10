@@ -37,14 +37,14 @@ export const Seat: React.FC<SeatProps> = ({
   }, [isSelected, draggable, status, color, opacity, showLabels, isInactive]);
 
   const getStatusColor = () => {
-    if (isSelected) return '#3B82F6';
+    if (isSelected) return '#FF6B01';
     if (color) return color;
     switch (status) {
-      case 'available': return '#2DD4BF';
-      case 'occupied': return '#1E293B';
-      case 'blocked': return '#334155';
+      case 'available': return '#6F3E8F';
+      case 'occupied': return '#C7CBD4';
+      case 'blocked': return '#9AA1AE';
       case 'reserved': return '#F59E0B';
-      default: return '#1E293B';
+      default: return '#6F3E8F';
     }
   };
 
@@ -69,8 +69,8 @@ export const Seat: React.FC<SeatProps> = ({
           width={radius * 2.6}
           height={radius * 2.6}
           cornerRadius={radius * 0.6}
-          fill="#3B82F6"
-          opacity={0.15}
+          fill="#FF6B01"
+          opacity={0.18}
           listening={false}
         />
       )}
@@ -81,12 +81,12 @@ export const Seat: React.FC<SeatProps> = ({
         width={radius * 2}
         height={radius * 2}
         cornerRadius={radius * 0.4}
-        fill={isInactive ? '#334155' : seatColor}
-        opacity={isInactive ? 0.2 : status === 'occupied' ? 0.4 : opacity}
-        stroke={isSelected ? '#60A5FA' : status === 'occupied' ? '#0F172A' : isInactive ? 'transparent' : '#FFFFFF'}
+        fill={isInactive ? '#C7CBD4' : seatColor}
+        opacity={isInactive ? 0.35 : status === 'occupied' ? 0.6 : opacity}
+        stroke={isSelected ? '#FF8A3D' : status === 'occupied' ? '#9AA1AE' : isInactive ? 'transparent' : '#FFFFFF'}
         strokeWidth={isSelected ? 1.5 : status === 'occupied' ? 0.5 : 0.1}
         shadowBlur={isSelected ? 8 : 0}
-        shadowColor="#3B82F6"
+        shadowColor="#FF6B01"
         shadowOpacity={0.4}
         perfectDrawEnabled={false}
       />
@@ -105,7 +105,7 @@ export const Seat: React.FC<SeatProps> = ({
           align="center"
           verticalAlign="middle"
           fontSize={radius * 0.8}
-          fill={status === 'occupied' ? '#475569' : 'white'}
+          fill={status === 'occupied' ? '#6B7280' : 'white'}
           fontFamily="monospace"
           fontStyle="bold"
           listening={false}

@@ -148,7 +148,7 @@ export const VenueViewer: React.FC<VenueViewerProps> = ({
   };
 
   return (
-    <div ref={containerRef} className={`w-full h-full bg-[#0B0F19] overflow-hidden cursor-grab active:cursor-grabbing ${className}`}>
+    <div ref={containerRef} className={`w-full h-full bg-[#F3F4F6] overflow-hidden cursor-grab active:cursor-grabbing ${className}`}>
       <Stage
         ref={stageRef}
         width={dimensions.width}
@@ -166,7 +166,7 @@ export const VenueViewer: React.FC<VenueViewerProps> = ({
         }}
       >
         <Layer>
-          <Rect x={-5000} y={-5000} width={20000} height={20000} fill="#0B0F19" listening={false} />
+          <Rect x={-5000} y={-5000} width={20000} height={20000} fill="#F3F4F6" listening={false} />
 
           {/* Sectores */}
           {elementIds.map((id) => {

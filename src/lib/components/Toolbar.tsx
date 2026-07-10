@@ -46,7 +46,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
       locked: false,
       opacity: type === 'stage' ? 1 : 0.2,
       zIndex: 5,
-      fill: type === 'stage' ? '#1E293B' : '#3b82f6',
+      fill: type === 'stage' ? '#6F3E8F' : '#6F3E8F',
       isActive: true,
       sectionType: type === 'circle' ? 'circle' : 'rectangle',
       cornerRadius: 0,
@@ -85,31 +85,31 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
   };
 
   return (
-    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-4">
-      <div className="bg-[#1E293B]/80 backdrop-blur-xl border border-slate-700/50 p-2 rounded-2xl shadow-2xl flex items-center gap-2 ring-1 ring-white/5">
+    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-3">
+      <div className="bg-white border border-gray-200 p-2 rounded-2xl shadow-lg flex items-center gap-2">
         {/* Nombre del recinto */}
         <input
           type="text"
           value={venueName}
           onChange={(e) => setVenueName(e.target.value)}
-          className="bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-2 text-xs font-black text-white w-48 focus:border-blue-500 outline-none"
+          className="bg-indigo-50 border border-transparent rounded-xl px-4 py-2 text-xs font-bold text-gray-800 w-48 focus:border-[#FF6B01] outline-none transition-colors placeholder:text-gray-400"
           placeholder="Nombre del recinto"
           title="Nombre del recinto"
         />
 
-        <div className="h-6 w-px bg-slate-700/50 mx-1" />
+        <div className="h-6 w-px bg-gray-200 mx-1" />
 
         {/* Archivo */}
         <div className="flex items-center gap-1.5 px-1">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl"
+            className="p-2.5 text-gray-400 hover:text-[#6F3E8F] transition-all hover:bg-purple-50 rounded-xl"
             title="Importar JSON"
           >
             <Upload size={18} />
           </button>
           <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={importJSON} />
-          <button onClick={exportJSON} className="p-2.5 text-slate-400 hover:text-white transition-all hover:bg-slate-700/50 rounded-xl" title="Exportar JSON">
+          <button onClick={exportJSON} className="p-2.5 text-gray-400 hover:text-[#6F3E8F] transition-all hover:bg-purple-50 rounded-xl" title="Exportar JSON">
             <Download size={18} />
           </button>
         </div>
@@ -117,7 +117,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
         {onSave && (
           <button
             onClick={() => onSave(currentMap())}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-md flex items-center gap-2"
+            className="bg-[#FF6B01] hover:bg-[#e86000] text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm flex items-center gap-2"
           >
             <Save size={14} /> GUARDAR
           </button>
@@ -126,45 +126,45 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
 
       {/* Herramientas de edición */}
       <div className="flex items-center gap-3">
-        <div className="bg-[#1E293B]/60 backdrop-blur-md border border-slate-700/40 p-1.5 rounded-2xl flex items-center gap-1 shadow-xl">
+        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
           <button
             onClick={() => setTool('select')}
-            className={`p-2 rounded-xl transition-all ${currentTool === 'select' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-400 hover:text-white'}`}
+            className={`p-2 rounded-xl transition-all ${currentTool === 'select' ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
             title="Herramienta de Selección"
           >
             <MousePointer2 size={16} strokeWidth={3} />
           </button>
           <button
             onClick={() => setTool('pan')}
-            className={`p-2 rounded-xl transition-all ${currentTool === 'pan' ? 'bg-blue-600/30 text-blue-400' : 'text-slate-400 hover:text-white'}`}
+            className={`p-2 rounded-xl transition-all ${currentTool === 'pan' ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
             title="Herramienta de Mano"
           >
             <Hand size={16} strokeWidth={3} />
           </button>
-          <div className="h-5 w-px bg-slate-700/50 mx-0.5" />
-          <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Sector Rectangular">
+          <div className="h-5 w-px bg-gray-200 mx-0.5" />
+          <button onClick={() => handleAddSection('rectangle')} className="p-2 hover:bg-purple-50 text-gray-400 hover:text-[#6F3E8F] rounded-xl transition-colors" title="Sector Rectangular">
             <Square size={16} strokeWidth={3} />
           </button>
-          <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Sector Circular">
+          <button onClick={() => handleAddSection('circle')} className="p-2 hover:bg-purple-50 text-gray-400 hover:text-[#6F3E8F] rounded-xl transition-colors" title="Sector Circular">
             <CircleIcon size={16} strokeWidth={3} />
           </button>
-          <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-slate-700/50 text-slate-400 hover:text-white rounded-xl transition-colors" title="Escenario">
+          <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-purple-50 text-gray-400 hover:text-[#6F3E8F] rounded-xl transition-colors" title="Escenario">
             <Flag size={16} strokeWidth={3} />
           </button>
         </div>
 
-        <div className="bg-[#1E293B]/60 backdrop-blur-md border border-slate-700/40 p-1.5 rounded-2xl flex items-center gap-1 shadow-xl">
-          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 rounded-xl transition-colors" title="Deshacer">
+        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 disabled:opacity-20 rounded-xl transition-colors" title="Deshacer">
             <Undo2 size={16} strokeWidth={3} />
           </button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 rounded-xl transition-colors" title="Rehacer">
+          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 disabled:opacity-20 rounded-xl transition-colors" title="Rehacer">
             <Redo2 size={16} strokeWidth={3} />
           </button>
-          <div className="h-5 w-px bg-slate-700/50 mx-0.5" />
+          <div className="h-5 w-px bg-gray-200 mx-0.5" />
           <button
             onClick={() => deleteElements(selectedIds)}
             disabled={selectedIds.length === 0}
-            className="p-2 text-red-500/70 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-20 rounded-xl transition-colors"
+            className="p-2 text-red-500/70 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 rounded-xl transition-colors"
             title="Eliminar selección"
           >
             <Trash2 size={16} strokeWidth={3} />
