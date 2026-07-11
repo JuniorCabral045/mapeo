@@ -66,9 +66,16 @@ export const EditorCanvas: React.FC = () => {
         });
       }
     };
-    window.addEventListener('resize', updateSize);
     updateSize();
-    return () => window.removeEventListener('resize', updateSize);
+    // ResizeObserver: el canvas sigue al contenedor (sidebar colapsado,
+    // pantallas chicas, paneles), no solo al resize de la ventana
+    const observer = new ResizeObserver(updateSize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', updateSize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
   }, []);
 
   useEffect(() => {

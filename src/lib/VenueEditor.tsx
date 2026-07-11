@@ -67,7 +67,7 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
 
   return (
     <div className={`flex h-full w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 text-gray-700 selection:bg-orange-200/60 ${className}`}>
-      <main className="flex-1 relative bg-[#F3F4F6] touch-none group">
+      <main className="flex-1 min-w-0 relative overflow-hidden bg-[#F3F4F6] touch-none group">
         <Toolbar onSave={onSave} />
         <EditorCanvas />
 

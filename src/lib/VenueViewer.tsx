@@ -65,9 +65,15 @@ export const VenueViewer: React.FC<VenueViewerProps> = ({
         });
       }
     };
-    window.addEventListener('resize', updateSize);
     updateSize();
-    return () => window.removeEventListener('resize', updateSize);
+    // El canvas sigue el tamaño del contenedor, no solo el de la ventana
+    const observer = new ResizeObserver(updateSize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', updateSize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
   }, []);
 
   // Encuadrar el mapa completo al montar / cambiar de mapa

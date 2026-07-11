@@ -30,7 +30,7 @@ export const PropertyPanel: React.FC = () => {
   const [genDirection, setGenDirection] = useState<'ltr' | 'rtl'>('ltr');
 
   if (!element) return (
-    <aside className="w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
+    <aside className="w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
       <div className="p-6 border-b border-gray-200 bg-gray-50">
         <h2 className="text-sm font-bold text-[#6F3E8F] tracking-tight uppercase flex items-center gap-2">
           <LayoutGrid size={16} className="text-[#FF6B01]" /> Elementos
@@ -119,7 +119,7 @@ export const PropertyPanel: React.FC = () => {
   const labelClass = 'text-[10px] font-bold uppercase text-gray-400 tracking-widest';
 
   return (
-    <aside className="w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
+    <aside className="w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
         <button
           onClick={() => selectElements([])}
