@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { ShapeElement, VenueElement } from '../types';
-import { generateRectLayout, generateArcLayout } from '../utils/layout';
+import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
 
 export const PropertyPanel: React.FC = () => {
   const { elements, elementIds, selectedIds, updateElement, selectElements } = useVenueStore();
@@ -25,6 +25,9 @@ export const PropertyPanel: React.FC = () => {
   const [arcRadius, setArcRadius] = useState(200);
   const [arcAngle, setArcAngle] = useState(120);
   const [genSeatRadius, setGenSeatRadius] = useState(3.5);
+  const [genStartRow, setGenStartRow] = useState('A');
+  const [genStartNum, setGenStartNum] = useState(1);
+  const [genDirection, setGenDirection] = useState<'ltr' | 'rtl'>('ltr');
 
   if (!element) return (
     <aside className="w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
@@ -88,20 +91,27 @@ export const PropertyPanel: React.FC = () => {
     if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
 
     const shape = element as ShapeElement;
+    const base = {
+      rows: genRows, cols: genCols,
+      rowSpacing: genSeatRadius * 1.5, colSpacing: genSeatRadius * 1.5,
+      seatRadius: genSeatRadius,
+      startRow: (genStartRow || 'A').toUpperCase(),
+      startNum: genStartNum,
+      numberDirection: genDirection,
+    };
     const seats = shape.sectionType === 'rectangle'
-      ? generateRectLayout(shape, {
-          rows: genRows, cols: genCols,
-          rowSpacing: genSeatRadius * 1.5, colSpacing: genSeatRadius * 1.5,
-          seatRadius: genSeatRadius, startRow: 'A', startNum: 1,
-        })
-      : generateArcLayout(shape, {
-          rows: genRows, cols: genCols,
-          rowSpacing: genSeatRadius * 2, colSpacing: genSeatRadius * 1.5,
-          seatRadius: genSeatRadius, startRow: 'A', startNum: 1,
-          innerRadius: arcRadius,
-          startAngle: 180 - arcAngle / 2,
-          endAngle: 180 + arcAngle / 2,
-        });
+      ? generateRectLayout(shape, base)
+      : shape.sectionType === 'polygon'
+        ? generatePolygonLayout(shape, base)
+        : shape.sectionType === 'arc'
+          ? generateArcSectorLayout(shape, { ...base, rowSpacing: genSeatRadius * 2 })
+          : generateArcLayout(shape, {
+              ...base,
+              rowSpacing: genSeatRadius * 2,
+              innerRadius: arcRadius,
+              startAngle: 180 - arcAngle / 2,
+              endAngle: 180 + arcAngle / 2,
+            });
     useVenueStore.getState().addElements(seats);
   };
 
@@ -167,6 +177,49 @@ export const PropertyPanel: React.FC = () => {
                 </div>
               </div>
             )}
+            {element.type === 'section' && (element as ShapeElement).sectionType === 'arc' && (() => {
+              const arc = element as ShapeElement;
+              const clampArc = (updates: Partial<ShapeElement>) => {
+                const inner = updates.innerRadius ?? arc.innerRadius ?? 100;
+                const outer = updates.outerRadius ?? arc.outerRadius ?? 200;
+                const start = updates.startAngle ?? arc.startAngle ?? 200;
+                const end = updates.endAngle ?? arc.endAngle ?? 340;
+                handleUpdate({
+                  innerRadius: Math.max(0, Math.min(inner, outer - 10)),
+                  outerRadius: Math.max(inner + 10, outer),
+                  startAngle: Math.min(start, end - 5),
+                  endAngle: Math.max(start + 5, end),
+                });
+              };
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Radio interior</label>
+                    <input type="number" min="0" value={Math.round(arc.innerRadius ?? 100)}
+                      onChange={(e) => clampArc({ innerRadius: parseInt(e.target.value) || 0 })}
+                      className={inputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Radio exterior</label>
+                    <input type="number" min="10" value={Math.round(arc.outerRadius ?? 200)}
+                      onChange={(e) => clampArc({ outerRadius: parseInt(e.target.value) || 10 })}
+                      className={inputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Ángulo inicial</label>
+                    <input type="number" value={Math.round(arc.startAngle ?? 200)}
+                      onChange={(e) => clampArc({ startAngle: parseInt(e.target.value) || 0 })}
+                      className={inputClass} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className={labelClass}>Ángulo final</label>
+                    <input type="number" value={Math.round(arc.endAngle ?? 340)}
+                      onChange={(e) => clampArc({ endAngle: parseInt(e.target.value) || 0 })}
+                      className={inputClass} />
+                  </div>
+                </div>
+              );
+            })()}
             {element.type === 'section' && (() => {
               const seatCount = elementIds.filter((sid) => {
                 const s = elements[sid];
@@ -212,7 +265,7 @@ export const PropertyPanel: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              {(element as ShapeElement).sectionType !== 'rectangle' && (
+              {(element as ShapeElement).sectionType === 'circle' && (
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <label className={labelClass}>Radio / Curvatura</label>
@@ -245,6 +298,41 @@ export const PropertyPanel: React.FC = () => {
                   <span className="text-[10px] font-bold text-[#FF6B01]">{genSeatRadius}px</span>
                 </div>
                 <input type="range" min="2" max="15" step="0.5" value={genSeatRadius} onChange={(e) => setGenSeatRadius(parseFloat(e.target.value))} className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]" />
+              </div>
+
+              {/* Numeración */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className={labelClass}>Fila inicial</label>
+                  <input
+                    type="text"
+                    maxLength={1}
+                    value={genStartRow}
+                    onChange={(e) => setGenStartRow(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelClass}>Número inicial</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={genStartNum}
+                    onChange={(e) => setGenStartNum(Math.max(1, parseInt(e.target.value) || 1))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Dirección de numeración</label>
+                <select
+                  value={genDirection}
+                  onChange={(e) => setGenDirection(e.target.value as 'ltr' | 'rtl')}
+                  className={inputClass}
+                >
+                  <option value="ltr">Izquierda → Derecha</option>
+                  <option value="rtl">Derecha → Izquierda</option>
+                </select>
               </div>
 
               <div className="pt-2">
@@ -290,8 +378,11 @@ export const PropertyPanel: React.FC = () => {
             {[
               { label: 'POS X', value: element.x, key: 'x' },
               { label: 'POS Y', value: element.y, key: 'y' },
-              { label: 'ANCHO', value: (element as ShapeElement).width, key: 'width' },
-              { label: 'ALTO', value: (element as ShapeElement).height, key: 'height' },
+              // Arcos y círculos se dimensionan por radios, no por ancho/alto
+              ...(!['arc', 'circle'].includes((element as ShapeElement).sectionType ?? '') ? [
+                { label: 'ANCHO', value: (element as ShapeElement).width, key: 'width' },
+                { label: 'ALTO', value: (element as ShapeElement).height, key: 'height' },
+              ] : []),
             ].map((prop) => prop.value !== undefined && (
               <div key={prop.key} className="space-y-1.5">
                 <label className={labelClass}>{prop.label}</label>

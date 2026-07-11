@@ -1,4 +1,5 @@
 import { SeatElement, ShapeElement } from '../types';
+import { pointInPolygon } from './geometry';
 
 export interface LayoutParams {
   rows: number;
@@ -8,6 +9,8 @@ export interface LayoutParams {
   seatRadius: number;
   startRow: string;
   startNum: number;
+  /** Dirección de numeración dentro de cada fila. Default 'ltr' (izq → der). */
+  numberDirection?: 'ltr' | 'rtl';
 }
 
 const makeSeat = (
@@ -37,13 +40,21 @@ const makeSeat = (
   radius,
 });
 
+/** Número de asiento según posición en la fila y dirección de numeración. */
+const seatNum = (
+  index: number,
+  total: number,
+  startNum: number,
+  direction?: 'ltr' | 'rtl'
+): number => (direction === 'rtl' ? startNum + (total - 1 - index) : startNum + index);
+
 /** Genera asientos en grilla rectangular, centrados dentro del sector. */
 export const generateRectLayout = (
   container: ShapeElement,
   params: LayoutParams
 ): SeatElement[] => {
   const seats: SeatElement[] = [];
-  const { rows, cols, rowSpacing, colSpacing, seatRadius, startRow, startNum } = params;
+  const { rows, cols, rowSpacing, colSpacing, seatRadius, startRow, startNum, numberDirection } = params;
 
   const totalW = cols * (seatRadius * 2 + colSpacing) - colSpacing;
   const totalH = rows * (seatRadius * 2 + rowSpacing) - rowSpacing;
@@ -59,7 +70,7 @@ export const generateRectLayout = (
           `seat-${container.id}-${r}-${c}`,
           container.id,
           rowLabel,
-          startNum + c,
+          seatNum(c, cols, startNum, numberDirection),
           startX + c * (seatRadius * 2 + colSpacing),
           startY + r * (seatRadius * 2 + rowSpacing),
           0,
@@ -72,13 +83,13 @@ export const generateRectLayout = (
   return seats;
 };
 
-/** Genera asientos en arco radial (curvas de estadio) alrededor del origen del sector. */
+/** Genera asientos en arco radial alrededor del origen del sector (círculos). */
 export const generateArcLayout = (
   container: ShapeElement,
   params: LayoutParams & { innerRadius: number; startAngle: number; endAngle: number }
 ): SeatElement[] => {
   const seats: SeatElement[] = [];
-  const { rows, cols, rowSpacing, seatRadius, startRow, startNum, innerRadius, startAngle, endAngle } = params;
+  const { rows, cols, rowSpacing, seatRadius, startRow, startNum, numberDirection, innerRadius, startAngle, endAngle } = params;
 
   const angleStep = (endAngle - startAngle) / (cols - 1 || 1);
 
@@ -94,7 +105,94 @@ export const generateArcLayout = (
           `seat-arc-${container.id}-${r}-${c}`,
           container.id,
           rowLabel,
-          startNum + c,
+          seatNum(c, cols, startNum, numberDirection),
+          container.x + radius * Math.cos(rad),
+          container.y + radius * Math.sin(rad),
+          angle + 90,
+          seatRadius
+        )
+      );
+    }
+  }
+
+  return seats;
+};
+
+/** Asientos en grilla recortada a la forma del polígono del sector. */
+export const generatePolygonLayout = (
+  container: ShapeElement,
+  params: LayoutParams
+): SeatElement[] => {
+  const { rowSpacing, colSpacing, seatRadius, startRow, startNum, numberDirection } = params;
+  const points = container.points ?? [];
+  if (points.length < 6) return [];
+
+  const stepX = seatRadius * 2 + colSpacing;
+  const stepY = seatRadius * 2 + rowSpacing;
+
+  // Filas de la grilla que caen dentro del polígono (coordenadas relativas)
+  const rows: { y: number; xs: number[] }[] = [];
+  for (let py = seatRadius; py <= container.height - seatRadius; py += stepY) {
+    const xs: number[] = [];
+    for (let px = seatRadius; px <= container.width - seatRadius; px += stepX) {
+      if (pointInPolygon(px, py, points)) xs.push(px);
+    }
+    if (xs.length > 0) rows.push({ y: py, xs });
+  }
+
+  const seats: SeatElement[] = [];
+  rows.forEach((row, r) => {
+    const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
+    row.xs.forEach((px, c) => {
+      seats.push(
+        makeSeat(
+          `seat-${container.id}-${r}-${c}`,
+          container.id,
+          rowLabel,
+          seatNum(c, row.xs.length, startNum, numberDirection),
+          container.x + px,
+          container.y + row.y,
+          0,
+          seatRadius
+        )
+      );
+    });
+  });
+
+  return seats;
+};
+
+/** Filas concéntricas dentro de un sector arco (entre innerRadius y outerRadius). */
+export const generateArcSectorLayout = (
+  container: ShapeElement,
+  params: LayoutParams
+): SeatElement[] => {
+  const { rows, rowSpacing, seatRadius, startRow, startNum, numberDirection } = params;
+  const inner = (container.innerRadius ?? 100) + seatRadius * 2;
+  const outer = (container.outerRadius ?? 200) - seatRadius * 2;
+  const startAngle = container.startAngle ?? 200;
+  const endAngle = container.endAngle ?? 340;
+  if (outer <= inner) return [];
+
+  const radiusStep = rows > 1 ? (outer - inner) / (rows - 1) : 0;
+  const seats: SeatElement[] = [];
+
+  for (let r = 0; r < rows; r++) {
+    const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
+    const radius = inner + r * radiusStep;
+    const arcRad = ((endAngle - startAngle) * Math.PI) / 180;
+    const count = Math.max(1, Math.floor((arcRad * radius) / (seatRadius * 2 + rowSpacing)));
+    const angleStep = (endAngle - startAngle) / count;
+
+    for (let c = 0; c < count; c++) {
+      const angle = startAngle + angleStep * (c + 0.5);
+      const rad = (angle * Math.PI) / 180;
+      seats.push(
+        makeSeat(
+          `seat-arc-${container.id}-${r}-${c}`,
+          container.id,
+          rowLabel,
+          seatNum(c, count, startNum, numberDirection),
           container.x + radius * Math.cos(rad),
           container.y + radius * Math.sin(rad),
           angle + 90,

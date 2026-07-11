@@ -1,3 +1,17 @@
+/** Test punto-en-polígono (ray casting). points = pares x,y. */
+export const pointInPolygon = (px: number, py: number, points: number[]): boolean => {
+  let inside = false;
+  const n = points.length / 2;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = points[i * 2], yi = points[i * 2 + 1];
+    const xj = points[j * 2], yj = points[j * 2 + 1];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+};
+
 export const createRoundedRectPath = (
   x: number,
   y: number,
