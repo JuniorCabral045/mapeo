@@ -7,6 +7,7 @@ interface SeatProps {
   element: SeatElement;
   isSelected: boolean;
   onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDragStart?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   draggable: boolean;
@@ -18,6 +19,7 @@ export const Seat: React.FC<SeatProps> = ({
   element,
   isSelected,
   onSelect,
+  onDragStart,
   onDragMove,
   onDragEnd,
   draggable,
@@ -57,6 +59,7 @@ export const Seat: React.FC<SeatProps> = ({
       y={y}
       ref={groupRef}
       draggable={draggable && !locked}
+      onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onClick={onSelect}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Path, Group, Rect, Circle, Text } from 'react-konva';
+import { Path, Group, Rect, Circle, Text, Line, Arc } from 'react-konva';
 import Konva from 'konva';
 import { ShapeElement, CornerRadius } from '../../types';
 import { createRoundedRectPath } from '../../utils/geometry';
@@ -8,6 +8,7 @@ interface CustomShapeProps {
   element: ShapeElement;
   isSelected: boolean;
   onSelect?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDragStart?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd?: (e: Konva.KonvaEventObject<Event>) => void;
@@ -18,6 +19,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
   element,
   isSelected,
   onSelect,
+  onDragStart,
   onDragMove,
   onDragEnd,
   onTransformEnd,
@@ -28,23 +30,48 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
     fill, stroke, cornerRadius, sectionType, radius, name, isActive,
   } = element;
 
+  const fillColor = isActive ? (element.type === 'stage' ? '#6F3E8F' : fill) : '#C7CBD4';
+  const strokeColor = isSelected ? '#FF6B01' : stroke || (isActive ? fill : '#9AA1AE');
+  // El escenario se pinta sólido (texto blanco encima); los sectores translúcidos
+  const shapeOpacity = element.type === 'stage' ? (isActive ? 0.95 : 0.4) : isActive ? 0.35 : 0.15;
+
   const renderShape = () => {
-    const commonProps = {
-      id,
-      fill: isActive ? (element.type === 'stage' ? '#6F3E8F' : fill) : '#C7CBD4',
-      onClick: onSelect,
-      onTap: onSelect,
-    };
+    if (sectionType === 'polygon' && element.points && element.points.length >= 6) {
+      return (
+        <Line
+          points={element.points}
+          closed
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={isSelected ? 3 : 1.5}
+          dash={isSelected ? [] : [10, 5]}
+          opacity={shapeOpacity}
+        />
+      );
+    }
+
+    if (sectionType === 'arc') {
+      return (
+        <Arc
+          innerRadius={element.innerRadius ?? 100}
+          outerRadius={element.outerRadius ?? 200}
+          angle={(element.endAngle ?? 340) - (element.startAngle ?? 200)}
+          rotation={element.startAngle ?? 200}
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={isSelected ? 3 : 1.5}
+          dash={isSelected ? [] : [10, 5]}
+          opacity={shapeOpacity}
+        />
+      );
+    }
 
     if (sectionType === 'rectangle' || element.type === 'stage') {
-      const strokeColor = isSelected ? '#FF6B01' : stroke || (isActive ? fill : '#9AA1AE');
-      // El escenario se pinta sólido (texto blanco encima); los sectores translúcidos
-      const shapeOpacity = element.type === 'stage' ? (isActive ? 0.95 : 0.4) : isActive ? 0.35 : 0.15;
       // Path para radios de esquina independientes; Rect para radio uniforme
       return typeof cornerRadius === 'object' ? (
         <Path
-          {...commonProps}
           data={createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius)}
+          fill={fillColor}
           stroke={strokeColor}
           strokeWidth={isSelected ? 3 : 1.5}
           dash={isSelected ? [] : [10, 5]}
@@ -52,10 +79,10 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
         />
       ) : (
         <Rect
-          {...commonProps}
           width={width}
           height={height}
           cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
+          fill={fillColor}
           stroke={strokeColor}
           strokeWidth={isSelected ? 3 : 1.5}
           dash={isSelected ? [] : [10, 5]}
@@ -65,7 +92,16 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
     }
 
     if (sectionType === 'circle') {
-      return <Circle {...commonProps} radius={radius || width / 2} />;
+      return (
+        <Circle
+          radius={radius || width / 2}
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={isSelected ? 3 : 1.5}
+          dash={isSelected ? [] : [10, 5]}
+          opacity={shapeOpacity}
+        />
+      );
     }
 
     return null;
@@ -73,10 +109,14 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
 
   return (
     <Group
+      id={id}
       x={x}
       y={y}
       rotation={rotation}
       draggable={draggable && !element.locked}
+      onClick={onSelect}
+      onTap={onSelect}
+      onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onTransformEnd={onTransformEnd}

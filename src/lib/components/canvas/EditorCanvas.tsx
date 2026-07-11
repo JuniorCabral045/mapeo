@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { Stage, Layer, Rect, Group, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Group, Transformer, Line, Circle, Image as KonvaImage } from 'react-konva';
 import Konva from 'konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
@@ -7,12 +7,41 @@ import { CustomShape } from './CustomShape';
 import { snapToGrid } from '../../utils/grid';
 import { ShapeElement, SeatElement } from '../../types';
 
+/** Capa del plano de referencia (solo editor, no interactiva). */
+const BackgroundLayer: React.FC = () => {
+  const backgroundImage = useVenueStore((s) => s.backgroundImage);
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (!backgroundImage) {
+      setImg(null);
+      return;
+    }
+    const image = new window.Image();
+    image.onload = () => setImg(image);
+    image.src = backgroundImage.src;
+  }, [backgroundImage?.src]);
+
+  if (!backgroundImage || !img) return null;
+  return (
+    <KonvaImage
+      image={img}
+      x={backgroundImage.x}
+      y={backgroundImage.y}
+      width={backgroundImage.width}
+      height={backgroundImage.height}
+      opacity={backgroundImage.opacity}
+      listening={false}
+    />
+  );
+};
+
 export const EditorCanvas: React.FC = () => {
   const {
     elements, elementIds, selectedIds,
     viewState, setViewState,
-    gridConfig, currentTool,
-    selectElements, updateElement,
+    gridConfig, currentTool, setTool,
+    selectElements, updateElement, addElement,
   } = useVenueStore();
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -20,6 +49,13 @@ export const EditorCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 1000, height: 800 });
   const [selectionBox, setSelectionBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+
+  // Dibujo de polígono: vértices en coordenadas de mundo + posición del cursor
+  const [draftPoints, setDraftPoints] = useState<number[]>([]);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Drag grupal: posiciones iniciales de toda la selección
+  const dragStart = useRef<Record<string, { x: number; y: number }> | null>(null);
 
   useEffect(() => {
     const updateSize = () => {
@@ -37,13 +73,72 @@ export const EditorCanvas: React.FC = () => {
 
   useEffect(() => {
     if (transformerRef.current) {
+      // Los asientos se mueven pero no se escalan: el transformer solo toma sectores/escenarios
       const nodes = selectedIds
+        .filter((id) => elements[id] && elements[id].type !== 'seat')
         .map((id) => stageRef.current?.findOne(`#${id}`))
         .filter((n): n is Konva.Node => !!n);
       transformerRef.current.nodes(nodes);
       transformerRef.current.getLayer()?.batchDraw();
     }
-  }, [selectedIds]);
+  }, [selectedIds, elements]);
+
+  // Cerrar/cancelar el dibujo de polígono con teclado
+  useEffect(() => {
+    if (currentTool !== 'polygon') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') closeDraftPolygon();
+      if (e.key === 'Escape') {
+        setDraftPoints([]);
+        setTool('select');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTool, draftPoints]);
+
+  const toWorld = (pointer: { x: number; y: number }) => ({
+    x: (pointer.x - viewState.x) / viewState.scale,
+    y: (pointer.y - viewState.y) / viewState.scale,
+  });
+
+  const closeDraftPolygon = () => {
+    if (draftPoints.length < 6) {
+      setDraftPoints([]);
+      return;
+    }
+    const xs = draftPoints.filter((_, i) => i % 2 === 0);
+    const ys = draftPoints.filter((_, i) => i % 2 === 1);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const width = Math.max(5, Math.max(...xs) - minX);
+    const height = Math.max(5, Math.max(...ys) - minY);
+    const points = draftPoints.map((p, i) => (i % 2 === 0 ? p - minX : p - minY));
+    const id = `polygon-${Date.now()}`;
+    addElement({
+      id,
+      type: 'section',
+      name: `Sector ${elementIds.length + 1}`,
+      x: minX,
+      y: minY,
+      width,
+      height,
+      rotation: 0,
+      visible: true,
+      locked: false,
+      opacity: 0.2,
+      zIndex: 5,
+      fill: '#6F3E8F',
+      isActive: true,
+      sectionType: 'polygon',
+      cornerRadius: 0,
+      points,
+    });
+    setDraftPoints([]);
+    setTool('select');
+    useVenueStore.getState().selectElements([id]);
+  };
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -71,6 +166,14 @@ export const EditorCanvas: React.FC = () => {
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (currentTool === 'pan') return;
+
+    if (currentTool === 'polygon') {
+      const pointer = e.target.getStage()!.getPointerPosition()!;
+      const world = toWorld(pointer);
+      setDraftPoints((pts) => [...pts, world.x, world.y]);
+      return;
+    }
+
     if (e.target === e.target.getStage()) {
       const pos = e.target.getStage()!.getPointerPosition()!;
       setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
@@ -79,6 +182,11 @@ export const EditorCanvas: React.FC = () => {
   };
 
   const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (currentTool === 'polygon') {
+      const pointer = e.target.getStage()!.getPointerPosition();
+      if (pointer) setCursorPos(toWorld(pointer));
+      return;
+    }
     if (currentTool === 'pan' || !selectionBox) return;
     const pos = e.target.getStage()!.getPointerPosition()!;
     setSelectionBox({ ...selectionBox, x2: pos.x, y2: pos.y });
@@ -106,6 +214,10 @@ export const EditorCanvas: React.FC = () => {
 
     selectElements(selected);
     setSelectionBox(null);
+  };
+
+  const handleDblClick = () => {
+    if (currentTool === 'polygon') closeDraftPolygon();
   };
 
   const Grid = useMemo(() => {
@@ -148,7 +260,9 @@ export const EditorCanvas: React.FC = () => {
     return 'none' as const;
   }, [viewState.scale]);
 
-  const cursorClass = currentTool === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair';
+  const cursorClass = currentTool === 'pan'
+    ? 'cursor-grab active:cursor-grabbing'
+    : 'cursor-crosshair';
 
   const handleGridSnap = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (gridConfig.enabled) {
@@ -157,6 +271,85 @@ export const EditorCanvas: React.FC = () => {
       e.target.y(y);
     }
   };
+
+  // ── Drag grupal: toda la selección sigue al elemento arrastrado ──
+  const handleDragStart = (id: string) => {
+    if (selectedIds.includes(id) && selectedIds.length > 1) {
+      const positions: Record<string, { x: number; y: number }> = {};
+      selectedIds.forEach((sid) => {
+        const el = elements[sid];
+        if (el && !el.locked) positions[sid] = { x: el.x, y: el.y };
+      });
+      dragStart.current = positions;
+    } else {
+      dragStart.current = null;
+    }
+  };
+
+  const handleDragMove = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    handleGridSnap(e);
+    const start = dragStart.current;
+    if (!start || !start[id]) return;
+    const dx = e.target.x() - start[id].x;
+    const dy = e.target.y() - start[id].y;
+    Object.keys(start).forEach((sid) => {
+      if (sid === id) return;
+      const node = stageRef.current?.findOne(`#${sid}`);
+      node?.position({ x: start[sid].x + dx, y: start[sid].y + dy });
+    });
+  };
+
+  const handleDragEnd = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    const start = dragStart.current;
+    if (start && start[id]) {
+      const dx = e.target.x() - start[id].x;
+      const dy = e.target.y() - start[id].y;
+      Object.keys(start).forEach((sid) => {
+        updateElement(sid, { x: start[sid].x + dx, y: start[sid].y + dy });
+      });
+    } else {
+      updateElement(id, { x: e.target.x(), y: e.target.y() });
+    }
+    dragStart.current = null;
+    useVenueStore.getState().saveHistory();
+  };
+
+  // ── Transform (el nodo es el Group del elemento) ──
+  const handleTransformEnd = (id: string, shape: ShapeElement, e: Konva.KonvaEventObject<Event>) => {
+    const node = e.currentTarget;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scaleX(1);
+    node.scaleY(1);
+    const updates: Partial<ShapeElement> = {
+      x: node.x(),
+      y: node.y(),
+      rotation: node.rotation(),
+    };
+    if (shape.sectionType === 'circle') {
+      const radius = Math.max(5, (shape.radius ?? shape.width / 2) * scaleX);
+      updates.radius = radius;
+      updates.width = radius * 2;
+      updates.height = radius * 2;
+    } else if (shape.sectionType === 'arc') {
+      updates.innerRadius = Math.max(0, (shape.innerRadius ?? 100) * scaleX);
+      updates.outerRadius = Math.max(10, (shape.outerRadius ?? 200) * scaleX);
+    } else if (shape.sectionType === 'polygon') {
+      updates.points = (shape.points ?? []).map((p, i) => (i % 2 === 0 ? p * scaleX : p * scaleY));
+      updates.width = Math.max(5, shape.width * scaleX);
+      updates.height = Math.max(5, shape.height * scaleY);
+    } else {
+      updates.width = Math.max(5, shape.width * scaleX);
+      updates.height = Math.max(5, shape.height * scaleY);
+    }
+    updateElement(id, updates);
+    useVenueStore.getState().saveHistory();
+  };
+
+  // Puntos del borrador de polígono + línea al cursor
+  const draftPreview = draftPoints.length > 0
+    ? (cursorPos ? [...draftPoints, cursorPos.x, cursorPos.y] : draftPoints)
+    : [];
 
   return (
     <div ref={containerRef} className={`w-full h-full bg-[#F3F4F6] overflow-hidden ${cursorClass}`}>
@@ -171,8 +364,9 @@ export const EditorCanvas: React.FC = () => {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDblClick={handleDblClick}
         ref={stageRef}
-        draggable={currentTool === 'pan' || !selectionBox}
+        draggable={currentTool === 'pan'}
         onDragEnd={(e) => {
           if (e.target === stageRef.current) {
             setViewState({ x: e.target.x(), y: e.target.y() });
@@ -181,6 +375,7 @@ export const EditorCanvas: React.FC = () => {
       >
         <Layer>
           <Rect x={-2500} y={-2500} width={10000} height={10000} fill="#F3F4F6" listening={false} />
+          <BackgroundLayer />
           {Grid}
 
           {/* Sectores y escenarios primero */}
@@ -197,30 +392,14 @@ export const EditorCanvas: React.FC = () => {
                 isSelected={isSelected}
                 draggable={currentTool === 'select'}
                 onSelect={(e) => {
-                  if (currentTool === 'pan') return;
+                  if (currentTool !== 'select') return;
                   e.cancelBubble = true;
                   selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
                 }}
-                onDragMove={handleGridSnap}
-                onDragEnd={(e) => {
-                  updateElement(id, { x: e.target.x(), y: e.target.y() });
-                  useVenueStore.getState().saveHistory();
-                }}
-                onTransformEnd={(e) => {
-                  const node = e.target;
-                  const scaleX = node.scaleX();
-                  const scaleY = node.scaleY();
-                  node.scaleX(1);
-                  node.scaleY(1);
-                  updateElement(id, {
-                    x: node.x(),
-                    y: node.y(),
-                    width: Math.max(5, node.width() * scaleX),
-                    height: Math.max(5, node.height() * scaleY),
-                    rotation: node.rotation(),
-                  });
-                  useVenueStore.getState().saveHistory();
-                }}
+                onDragStart={() => handleDragStart(id)}
+                onDragMove={(e) => handleDragMove(id, e)}
+                onDragEnd={(e) => handleDragEnd(id, e)}
+                onTransformEnd={(e) => handleTransformEnd(id, shape, e)}
               />
             );
           })}
@@ -243,18 +422,41 @@ export const EditorCanvas: React.FC = () => {
                 showLabels={showLabels}
                 isInactive={isInactive}
                 onSelect={(e) => {
-                  if (currentTool === 'pan') return;
+                  if (currentTool !== 'select') return;
                   e.cancelBubble = true;
                   selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
                 }}
-                onDragMove={handleGridSnap}
-                onDragEnd={(e) => {
-                  updateElement(id, { x: e.target.x(), y: e.target.y() });
-                  useVenueStore.getState().saveHistory();
-                }}
+                onDragStart={() => handleDragStart(id)}
+                onDragMove={(e) => handleDragMove(id, e)}
+                onDragEnd={(e) => handleDragEnd(id, e)}
               />
             );
           })}
+
+          {/* Borrador del polígono en dibujo */}
+          {draftPreview.length >= 2 && (
+            <>
+              <Line
+                points={draftPreview}
+                stroke="#FF6B01"
+                strokeWidth={2 / viewState.scale}
+                dash={[6, 4]}
+                listening={false}
+              />
+              {draftPoints.map((_, i) =>
+                i % 2 === 0 ? (
+                  <Circle
+                    key={i}
+                    x={draftPoints[i]}
+                    y={draftPoints[i + 1]}
+                    radius={4 / viewState.scale}
+                    fill="#FF6B01"
+                    listening={false}
+                  />
+                ) : null
+              )}
+            </>
+          )}
 
           {selectionBox && (
             <Rect
