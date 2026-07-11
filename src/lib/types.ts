@@ -45,6 +45,8 @@ export interface SectorData {
   cornerRadius?: CornerRadius | number;
   /** Sector inactivo = visible pero no vendible. */
   active: boolean;
+  /** Capacidad manual para sectores sin asientos dibujados (p.ej. gradería general). */
+  capacity?: number;
   seats: SeatData[];
 }
 
@@ -94,6 +96,7 @@ export interface ShapeElement extends BaseElement {
   strokeWidth?: number;
   cornerRadius?: CornerRadius | number;
   isActive: boolean;
+  capacity?: number;
   sectionType: SectorShape;
   radius?: number;
 }

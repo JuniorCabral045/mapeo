@@ -45,6 +45,7 @@ export const serializeVenue = (
       radius: shape.radius,
       cornerRadius: shape.cornerRadius,
       active: shape.isActive,
+      capacity: shape.capacity,
       seats: [],
     };
     sectors.push(sector);
@@ -120,6 +121,7 @@ export const deserializeVenue = (
       fill: sector.fill,
       cornerRadius: sector.cornerRadius,
       isActive: sector.active,
+      capacity: sector.capacity,
       sectionType: sector.shape,
       radius: sector.radius,
     };

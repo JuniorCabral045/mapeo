@@ -167,6 +167,34 @@ export const PropertyPanel: React.FC = () => {
                 </div>
               </div>
             )}
+            {element.type === 'section' && (() => {
+              const seatCount = elementIds.filter((sid) => {
+                const s = elements[sid];
+                return s?.type === 'seat' && s.sectionId === element.id;
+              }).length;
+              return seatCount > 0 ? (
+                <div className="space-y-1.5">
+                  <label className={labelClass}>Capacidad</label>
+                  <div className="bg-gray-100 border border-gray-200 rounded-xl px-3 py-2">
+                    <span className="text-xs font-bold text-[#6F3E8F]">
+                      {seatCount} asientos (calculada)
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className={labelClass}>Capacidad (sin asientos)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={(element as ShapeElement).capacity ?? ''}
+                    onChange={(e) => handleUpdate({ capacity: e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value) || 0) })}
+                    className={inputClass}
+                    placeholder="Ej: 500"
+                  />
+                </div>
+              );
+            })()}
           </div>
         </section>
 
