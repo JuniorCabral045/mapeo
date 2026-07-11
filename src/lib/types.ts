@@ -8,7 +8,7 @@ export type SeatStatus = 'available' | 'occupied' | 'blocked' | 'reserved';
 /** Mapa de disponibilidad: id de asiento -> estado. */
 export type AvailabilityMap = Record<string, SeatStatus>;
 
-export type SectorShape = 'rectangle' | 'circle' | 'arc';
+export type SectorShape = 'rectangle' | 'circle' | 'arc' | 'polygon';
 
 export interface CornerRadius {
   topLeft: number;
@@ -47,7 +47,24 @@ export interface SectorData {
   active: boolean;
   /** Capacidad manual para sectores sin asientos dibujados (p.ej. gradería general). */
   capacity?: number;
+  /** Vértices x,y relativos al origen del elemento (shape 'polygon'). */
+  points?: number[];
+  /** Anillo/arco (shape 'arc'): radios y ángulos en grados (0° = derecha, horario). */
+  innerRadius?: number;
+  outerRadius?: number;
+  startAngle?: number;
+  endAngle?: number;
   seats: SeatData[];
+}
+
+/** Plano de referencia para calcar el recinto. Solo se muestra en el editor. */
+export interface BackgroundImage {
+  src: string;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  opacity: number;
 }
 
 /** Documento completo de un mapeo de recinto. Es lo que se guarda en el backend. */
@@ -57,6 +74,8 @@ export interface VenueMap {
   id?: string;
   name: string;
   sectors: SectorData[];
+  /** Plano de fondo del editor (data URL reducido). El visor lo ignora. */
+  backgroundImage?: BackgroundImage;
 }
 
 /** Asiento seleccionado en el visor, con contexto para armar el pedido. */
@@ -97,6 +116,13 @@ export interface ShapeElement extends BaseElement {
   cornerRadius?: CornerRadius | number;
   isActive: boolean;
   capacity?: number;
+  /** Vértices x,y relativos al origen del elemento (sectionType 'polygon'). */
+  points?: number[];
+  /** Anillo/arco (sectionType 'arc'): radios y ángulos en grados. */
+  innerRadius?: number;
+  outerRadius?: number;
+  startAngle?: number;
+  endAngle?: number;
   sectionType: SectorShape;
   radius?: number;
 }
@@ -125,7 +151,7 @@ export interface GridConfig {
   size: number;
 }
 
-export type EditorTool = 'select' | 'pan';
+export type EditorTool = 'select' | 'pan' | 'polygon';
 
 export interface HistorySnapshot {
   elements: Record<string, VenueElement>;

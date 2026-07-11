@@ -27,6 +27,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
     selectedIds, deleteElements,
     addElement, elements, elementIds,
     venueName, setVenueName, loadMap,
+    backgroundImage,
   } = useVenueStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +56,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
     useVenueStore.getState().selectElements([id]);
   };
 
-  const currentMap = () => serializeVenue(elements, elementIds, venueName);
+  const currentMap = () => serializeVenue(elements, elementIds, venueName, undefined, backgroundImage ?? undefined);
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(currentMap(), null, 2)], { type: 'application/json' });

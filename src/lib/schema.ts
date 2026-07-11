@@ -1,4 +1,5 @@
 import {
+  BackgroundImage,
   SeatData,
   SeatElement,
   SectorData,
@@ -22,7 +23,8 @@ export const serializeVenue = (
   elements: Record<string, VenueElement>,
   elementIds: string[],
   name: string,
-  venueId?: string
+  venueId?: string,
+  backgroundImage?: BackgroundImage
 ): VenueMap => {
   const sectors: SectorData[] = [];
   const sectorIndex: Record<string, SectorData> = {};
@@ -46,6 +48,11 @@ export const serializeVenue = (
       cornerRadius: shape.cornerRadius,
       active: shape.isActive,
       capacity: shape.capacity,
+      points: shape.points,
+      innerRadius: shape.innerRadius,
+      outerRadius: shape.outerRadius,
+      startAngle: shape.startAngle,
+      endAngle: shape.endAngle,
       seats: [],
     };
     sectors.push(sector);
@@ -92,7 +99,7 @@ export const serializeVenue = (
     }
   }
 
-  return { version: 1, id: venueId, name, sectors };
+  return { version: 1, id: venueId, name, sectors, backgroundImage };
 };
 
 /**
@@ -100,7 +107,12 @@ export const serializeVenue = (
  */
 export const deserializeVenue = (
   map: VenueMap
-): { elements: Record<string, VenueElement>; elementIds: string[]; name: string } => {
+): {
+  elements: Record<string, VenueElement>;
+  elementIds: string[];
+  name: string;
+  backgroundImage: BackgroundImage | null;
+} => {
   const elements: Record<string, VenueElement> = {};
   const elementIds: string[] = [];
 
@@ -122,6 +134,11 @@ export const deserializeVenue = (
       cornerRadius: sector.cornerRadius,
       isActive: sector.active,
       capacity: sector.capacity,
+      points: sector.points,
+      innerRadius: sector.innerRadius,
+      outerRadius: sector.outerRadius,
+      startAngle: sector.startAngle,
+      endAngle: sector.endAngle,
       sectionType: sector.shape,
       radius: sector.radius,
     };
@@ -153,5 +170,5 @@ export const deserializeVenue = (
     });
   });
 
-  return { elements, elementIds, name: map.name };
+  return { elements, elementIds, name: map.name, backgroundImage: map.backgroundImage ?? null };
 };

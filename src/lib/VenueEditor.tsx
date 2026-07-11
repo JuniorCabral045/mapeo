@@ -47,8 +47,14 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
     if (!onChange) return;
     // Notificar cambios confirmados observando el historial (no cada frame de drag)
     return useVenueStore.subscribe((state, prev) => {
-      if (state.historyIndex !== prev.historyIndex) {
-        onChange(serializeVenue(state.elements, state.elementIds, state.venueName));
+      if (state.historyIndex !== prev.historyIndex || state.backgroundImage !== prev.backgroundImage) {
+        onChange(serializeVenue(
+          state.elements,
+          state.elementIds,
+          state.venueName,
+          undefined,
+          state.backgroundImage ?? undefined
+        ));
       }
     });
   }, [onChange]);

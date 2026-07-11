@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  BackgroundImage,
   EditorTool,
   GridConfig,
   HistorySnapshot,
@@ -17,6 +18,7 @@ interface VenueStore {
   gridConfig: GridConfig;
   venueName: string;
   currentTool: EditorTool;
+  backgroundImage: BackgroundImage | null;
 
   history: HistorySnapshot[];
   historyIndex: number;
@@ -36,6 +38,11 @@ interface VenueStore {
   setGridConfig: (updates: Partial<GridConfig>) => void;
   setTool: (tool: EditorTool) => void;
   setVenueName: (name: string) => void;
+
+  // Plano de fondo (solo editor)
+  setBackgroundImage: (image: BackgroundImage) => void;
+  removeBackgroundImage: () => void;
+  updateBackgroundOpacity: (opacity: number) => void;
 
   // Carga de un mapeo guardado
   loadMap: (map: VenueMap) => void;
@@ -67,6 +74,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   gridConfig: DEFAULT_GRID,
   venueName: 'Nuevo Recinto',
   currentTool: 'select',
+  backgroundImage: null,
 
   history: [],
   historyIndex: -1,
@@ -125,12 +133,22 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   setTool: (tool) => set({ currentTool: tool }),
   setVenueName: (name) => set({ venueName: name }),
 
+  setBackgroundImage: (image) => set({ backgroundImage: image }),
+  removeBackgroundImage: () => set({ backgroundImage: null }),
+  updateBackgroundOpacity: (opacity) =>
+    set((state) =>
+      state.backgroundImage
+        ? { backgroundImage: { ...state.backgroundImage, opacity } }
+        : state
+    ),
+
   loadMap: (map) => {
-    const { elements, elementIds, name } = deserializeVenue(map);
+    const { elements, elementIds, name, backgroundImage } = deserializeVenue(map);
     set({
       elements,
       elementIds,
       venueName: name,
+      backgroundImage,
       selectedIds: [],
       history: [],
       historyIndex: -1,
@@ -144,6 +162,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       elementIds: [],
       selectedIds: [],
       venueName: 'Nuevo Recinto',
+      backgroundImage: null,
       history: [],
       historyIndex: -1,
       viewState: DEFAULT_VIEW,
