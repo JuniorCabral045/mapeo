@@ -19,8 +19,15 @@ export type {
   AvailabilityMap,
   SelectedSeat,
   CornerRadius,
+  BackgroundImage,
 } from './types';
 
 // Utilidades de generación de asientos (por si se necesitan fuera del editor)
-export { generateRectLayout, generateArcLayout } from './utils/layout';
+export {
+  generateRectLayout,
+  generateArcLayout,
+  generatePolygonLayout,
+  generateArcSectorLayout,
+} from './utils/layout';
 export type { LayoutParams } from './utils/layout';
+export { pointInPolygon } from './utils/geometry';
