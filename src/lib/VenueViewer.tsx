@@ -4,6 +4,7 @@ import Konva from 'konva';
 import { Seat } from './components/canvas/Seat';
 import { CustomShape } from './components/canvas/CustomShape';
 import { deserializeVenue } from './schema';
+import { calculateBounds, fitView } from './utils/bounds';
 import {
   AvailabilityMap,
   SeatElement,
@@ -78,25 +79,9 @@ export const VenueViewer: React.FC<VenueViewerProps> = ({
 
   // Encuadrar el mapa completo al montar / cambiar de mapa
   useEffect(() => {
-    if (elementIds.length === 0) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    elementIds.forEach((id) => {
-      const el = elements[id];
-      const w = 'width' in el ? el.width : el.radius * 2;
-      const h = 'height' in el ? el.height : el.radius * 2;
-      minX = Math.min(minX, el.x);
-      minY = Math.min(minY, el.y);
-      maxX = Math.max(maxX, el.x + w);
-      maxY = Math.max(maxY, el.y + h);
-    });
-    const bw = maxX - minX || 1;
-    const bh = maxY - minY || 1;
-    const scale = Math.min(dimensions.width / bw, dimensions.height / bh) * 0.85;
-    setView({
-      scale,
-      x: (dimensions.width - bw * scale) / 2 - minX * scale,
-      y: (dimensions.height - bh * scale) / 2 - minY * scale,
-    });
+    const caja = calculateBounds(elements, elementIds);
+    if (!caja) return;
+    setView(fitView(caja, dimensions.width, dimensions.height));
   }, [elements, elementIds, dimensions]);
 
   const showLabels = view.scale > 1.2 ? 'all' : view.scale > 0.6 ? 'row' : 'none';
