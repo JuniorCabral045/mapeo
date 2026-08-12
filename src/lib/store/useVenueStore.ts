@@ -9,6 +9,7 @@ import {
   ViewState,
 } from '../types';
 import { deserializeVenue } from '../schema';
+import { calculateBounds, fitView } from '../utils/bounds';
 
 interface VenueStore {
   elements: Record<string, VenueElement>;
@@ -19,6 +20,8 @@ interface VenueStore {
   venueName: string;
   currentTool: EditorTool;
   backgroundImage: BackgroundImage | null;
+  /** Tamaño del lienzo en píxeles. Lo publica EditorCanvas; lo necesita fitToContent. */
+  canvasSize: { width: number; height: number };
 
   history: HistorySnapshot[];
   historyIndex: number;
@@ -35,6 +38,9 @@ interface VenueStore {
 
   // Vista / configuración
   setViewState: (updates: Partial<ViewState>) => void;
+  setCanvasSize: (width: number, height: number) => void;
+  /** Encuadra todo el contenido. Sin elementos no hace nada. */
+  fitToContent: () => void;
   setGridConfig: (updates: Partial<GridConfig>) => void;
   setTool: (tool: EditorTool) => void;
   setVenueName: (name: string) => void;
@@ -75,6 +81,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   venueName: 'Nuevo Recinto',
   currentTool: 'select',
   backgroundImage: null,
+  canvasSize: { width: 1000, height: 800 },
 
   history: [],
   historyIndex: -1,
@@ -128,6 +135,16 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
 
   setViewState: (updates) =>
     set((state) => ({ viewState: { ...state.viewState, ...updates } })),
+
+  setCanvasSize: (width, height) => set({ canvasSize: { width, height } }),
+
+  fitToContent: () => {
+    const { elements, elementIds, canvasSize } = get();
+    const caja = calculateBounds(elements, elementIds);
+    if (!caja) return;
+    set({ viewState: fitView(caja, canvasSize.width, canvasSize.height) });
+  },
+
   setGridConfig: (updates) =>
     set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
   setTool: (tool) => set({ currentTool: tool }),
@@ -153,6 +170,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       history: [],
       historyIndex: -1,
     });
+    get().fitToContent();
     get().saveHistory();
   },
 

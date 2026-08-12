@@ -29,7 +29,7 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
   onChange,
   className = '',
 }) => {
-  const { selectedIds, viewState, setViewState } = useVenueStore();
+  const { selectedIds, viewState, setViewState, fitToContent } = useVenueStore();
   const initialLoaded = useRef(false);
 
   useEffect(() => {
@@ -63,8 +63,6 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
     setViewState({ scale: Math.max(0.05, Math.min(5, viewState.scale * delta)) });
   };
 
-  const resetZoom = () => setViewState({ scale: 1, x: 100, y: 100 });
-
   return (
     <div className={`flex h-full w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 text-gray-700 selection:bg-orange-200/60 ${className}`}>
       <main className="flex-1 min-w-0 relative overflow-hidden bg-[#F3F4F6] touch-none group">
@@ -79,9 +77,9 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
             <button onClick={() => handleZoom(0.9)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all rounded-lg" title="Disminuir Zoom"><Minus size={18} /></button>
           </div>
           <button
-            onClick={resetZoom}
+            onClick={fitToContent}
             className="w-12 h-12 bg-white rounded-xl shadow-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all"
-            title="Restablecer Vista"
+            title="Encuadrar el recinto"
           >
             <Maximize size={18} />
           </button>

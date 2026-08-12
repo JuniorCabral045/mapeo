@@ -41,7 +41,7 @@ export const EditorCanvas: React.FC = () => {
     elements, elementIds, selectedIds,
     viewState, setViewState,
     gridConfig, currentTool, setTool,
-    selectElements, updateElement, addElement,
+    selectElements, updateElement, addElement, setCanvasSize,
   } = useVenueStore();
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -64,6 +64,7 @@ export const EditorCanvas: React.FC = () => {
           width: containerRef.current.offsetWidth,
           height: containerRef.current.offsetHeight,
         });
+        setCanvasSize(containerRef.current.offsetWidth, containerRef.current.offsetHeight);
       }
     };
     updateSize();
