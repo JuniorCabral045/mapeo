@@ -6,7 +6,7 @@ import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
 import { snapToGrid } from '../../utils/grid';
 import { idsToMoveIndividually } from '../../utils/sector';
-import { anchorsFor } from '../../utils/transformer';
+import { transformerConfigFor } from '../../utils/transformer';
 import { ShapeElement, SeatElement } from '../../types';
 
 /** Capa del plano de referencia (solo editor, no interactiva). */
@@ -288,8 +288,8 @@ export const EditorCanvas: React.FC = () => {
     return 'none' as const;
   }, [viewState.scale]);
 
-  const anclas = useMemo(
-    () => anchorsFor(selectedIds.map((id) => elements[id]).filter(Boolean)),
+  const transformerConfig = useMemo(
+    () => transformerConfigFor(selectedIds.map((id) => elements[id]).filter(Boolean)),
     [selectedIds, elements]
   );
 
@@ -547,8 +547,8 @@ export const EditorCanvas: React.FC = () => {
           <Transformer
             ref={transformerRef}
             rotateEnabled
-            keepRatio={false}
-            enabledAnchors={anclas}
+            keepRatio={transformerConfig.keepRatio}
+            enabledAnchors={transformerConfig.anchors}
             boundBoxFunc={(oldBox, newBox) => {
               if (newBox.width < 10 || newBox.height < 10) return oldBox;
               return newBox;
