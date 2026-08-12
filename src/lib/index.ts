@@ -28,6 +28,7 @@ export {
   generateArcLayout,
   generatePolygonLayout,
   generateArcSectorLayout,
+  rowLabel,
 } from './utils/layout';
 export type { LayoutParams } from './utils/layout';
 export { pointInPolygon } from './utils/geometry';

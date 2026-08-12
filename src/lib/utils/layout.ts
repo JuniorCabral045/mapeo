@@ -13,6 +13,25 @@ export interface LayoutParams {
   numberDirection?: 'ltr' | 'rtl';
 }
 
+/**
+ * Etiqueta de fila: A…Z, AA, AB… desde la fila inicial indicada.
+ *
+ * La versión anterior sumaba al código del carácter, así que la fila 27 de una
+ * tribuna se llamaba «[». Un estadio con 30 filas es lo normal, no el borde.
+ */
+export const rowLabel = (index: number, startRow = 'A'): string => {
+  const base = (startRow.toUpperCase().charCodeAt(0) || 65) - 65;
+  let n = base + index;
+  let etiqueta = '';
+
+  do {
+    etiqueta = String.fromCharCode(65 + (n % 26)) + etiqueta;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+
+  return etiqueta;
+};
+
 const makeSeat = (
   id: string,
   sectionId: string,
@@ -63,13 +82,13 @@ export const generateRectLayout = (
   const startY = container.y + (container.height - totalH) / 2 + seatRadius;
 
   for (let r = 0; r < rows; r++) {
-    const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
+    const rowEtiqueta = rowLabel(r, startRow);
     for (let c = 0; c < cols; c++) {
       seats.push(
         makeSeat(
           `seat-${container.id}-${r}-${c}`,
           container.id,
-          rowLabel,
+          rowEtiqueta,
           seatNum(c, cols, startNum, numberDirection),
           startX + c * (seatRadius * 2 + colSpacing),
           startY + r * (seatRadius * 2 + rowSpacing),
@@ -94,7 +113,7 @@ export const generateArcLayout = (
   const angleStep = (endAngle - startAngle) / (cols - 1 || 1);
 
   for (let r = 0; r < rows; r++) {
-    const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
+    const rowEtiqueta = rowLabel(r, startRow);
     const radius = innerRadius + r * (seatRadius * 2 + rowSpacing);
 
     for (let c = 0; c < cols; c++) {
@@ -104,7 +123,7 @@ export const generateArcLayout = (
         makeSeat(
           `seat-arc-${container.id}-${r}-${c}`,
           container.id,
-          rowLabel,
+          rowEtiqueta,
           seatNum(c, cols, startNum, numberDirection),
           container.x + radius * Math.cos(rad),
           container.y + radius * Math.sin(rad),
@@ -142,13 +161,13 @@ export const generatePolygonLayout = (
 
   const seats: SeatElement[] = [];
   rows.forEach((row, r) => {
-    const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
+    const rowEtiqueta = rowLabel(r, startRow);
     row.xs.forEach((px, c) => {
       seats.push(
         makeSeat(
           `seat-${container.id}-${r}-${c}`,
           container.id,
-          rowLabel,
+          rowEtiqueta,
           seatNum(c, row.xs.length, startNum, numberDirection),
           container.x + px,
           container.y + row.y,
@@ -178,7 +197,7 @@ export const generateArcSectorLayout = (
   const seats: SeatElement[] = [];
 
   for (let r = 0; r < rows; r++) {
-    const rowLabel = String.fromCharCode(startRow.charCodeAt(0) + r);
+    const rowEtiqueta = rowLabel(r, startRow);
     const radius = inner + r * radiusStep;
     const arcRad = ((endAngle - startAngle) * Math.PI) / 180;
     const count = Math.max(1, Math.floor((arcRad * radius) / (seatRadius * 2 + rowSpacing)));
@@ -191,7 +210,7 @@ export const generateArcSectorLayout = (
         makeSeat(
           `seat-arc-${container.id}-${r}-${c}`,
           container.id,
-          rowLabel,
+          rowEtiqueta,
           seatNum(c, count, startNum, numberDirection),
           container.x + radius * Math.cos(rad),
           container.y + radius * Math.sin(rad),

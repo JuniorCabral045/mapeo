@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateRectLayout, type LayoutParams } from './layout';
+import { generateRectLayout, rowLabel, type LayoutParams } from './layout';
 import type { ShapeElement } from '../types';
 
 /**
@@ -18,8 +18,8 @@ import type { ShapeElement } from '../types';
 
 const contenedor: ShapeElement = {
   id: 'sector-norte',
-  type: 'shape',
-  shape: 'rect',
+  type: 'section',
+  sectionType: 'rectangle',
   name: 'Norte',
   x: 100,
   y: 200,
@@ -33,7 +33,8 @@ const contenedor: ShapeElement = {
   fill: '#fff',
   stroke: '#000',
   strokeWidth: 1,
-} as ShapeElement;
+  isActive: true,
+};
 
 const params = (extra: Partial<LayoutParams> = {}): LayoutParams => ({
   rows: 3,
@@ -141,5 +142,38 @@ describe('generación de asientos rectangulares', () => {
       expect(s.status).toBe('available');
       expect(s.sectionId).toBe(contenedor.id);
     }
+  });
+});
+
+describe('etiquetas de fila', () => {
+  it('usa letras mientras alcanzan', () => {
+    expect([0, 1, 25].map(i => rowLabel(i))).toEqual(['A', 'B', 'Z']);
+  });
+
+  it('sigue con dos letras después de la Z', () => {
+    // Una tribuna de 30 filas es normal. Antes esto devolvía '[', '\' y ']'.
+    expect([26, 27, 51].map(i => rowLabel(i))).toEqual(['AA', 'AB', 'AZ']);
+  });
+
+  it('respeta la fila inicial elegida', () => {
+    expect([0, 1].map(i => rowLabel(i, 'C'))).toEqual(['C', 'D']);
+  });
+
+  it('desde una fila inicial alta también pasa a dos letras', () => {
+    expect(rowLabel(1, 'Z')).toBe('AA');
+  });
+
+  it('un sector de 30 filas no usa ningún símbolo raro', () => {
+    const etiquetas = Array.from({ length: 30 }, (_, i) => rowLabel(i));
+
+    for (const etiqueta of etiquetas) {
+      expect(etiqueta).toMatch(/^[A-Z]+$/);
+    }
+  });
+
+  it('los generadores la usan: la fila 27 de un sector es AA', () => {
+    const asientos = generateRectLayout(contenedor, params({ rows: 27, cols: 1 }));
+
+    expect(asientos[26].row).toBe('AA');
   });
 });
