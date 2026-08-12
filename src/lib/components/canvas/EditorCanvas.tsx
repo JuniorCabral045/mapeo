@@ -42,6 +42,7 @@ export const EditorCanvas: React.FC = () => {
     viewState, setViewState,
     gridConfig, currentTool, setTool,
     selectElements, updateElement, addElement, setCanvasSize,
+    moveSector, transformSector,
   } = useVenueStore();
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -307,19 +308,25 @@ export const EditorCanvas: React.FC = () => {
     });
   };
 
+  /** Mueve un elemento; si es un sector, `moveSector` arrastra sus asientos. */
+  const aplicarMovimiento = (id: string, x: number, y: number) => {
+    const el = elements[id];
+    if (el && el.type !== 'seat') moveSector(id, x, y);
+    else updateElement(id, { x, y });
+  };
+
   const handleDragEnd = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
     const start = dragStart.current;
     if (start && start[id]) {
       const dx = e.target.x() - start[id].x;
       const dy = e.target.y() - start[id].y;
       Object.keys(start).forEach((sid) => {
-        updateElement(sid, { x: start[sid].x + dx, y: start[sid].y + dy });
+        aplicarMovimiento(sid, start[sid].x + dx, start[sid].y + dy);
       });
     } else {
-      updateElement(id, { x: e.target.x(), y: e.target.y() });
+      aplicarMovimiento(id, e.target.x(), e.target.y());
     }
     dragStart.current = null;
-    useVenueStore.getState().saveHistory();
   };
 
   // ── Transform (el nodo es el Group del elemento) ──
@@ -350,8 +357,25 @@ export const EditorCanvas: React.FC = () => {
       updates.width = Math.max(5, shape.width * scaleX);
       updates.height = Math.max(5, shape.height * scaleY);
     }
+    // Los radiales escalan por scaleX en los dos ejes: su geometría es un radio,
+    // no un ancho y un alto. Es la misma decisión que toma el bloque de arriba al
+    // calcular `radius` y `outerRadius`.
+    const esRadial = shape.sectionType === 'circle' || shape.sectionType === 'arc';
+
+    // Orden obligatorio: transformSector lee la posición/rotación del sector
+    // TODAVÍA vigentes en el store para calcular cuánto se movió cada butaca;
+    // si updateElement corriera antes, ya las habría pisado con los valores
+    // nuevos y la resta (nuevo - nuevo) daría siempre cero. Verificado a mano:
+    // con el orden updateElement→transformSector, rotar o redimensionar un
+    // sector reposicionaba las butacas en lugares sin relación con el sector.
+    transformSector(id, {
+      x: node.x(),
+      y: node.y(),
+      rotation: node.rotation(),
+      scaleX,
+      scaleY: esRadial ? scaleX : scaleY,
+    });
     updateElement(id, updates);
-    useVenueStore.getState().saveHistory();
   };
 
   // Puntos del borrador de polígono + línea al cursor
