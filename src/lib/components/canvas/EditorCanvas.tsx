@@ -5,6 +5,7 @@ import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
 import { snapToGrid } from '../../utils/grid';
+import { idsToMoveIndividually } from '../../utils/sector';
 import { ShapeElement, SeatElement } from '../../types';
 
 /** Capa del plano de referencia (solo editor, no interactiva). */
@@ -343,7 +344,11 @@ export const EditorCanvas: React.FC = () => {
     if (start && start[id]) {
       const dx = e.target.x() - start[id].x;
       const dy = e.target.y() - start[id].y;
-      Object.keys(start).forEach((sid) => {
+      // Un asiento cuyo propio sector también está seleccionado se excluye:
+      // moveSector ya lo arrastra al mover el sector, así que aplicarle el
+      // movimiento acá también lo desplazaría el doble. La exclusión mira la
+      // selección, no el orden en que se recorre `start` (ver idsToMoveIndividually).
+      idsToMoveIndividually(elements, Object.keys(start)).forEach((sid) => {
         aplicarMovimiento(sid, start[sid].x + dx, start[sid].y + dy);
       });
     } else {
