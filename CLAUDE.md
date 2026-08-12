@@ -24,18 +24,16 @@ npm test          # vitest run — pure logic only (layout + geometry)
 
 The package is consumed locally via `npm install ../mapeo` (file: dependency); `react`/`react-dom` are peer deps, konva/react-konva/zustand/lucide-react stay as regular deps but are marked `external` in the lib build.
 
-## ⚠️ The demo and the library are two different programs
+## El demo consume la librería
 
-`src/` (the demo) and `src/lib/` (the published package) hold **parallel copies of the same modules, and they have diverged**. Neither is simply stale — each grew features the other lacks:
+`src/demo/App.tsx` importa de `src/lib` — lo que ves en `npm run dev` es exactamente lo
+que recibe el panel admin. Hasta 2026-08 existía bajo `src/` una copia paralela del
+store, los componentes, los tipos y las utilidades, que ya no importaba nadie; se borró.
+Si necesitás algo de ahí (agrupar, copiar/pegar, el índice espacial RBush, los tokens de
+`theme.ts`), está en el historial: `git show 8892604:src/utils/snapping.ts`.
 
-| Module | `src/` (demo) | `src/lib/` (shipped) |
-|---|---|---|
-| `store/useVenueStore.ts` | 356 lines — spatial index, group/ungroup, copy/paste, `moveElements`, `updateSeatStatus`, snapping | 210 lines — background image, `loadMap`, `reset`, `setVenueName` |
-| `utils/layout.ts` | 2 generators | 4 generators (adds polygon and arc-sector) |
-
-**What you verify in `npm run dev` is not what the admin panel receives.** `vite build` packages `src/lib/index.ts` and nothing else. Fix a bug in the demo's store and the panel keeps the bug.
-
-Merging them is a real refactor — it means reconciling two editors, not deleting a stale copy — so it has not been done. Until it is: **make changes in `src/lib/`**, and treat the demo as a throwaway playground. Tests live under `src/lib/` for the same reason.
+**Todo cambio va en `src/lib/`.** El demo es una pantalla delgada: pestañas
+Editor/Tienda, persistencia en `localStorage` y disponibilidad simulada.
 
 ## Architecture
 
