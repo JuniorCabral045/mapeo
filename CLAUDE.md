@@ -18,7 +18,24 @@ npm run build     # builds the LIBRARY (vite lib mode + vite-plugin-dts) into di
 npm run lint      # eslint .
 ```
 
-No test suite is configured. The package is consumed locally via `npm install ../mapeo` (file: dependency); `react`/`react-dom` are peer deps, konva/react-konva/zustand/lucide-react stay as regular deps but are marked `external` in the lib build.
+```bash
+npm test          # vitest run — pure logic only (layout + geometry)
+```
+
+The package is consumed locally via `npm install ../mapeo` (file: dependency); `react`/`react-dom` are peer deps, konva/react-konva/zustand/lucide-react stay as regular deps but are marked `external` in the lib build.
+
+## ⚠️ The demo and the library are two different programs
+
+`src/` (the demo) and `src/lib/` (the published package) hold **parallel copies of the same modules, and they have diverged**. Neither is simply stale — each grew features the other lacks:
+
+| Module | `src/` (demo) | `src/lib/` (shipped) |
+|---|---|---|
+| `store/useVenueStore.ts` | 356 lines — spatial index, group/ungroup, copy/paste, `moveElements`, `updateSeatStatus`, snapping | 210 lines — background image, `loadMap`, `reset`, `setVenueName` |
+| `utils/layout.ts` | 2 generators | 4 generators (adds polygon and arc-sector) |
+
+**What you verify in `npm run dev` is not what the admin panel receives.** `vite build` packages `src/lib/index.ts` and nothing else. Fix a bug in the demo's store and the panel keeps the bug.
+
+Merging them is a real refactor — it means reconciling two editors, not deleting a stale copy — so it has not been done. Until it is: **make changes in `src/lib/`**, and treat the demo as a throwaway playground. Tests live under `src/lib/` for the same reason.
 
 ## Architecture
 

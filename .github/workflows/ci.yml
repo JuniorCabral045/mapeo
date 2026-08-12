@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  build:
+    name: Lint, pruebas y compilación de la biblioteca
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Pruebas
+        run: npm test
+
+      # Compila `src/lib/index.ts`, que es lo que consumen los dos webs. Además
+      # de validar los tipos, verifica que el empaquetado resuelva todo: si algo
+      # de la biblioteca importara del demo, acá se cae.
+      - name: Compilar
+        run: npm run build
