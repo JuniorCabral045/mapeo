@@ -77,7 +77,7 @@ export const EditorCanvas: React.FC = () => {
       observer.disconnect();
       window.removeEventListener('resize', updateSize);
     };
-  }, []);
+  }, [setCanvasSize]);
 
   useEffect(() => {
     if (transformerRef.current) {

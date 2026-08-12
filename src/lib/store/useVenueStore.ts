@@ -22,6 +22,10 @@ interface VenueStore {
   backgroundImage: BackgroundImage | null;
   /** Tamaño del lienzo en píxeles. Lo publica EditorCanvas; lo necesita fitToContent. */
   canvasSize: { width: number; height: number };
+  /** Si EditorCanvas ya publicó una medición real del lienzo al menos una vez. */
+  hasMeasuredCanvas: boolean;
+  /** Si loadMap pidió encuadrar pero el lienzo todavía no fue medido. */
+  pendingFit: boolean;
 
   history: HistorySnapshot[];
   historyIndex: number;
@@ -82,6 +86,8 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   currentTool: 'select',
   backgroundImage: null,
   canvasSize: { width: 1000, height: 800 },
+  hasMeasuredCanvas: false,
+  pendingFit: false,
 
   history: [],
   historyIndex: -1,
@@ -136,7 +142,13 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   setViewState: (updates) =>
     set((state) => ({ viewState: { ...state.viewState, ...updates } })),
 
-  setCanvasSize: (width, height) => set({ canvasSize: { width, height } }),
+  setCanvasSize: (width, height) => {
+    const { pendingFit } = get();
+    set({ canvasSize: { width, height }, hasMeasuredCanvas: true, pendingFit: false });
+    // Si loadMap pidió encuadrar antes de que llegara esta medición, es el momento:
+    // ya tenemos el tamaño real del lienzo.
+    if (pendingFit) get().fitToContent();
+  },
 
   fitToContent: () => {
     const { elements, elementIds, canvasSize } = get();
@@ -170,7 +182,18 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       history: [],
       historyIndex: -1,
     });
-    get().fitToContent();
+    // El encuadre y la medición del lienzo llegan de componentes distintos
+    // (VenueEditor dispara loadMap, EditorCanvas mide su contenedor) sin ningún orden
+    // garantizado entre sí: hoy funciona porque React corre los efectos de los hijos
+    // antes que los del padre, pero es una garantía implícita que se rompe apenas
+    // EditorCanvas se monte condicionalmente, en Suspense o en un portal. Si ya tenemos
+    // una medición real, encuadramos ahora; si no, dejamos el pedido pendiente para que
+    // setCanvasSize lo resuelva en cuanto la medición llegue.
+    if (get().hasMeasuredCanvas) {
+      get().fitToContent();
+    } else {
+      set({ pendingFit: true });
+    }
     get().saveHistory();
   },
 
@@ -184,6 +207,8 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       history: [],
       historyIndex: -1,
       viewState: DEFAULT_VIEW,
+      hasMeasuredCanvas: false,
+      pendingFit: false,
     }),
 
   saveHistory: () => {
