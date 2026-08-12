@@ -4,7 +4,7 @@ import Konva from 'konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
-import { snapToGrid } from '../../utils/grid';
+import { snapToGrid, effectiveGridStep, visibleGridRect } from '../../utils/grid';
 import { idsToMoveIndividually } from '../../utils/sector';
 import { transformerConfigFor } from '../../utils/transformer';
 import { ShapeElement, SeatElement } from '../../types';
@@ -251,39 +251,39 @@ export const EditorCanvas: React.FC = () => {
   /**
    * Grilla dibujada sobre el rectángulo visible, no sobre un cuadro fijo: antes
    * desaparecía al panear más allá de 5000 y saturaba de líneas al alejarse.
+   *
+   * El rectángulo se calcula con un margen de un viewport en cada dirección
+   * (`visibleGridRect`): con la herramienta de mano el `<Stage>` es
+   * `draggable` y Konva lo mueve en cada frame sin volver a renderizar React,
+   * así que este `sceneFunc` sigue siendo el del `viewState` de antes del
+   * arrastre hasta que se suelta el botón. Recalcular en cada frame (moviendo
+   * el cálculo a `setViewState`) dispararía un re-render de React por frame
+   * con miles de asientos en el lienzo, así que en cambio se dibuja de más
+   * alrededor para que el margen absorba el gesto sin recalcular nada.
    */
   const Grid = useMemo(() => {
     if (!gridConfig.visible) return null;
 
-    const paso = gridConfig.size;
-    // Por debajo de 4 px en pantalla la grilla es ruido: se dibuja cada 5 líneas.
-    const pasoEfectivo = paso * viewState.scale < 4 ? paso * 5 : paso;
+    const pasoEfectivo = effectiveGridStep(gridConfig.size, viewState.scale);
+    const { minX, minY, maxX, maxY } = visibleGridRect(viewState, dimensions);
 
     return (
       <Shape
         listening={false}
         sceneFunc={(ctx) => {
-          const desde = {
-            x: -viewState.x / viewState.scale,
-            y: -viewState.y / viewState.scale,
-          };
-          const hasta = {
-            x: desde.x + dimensions.width / viewState.scale,
-            y: desde.y + dimensions.height / viewState.scale,
-          };
-          const primeraX = Math.floor(desde.x / pasoEfectivo) * pasoEfectivo;
-          const primeraY = Math.floor(desde.y / pasoEfectivo) * pasoEfectivo;
+          const primeraX = Math.floor(minX / pasoEfectivo) * pasoEfectivo;
+          const primeraY = Math.floor(minY / pasoEfectivo) * pasoEfectivo;
 
           ctx.setAttr('strokeStyle', '#DCE0E8');
           ctx.setAttr('lineWidth', 1 / viewState.scale);
           ctx.beginPath();
-          for (let x = primeraX; x <= hasta.x; x += pasoEfectivo) {
-            ctx.moveTo(x, desde.y);
-            ctx.lineTo(x, hasta.y);
+          for (let x = primeraX; x <= maxX; x += pasoEfectivo) {
+            ctx.moveTo(x, minY);
+            ctx.lineTo(x, maxY);
           }
-          for (let y = primeraY; y <= hasta.y; y += pasoEfectivo) {
-            ctx.moveTo(desde.x, y);
-            ctx.lineTo(hasta.x, y);
+          for (let y = primeraY; y <= maxY; y += pasoEfectivo) {
+            ctx.moveTo(minX, y);
+            ctx.lineTo(maxX, y);
           }
           ctx.stroke();
         }}
