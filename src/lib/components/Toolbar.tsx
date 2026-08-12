@@ -15,6 +15,8 @@ import {
   Spline,
   ImagePlus,
   ImageOff,
+  Grid3x3,
+  Magnet,
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { serializeVenue } from '../schema';
@@ -33,6 +35,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
     addElement, elements, elementIds,
     venueName, setVenueName, loadMap,
     backgroundImage, setBackgroundImage, removeBackgroundImage, updateBackgroundOpacity,
+    gridConfig, setGridConfig,
   } = useVenueStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +184,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
           <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-purple-50 text-gray-400 hover:text-[#6F3E8F] rounded-xl transition-colors" title="Escenario">
             <Flag size={16} strokeWidth={3} />
           </button>
+        </div>
+
+        {/* Grilla e imán */}
+        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+          <button
+            onClick={() => setGridConfig({ visible: !gridConfig.visible })}
+            className={`p-2 rounded-xl transition-all ${gridConfig.visible ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            title="Mostrar grilla"
+          >
+            <Grid3x3 size={16} strokeWidth={3} />
+          </button>
+          <button
+            onClick={() => setGridConfig({ enabled: !gridConfig.enabled })}
+            className={`p-2 rounded-xl transition-all ${gridConfig.enabled ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            title="Imán a la grilla"
+          >
+            <Magnet size={16} strokeWidth={3} />
+          </button>
+          <select
+            value={gridConfig.size}
+            onChange={(e) => setGridConfig({ size: parseInt(e.target.value) })}
+            className="bg-indigo-50 border border-transparent rounded-xl px-2 py-1.5 text-[10px] font-bold text-gray-600 focus:border-[#FF6B01] outline-none"
+            title="Paso de la grilla"
+          >
+            {[5, 10, 20, 50].map((paso) => (
+              <option key={paso} value={paso}>{paso} px</option>
+            ))}
+          </select>
         </div>
 
         {/* Plano de fondo para calcar */}

@@ -88,6 +88,7 @@ const DEFAULT_GRID: GridConfig = {
   enabled: true,
   visible: true,
   size: 20,
+  snapToElements: true,
 };
 
 const DEFAULT_VIEW: ViewState = {

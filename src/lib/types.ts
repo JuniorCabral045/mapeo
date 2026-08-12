@@ -148,9 +148,14 @@ export interface ViewState {
 }
 
 export interface GridConfig {
+  /** Imán a la grilla. */
   enabled: boolean;
+  /** Dibujar la grilla. */
   visible: boolean;
+  /** Paso de la grilla, en unidades de mundo. */
   size: number;
+  /** Imán a bordes y centros de otros sectores. */
+  snapToElements: boolean;
 }
 
 export type EditorTool = 'select' | 'pan' | 'polygon';

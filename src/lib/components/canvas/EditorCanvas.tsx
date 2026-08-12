@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { Stage, Layer, Rect, Group, Transformer, Line, Circle, Image as KonvaImage } from 'react-konva';
+import { Stage, Layer, Rect, Transformer, Line, Circle, Image as KonvaImage, Shape } from 'react-konva';
 import Konva from 'konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
@@ -248,39 +248,48 @@ export const EditorCanvas: React.FC = () => {
     if (currentTool === 'polygon') closeDraftPolygon();
   };
 
+  /**
+   * Grilla dibujada sobre el rectángulo visible, no sobre un cuadro fijo: antes
+   * desaparecía al panear más allá de 5000 y saturaba de líneas al alejarse.
+   */
   const Grid = useMemo(() => {
     if (!gridConfig.visible) return null;
-    const size = gridConfig.size;
-    const lines = [];
-    const width = 5000;
-    const height = 5000;
 
-    for (let i = 0; i < width / size; i++) {
-      lines.push(
-        <Rect
-          key={`v-${i}`}
-          x={i * size} y={0}
-          width={0.5} height={height}
-          fill={i % 5 === 0 ? '#C9CEDA' : '#E2E5EC'}
-          opacity={0.6}
-          listening={false}
-        />
-      );
-    }
-    for (let j = 0; j < height / size; j++) {
-      lines.push(
-        <Rect
-          key={`h-${j}`}
-          x={0} y={j * size}
-          width={width} height={0.5}
-          fill={j % 5 === 0 ? '#C9CEDA' : '#E2E5EC'}
-          opacity={0.6}
-          listening={false}
-        />
-      );
-    }
-    return <Group opacity={0.5}>{lines}</Group>;
-  }, [gridConfig]);
+    const paso = gridConfig.size;
+    // Por debajo de 4 px en pantalla la grilla es ruido: se dibuja cada 5 líneas.
+    const pasoEfectivo = paso * viewState.scale < 4 ? paso * 5 : paso;
+
+    return (
+      <Shape
+        listening={false}
+        sceneFunc={(ctx) => {
+          const desde = {
+            x: -viewState.x / viewState.scale,
+            y: -viewState.y / viewState.scale,
+          };
+          const hasta = {
+            x: desde.x + dimensions.width / viewState.scale,
+            y: desde.y + dimensions.height / viewState.scale,
+          };
+          const primeraX = Math.floor(desde.x / pasoEfectivo) * pasoEfectivo;
+          const primeraY = Math.floor(desde.y / pasoEfectivo) * pasoEfectivo;
+
+          ctx.setAttr('strokeStyle', '#DCE0E8');
+          ctx.setAttr('lineWidth', 1 / viewState.scale);
+          ctx.beginPath();
+          for (let x = primeraX; x <= hasta.x; x += pasoEfectivo) {
+            ctx.moveTo(x, desde.y);
+            ctx.lineTo(x, hasta.y);
+          }
+          for (let y = primeraY; y <= hasta.y; y += pasoEfectivo) {
+            ctx.moveTo(desde.x, y);
+            ctx.lineTo(hasta.x, y);
+          }
+          ctx.stroke();
+        }}
+      />
+    );
+  }, [gridConfig, viewState, dimensions]);
 
   const showLabels = useMemo(() => {
     if (viewState.scale > 1.2) return 'all' as const;
