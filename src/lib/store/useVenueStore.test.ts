@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useVenueStore } from './useVenueStore';
-import type { VenueMap } from '../types';
+import type { SeatElement, ShapeElement, VenueMap } from '../types';
 
 /**
  * El encuadre al abrir un recinto depende de dos piezas que llegan de componentes
@@ -87,5 +87,137 @@ describe('encuadre al cargar un mapa (orden entre loadMap y setCanvasSize)', () 
 
     expect(useVenueStore.getState().pendingFit).toBe(false);
     expect(useVenueStore.getState().viewState).toEqual(VISTA_ENCUADRADA);
+  });
+});
+
+/**
+ * En el lienzo los asientos no son hijos del sector: son hermanos con coordenadas
+ * absolutas. Estas pruebas fijan que, para el usuario, se comporten como una sola
+ * cosa — mover una tribuna con 500 butacas y que las butacas se queden atrás es
+ * el tipo de bug que se descubre después de guardar.
+ */
+
+const sector: ShapeElement = {
+  id: 'sector-1',
+  type: 'section',
+  name: 'Norte',
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 100,
+  rotation: 0,
+  visible: true,
+  locked: false,
+  opacity: 0.2,
+  zIndex: 5,
+  fill: '#6F3E8F',
+  isActive: true,
+  sectionType: 'rectangle',
+};
+
+const asiento = (id: string, x: number, y: number): SeatElement => ({
+  id,
+  type: 'seat',
+  name: id,
+  x,
+  y,
+  rotation: 0,
+  visible: true,
+  locked: false,
+  opacity: 1,
+  zIndex: 10,
+  sectionId: 'sector-1',
+  row: 'A',
+  number: id.slice(-1),
+  status: 'available',
+  radius: 5,
+});
+
+const escenario = () => {
+  useVenueStore.getState().reset();
+  useVenueStore.getState().addElements([
+    sector,
+    asiento('a1', 120, 120),
+    asiento('a2', 140, 120),
+  ]);
+};
+
+describe('sector y asientos como una unidad', () => {
+  beforeEach(escenario);
+
+  describe('mover un sector', () => {
+    it('lleva sus asientos con él', () => {
+      useVenueStore.getState().moveSector('sector-1', 300, 400);
+      const { elements } = useVenueStore.getState();
+
+      expect([elements['a1'].x, elements['a1'].y]).toEqual([320, 420]);
+      expect([elements['a2'].x, elements['a2'].y]).toEqual([340, 420]);
+    });
+
+    it('no toca asientos de otro sector', () => {
+      useVenueStore.getState().updateElement('a2', { sectionId: 'otro' });
+      useVenueStore.getState().moveSector('sector-1', 300, 400);
+
+      expect(useVenueStore.getState().elements['a2'].x).toBe(140);
+    });
+
+    it('deja un solo paso de historial', () => {
+      const antes = useVenueStore.getState().historyIndex;
+      useVenueStore.getState().moveSector('sector-1', 300, 400);
+
+      expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+    });
+  });
+
+  describe('transformar un sector', () => {
+    it('reescala la posición de los asientos', () => {
+      useVenueStore.getState().transformSector('sector-1', {
+        x: 100, y: 100, rotation: 0, scaleX: 2, scaleY: 1,
+      });
+
+      // a1 estaba 20px a la derecha del origen del sector; al duplicar el ancho, 40.
+      expect(useVenueStore.getState().elements['a1'].x).toBeCloseTo(140);
+      expect(useVenueStore.getState().elements['a1'].y).toBeCloseTo(120);
+    });
+
+    it('rota los asientos alrededor del origen del sector y los orienta', () => {
+      useVenueStore.getState().transformSector('sector-1', {
+        x: 100, y: 100, rotation: 90, scaleX: 1, scaleY: 1,
+      });
+      const a1 = useVenueStore.getState().elements['a1'];
+
+      // (20,20) rotado 90° alrededor del origen del sector → (-20,20)
+      expect(a1.x).toBeCloseTo(80);
+      expect(a1.y).toBeCloseTo(120);
+      expect(a1.rotation).toBeCloseTo(90);
+    });
+  });
+
+  describe('borrar un sector', () => {
+    it('borra también sus asientos', () => {
+      // Sin cascada quedaban huérfanos y el serializador los metía en un sector
+      // «General» que nadie creó y que el backend después daba de alta.
+      useVenueStore.getState().deleteElements(['sector-1']);
+      const { elements, elementIds } = useVenueStore.getState();
+
+      expect(elementIds).toEqual([]);
+      expect(elements).toEqual({});
+    });
+
+    it('borrar un asiento suelto no toca al sector', () => {
+      useVenueStore.getState().deleteElements(['a1']);
+
+      expect(useVenueStore.getState().elementIds).toEqual(['sector-1', 'a2']);
+    });
+
+    it('deja un solo paso de historial, así deshacer devuelve todo junto', () => {
+      const antes = useVenueStore.getState().historyIndex;
+      useVenueStore.getState().deleteElements(['sector-1']);
+
+      expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+
+      useVenueStore.getState().undo();
+      expect(useVenueStore.getState().elementIds.length).toBe(3);
+    });
   });
 });

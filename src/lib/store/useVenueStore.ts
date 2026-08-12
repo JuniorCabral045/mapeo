@@ -10,6 +10,7 @@ import {
 } from '../types';
 import { deserializeVenue } from '../schema';
 import { calculateBounds, fitView } from '../utils/bounds';
+import { seatsOfSector } from '../utils/sector';
 
 interface VenueStore {
   elements: Record<string, VenueElement>;
@@ -39,6 +40,13 @@ interface VenueStore {
   addElements: (elements: VenueElement[]) => void;
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
   deleteElements: (ids: string[]) => void;
+  /** Mueve un sector con todos sus asientos. */
+  moveSector: (id: string, x: number, y: number) => void;
+  /** Aplica al sector y a sus asientos la misma transformación afín. */
+  transformSector: (
+    id: string,
+    cambio: { x: number; y: number; rotation: number; scaleX: number; scaleY: number }
+  ) => void;
 
   // Selección
   selectElements: (ids: string[]) => void;
@@ -129,13 +137,74 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
 
   deleteElements: (ids) => {
     set((state) => {
+      // Cascada: un sector se lleva sus asientos. Sin esto quedaban huérfanos y
+      // el serializador los agrupaba en un sector «General» inventado.
+      const aBorrar = new Set(ids);
+      for (const id of state.elementIds) {
+        const el = state.elements[id];
+        if (el?.type === 'seat' && el.sectionId && aBorrar.has(el.sectionId)) {
+          aBorrar.add(id);
+        }
+      }
+
       const elements = { ...state.elements };
-      ids.forEach((id) => delete elements[id]);
+      aBorrar.forEach((id) => delete elements[id]);
       return {
         elements,
-        elementIds: state.elementIds.filter((id) => !ids.includes(id)),
-        selectedIds: state.selectedIds.filter((id) => !ids.includes(id)),
+        elementIds: state.elementIds.filter((id) => !aBorrar.has(id)),
+        selectedIds: state.selectedIds.filter((id) => !aBorrar.has(id)),
       };
+    });
+    get().saveHistory();
+  },
+
+  moveSector: (id, x, y) => {
+    set((state) => {
+      const sector = state.elements[id];
+      if (!sector || sector.type === 'seat') return state;
+      const dx = x - sector.x;
+      const dy = y - sector.y;
+
+      const elements = { ...state.elements, [id]: { ...sector, x, y } };
+      for (const asiento of seatsOfSector(state.elements, state.elementIds, id)) {
+        elements[asiento.id] = {
+          ...asiento,
+          x: asiento.x + dx,
+          y: asiento.y + dy,
+        };
+      }
+      return { elements };
+    });
+    get().saveHistory();
+  },
+
+  transformSector: (id, cambio) => {
+    set((state) => {
+      const sector = state.elements[id];
+      if (!sector || sector.type === 'seat') return state;
+
+      const dRot = cambio.rotation - sector.rotation;
+      const rad = (dRot * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+
+      const elements = {
+        ...state.elements,
+        [id]: { ...sector, x: cambio.x, y: cambio.y, rotation: cambio.rotation },
+      };
+
+      for (const asiento of seatsOfSector(state.elements, state.elementIds, id)) {
+        // Posición relativa al origen del sector, escalada y luego rotada.
+        const rx = (asiento.x - sector.x) * cambio.scaleX;
+        const ry = (asiento.y - sector.y) * cambio.scaleY;
+        elements[asiento.id] = {
+          ...asiento,
+          x: cambio.x + rx * cos - ry * sin,
+          y: cambio.y + rx * sin + ry * cos,
+          rotation: asiento.rotation + dRot,
+        };
+      }
+      return { elements };
     });
     get().saveHistory();
   },
