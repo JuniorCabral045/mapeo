@@ -40,12 +40,20 @@ interface VenueStore {
   addElements: (elements: VenueElement[]) => void;
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
   deleteElements: (ids: string[]) => void;
-  /** Mueve un sector con todos sus asientos. */
-  moveSector: (id: string, x: number, y: number) => void;
-  /** Aplica al sector y a sus asientos la misma transformación afín. */
+  /**
+   * Mueve un sector con todos sus asientos.
+   * `guardarHistorial` (default true) puede venir en false: el lienzo mueve varios
+   * elementos dentro de un mismo gesto del usuario (varios sectores, o un sector
+   * más asientos sueltos) y es el manejador del gesto quien cierra el paso de
+   * historial una sola vez, no cada llamada individual.
+   */
+  moveSector: (id: string, x: number, y: number, guardarHistorial?: boolean) => void;
+  /** Aplica al sector y a sus asientos la misma transformación afín. Mismo motivo
+   * para `guardarHistorial` que en `moveSector`. */
   transformSector: (
     id: string,
-    cambio: { x: number; y: number; rotation: number; scaleX: number; scaleY: number }
+    cambio: { x: number; y: number; rotation: number; scaleX: number; scaleY: number },
+    guardarHistorial?: boolean
   ) => void;
 
   // Selección
@@ -158,7 +166,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
     get().saveHistory();
   },
 
-  moveSector: (id, x, y) => {
+  moveSector: (id, x, y, guardarHistorial = true) => {
     set((state) => {
       const sector = state.elements[id];
       if (!sector || sector.type === 'seat') return state;
@@ -175,10 +183,10 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       }
       return { elements };
     });
-    get().saveHistory();
+    if (guardarHistorial) get().saveHistory();
   },
 
-  transformSector: (id, cambio) => {
+  transformSector: (id, cambio, guardarHistorial = true) => {
     set((state) => {
       const sector = state.elements[id];
       if (!sector || sector.type === 'seat') return state;
@@ -206,7 +214,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       }
       return { elements };
     });
-    get().saveHistory();
+    if (guardarHistorial) get().saveHistory();
   },
 
   selectElements: (ids) => set({ selectedIds: ids }),

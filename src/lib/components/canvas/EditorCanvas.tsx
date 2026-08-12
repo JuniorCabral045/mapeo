@@ -58,6 +58,23 @@ export const EditorCanvas: React.FC = () => {
   // Drag grupal: posiciones iniciales de toda la selección
   const dragStart = useRef<Record<string, { x: number; y: number }> | null>(null);
 
+  // Konva dispara un `transformend` por cada nodo del Transformer (ver
+  // Transformer._removeEvents en la librería), así que en una selección múltiple
+  // handleTransformEnd se llama varias veces de forma síncrona -una por sector-
+  // dentro del mismo gesto de mouseup. Este flag agrupa esas llamadas en un solo
+  // paso de historial: cada llamada pide un guardado, pero solo la primera agenda
+  // el microtask, que corre recién cuando ya se ejecutaron todas las llamadas
+  // síncronas de este gesto.
+  const transformHistoryPending = useRef(false);
+  const scheduleTransformHistorySave = () => {
+    if (transformHistoryPending.current) return;
+    transformHistoryPending.current = true;
+    queueMicrotask(() => {
+      transformHistoryPending.current = false;
+      useVenueStore.getState().saveHistory();
+    });
+  };
+
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
@@ -308,10 +325,16 @@ export const EditorCanvas: React.FC = () => {
     });
   };
 
-  /** Mueve un elemento; si es un sector, `moveSector` arrastra sus asientos. */
+  /**
+   * Mueve un elemento; si es un sector, `moveSector` arrastra sus asientos.
+   * Durante un gesto del lienzo se pide sin guardar historial: el gesto entero
+   * -uno o varios sectores, más asientos sueltos- cierra con un solo
+   * `saveHistory()` al final de `handleDragEnd`, cubriendo también el caso del
+   * asiento suelto (que via `updateElement` nunca guarda historial por sí solo).
+   */
   const aplicarMovimiento = (id: string, x: number, y: number) => {
     const el = elements[id];
-    if (el && el.type !== 'seat') moveSector(id, x, y);
+    if (el && el.type !== 'seat') moveSector(id, x, y, false);
     else updateElement(id, { x, y });
   };
 
@@ -327,6 +350,9 @@ export const EditorCanvas: React.FC = () => {
       aplicarMovimiento(id, e.target.x(), e.target.y());
     }
     dragStart.current = null;
+    // Un solo paso de historial por gesto de arrastre, sea un asiento suelto,
+    // uno o varios sectores, o una selección mixta.
+    useVenueStore.getState().saveHistory();
   };
 
   // ── Transform (el nodo es el Group del elemento) ──
@@ -374,8 +400,12 @@ export const EditorCanvas: React.FC = () => {
       rotation: node.rotation(),
       scaleX,
       scaleY: esRadial ? scaleX : scaleY,
-    });
+    }, false);
     updateElement(id, updates);
+
+    // Ver el comentario de `scheduleTransformHistorySave`: agrupa las llamadas
+    // síncronas de este gesto (una por sector seleccionado) en un solo paso.
+    scheduleTransformHistorySave();
   };
 
   // Puntos del borrador de polígono + línea al cursor

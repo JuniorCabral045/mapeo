@@ -221,3 +221,111 @@ describe('sector y asientos como una unidad', () => {
     });
   });
 });
+
+/**
+ * Corrección posterior a la revisión de la Tarea 7: `moveSector` y
+ * `transformSector` aceptan un `guardarHistorial` opcional (default true, así
+ * los tests y llamadores de arriba no cambian de comportamiento). El lienzo lo
+ * usa en false mientras mueve varios elementos dentro de un mismo gesto del
+ * usuario -uno o varios sectores, más asientos sueltos- y cierra el gesto con
+ * un solo `saveHistory()` propio. Sin el flag, arrastrar dos sectores juntos
+ * dejaba dos pasos de historial (uno por sector) y hacían falta dos "deshacer"
+ * para volver atrás.
+ */
+const sector2: ShapeElement = {
+  ...sector,
+  id: 'sector-2',
+  name: 'Sur',
+  x: 500,
+  y: 500,
+};
+
+const escenarioDosSectores = () => {
+  useVenueStore.getState().reset();
+  useVenueStore.getState().addElements([
+    sector,
+    asiento('a1', 120, 120),
+    asiento('a2', 140, 120),
+    sector2,
+    { ...asiento('b1', 520, 520), sectionId: 'sector-2' },
+  ]);
+};
+
+describe('guardarHistorial opcional (uso real del lienzo)', () => {
+  beforeEach(escenarioDosSectores);
+
+  it('mover un sector con el flag en false no agrega un paso de historial', () => {
+    const antes = useVenueStore.getState().historyIndex;
+
+    useVenueStore.getState().moveSector('sector-1', 300, 400, false);
+
+    // El movimiento sí se aplicó...
+    expect([useVenueStore.getState().elements['a1'].x, useVenueStore.getState().elements['a1'].y])
+      .toEqual([320, 420]);
+    // ...pero no quedó registrado en el historial.
+    expect(useVenueStore.getState().historyIndex).toBe(antes);
+  });
+
+  it('transformar un sector con el flag en false no agrega un paso de historial', () => {
+    const antes = useVenueStore.getState().historyIndex;
+
+    useVenueStore.getState().transformSector('sector-1', {
+      x: 100, y: 100, rotation: 90, scaleX: 1, scaleY: 1,
+    }, false);
+
+    expect(useVenueStore.getState().elements['a1'].rotation).toBeCloseTo(90);
+    expect(useVenueStore.getState().historyIndex).toBe(antes);
+  });
+
+  it('mover dos sectores omitiendo historial y cerrar con un saveHistory() deja un solo paso, y undo() los devuelve juntos', () => {
+    // Esta es la secuencia real que corre EditorCanvas.handleDragEnd cuando el
+    // usuario arrastra una selección de varios sectores: Konva no dispara un
+    // evento de arrastre por nodo (solo el nodo tocado lo emite), así que el
+    // manejador mueve todo con el flag en false y cierra el gesto una sola vez.
+    const antes = useVenueStore.getState().historyIndex;
+    const posicionPreviaA1 = { ...useVenueStore.getState().elements['a1'] };
+    const posicionPreviaB1 = { ...useVenueStore.getState().elements['b1'] };
+
+    useVenueStore.getState().moveSector('sector-1', 300, 400, false);
+    useVenueStore.getState().moveSector('sector-2', 900, 900, false);
+    useVenueStore.getState().saveHistory();
+
+    // Un solo paso, no dos.
+    expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+
+    // Ambos sectores se movieron de verdad, con sus asientos.
+    expect([useVenueStore.getState().elements['a1'].x, useVenueStore.getState().elements['a1'].y])
+      .toEqual([320, 420]);
+    expect([useVenueStore.getState().elements['b1'].x, useVenueStore.getState().elements['b1'].y])
+      .toEqual([920, 920]);
+
+    // Un solo undo() basta para volver los dos sectores (y sus asientos) atrás.
+    useVenueStore.getState().undo();
+    expect([useVenueStore.getState().elements['a1'].x, useVenueStore.getState().elements['a1'].y])
+      .toEqual([posicionPreviaA1.x, posicionPreviaA1.y]);
+    expect([useVenueStore.getState().elements['b1'].x, useVenueStore.getState().elements['b1'].y])
+      .toEqual([posicionPreviaB1.x, posicionPreviaB1.y]);
+  });
+
+  it('lo mismo para transformSector: dos sectores, un solo paso, un solo undo() los devuelve juntos', () => {
+    const antes = useVenueStore.getState().historyIndex;
+    const rotacionPreviaA1 = useVenueStore.getState().elements['a1'].rotation;
+    const rotacionPreviaB1 = useVenueStore.getState().elements['b1'].rotation;
+
+    useVenueStore.getState().transformSector('sector-1', {
+      x: 100, y: 100, rotation: 90, scaleX: 1, scaleY: 1,
+    }, false);
+    useVenueStore.getState().transformSector('sector-2', {
+      x: 500, y: 500, rotation: 90, scaleX: 1, scaleY: 1,
+    }, false);
+    useVenueStore.getState().saveHistory();
+
+    expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+    expect(useVenueStore.getState().elements['a1'].rotation).toBeCloseTo(90);
+    expect(useVenueStore.getState().elements['b1'].rotation).toBeCloseTo(90);
+
+    useVenueStore.getState().undo();
+    expect(useVenueStore.getState().elements['a1'].rotation).toBeCloseTo(rotacionPreviaA1);
+    expect(useVenueStore.getState().elements['b1'].rotation).toBeCloseTo(rotacionPreviaB1);
+  });
+});
