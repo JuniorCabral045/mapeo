@@ -73,6 +73,7 @@ export const serializeVenue = (
       x: seat.x,
       y: seat.y,
       radius: seat.radius,
+      rotation: seat.rotation || undefined,
     };
     const parent = seat.sectionId ? sectorIndex[seat.sectionId] : undefined;
     if (parent) {
@@ -154,7 +155,7 @@ export const deserializeVenue = (
         name: `${seat.row}${seat.number}`,
         x: seat.x,
         y: seat.y,
-        rotation: 0,
+        rotation: seat.rotation ?? 0,
         visible: true,
         locked: false,
         opacity: 1,

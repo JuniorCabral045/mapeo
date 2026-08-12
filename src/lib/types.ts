@@ -25,6 +25,8 @@ export interface SeatData {
   x: number;
   y: number;
   radius: number;
+  /** Orientación de la butaca en grados. Ausente = 0 (mapas anteriores a 2026-08). */
+  rotation?: number;
 }
 
 /** Un sector (polígono/forma) del recinto, con sus asientos. */

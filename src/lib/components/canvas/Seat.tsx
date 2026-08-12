@@ -27,7 +27,7 @@ export const Seat: React.FC<SeatProps> = ({
   isInactive = false,
 }) => {
   const groupRef = useRef<Konva.Group>(null);
-  const { id, x, y, radius, status, locked, opacity, color, number } = element;
+  const { id, x, y, radius, status, locked, opacity, color, number, rotation } = element;
 
   useEffect(() => {
     // Cache para rendimiento cuando el asiento no está en interacción
@@ -36,7 +36,7 @@ export const Seat: React.FC<SeatProps> = ({
     } else if (groupRef.current) {
       groupRef.current.clearCache();
     }
-  }, [isSelected, draggable, status, color, opacity, showLabels, isInactive]);
+  }, [isSelected, draggable, status, color, opacity, showLabels, isInactive, rotation]);
 
   const getStatusColor = () => {
     if (isSelected) return '#FF6B01';
@@ -57,6 +57,7 @@ export const Seat: React.FC<SeatProps> = ({
       id={id}
       x={x}
       y={y}
+      rotation={rotation}
       ref={groupRef}
       draggable={draggable && !locked}
       onDragStart={onDragStart}
