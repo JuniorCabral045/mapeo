@@ -22,7 +22,11 @@ interface VenueStore {
   backgroundImage: BackgroundImage | null;
   /** Tamaño del lienzo en píxeles. Lo publica EditorCanvas; lo necesita fitToContent. */
   canvasSize: { width: number; height: number };
-  /** Si EditorCanvas ya publicó una medición real del lienzo al menos una vez. */
+  /**
+   * Si EditorCanvas ya publicó una medición real del lienzo al menos una vez.
+   * Describe el lienzo físico, no el mapa cargado: reset() no la toca, porque el
+   * <canvas> sigue montado y medido después de vaciar el mapa.
+   */
   hasMeasuredCanvas: boolean;
   /** Si loadMap pidió encuadrar pero el lienzo todavía no fue medido. */
   pendingFit: boolean;
@@ -207,7 +211,14 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       history: [],
       historyIndex: -1,
       viewState: DEFAULT_VIEW,
-      hasMeasuredCanvas: false,
+      // hasMeasuredCanvas NO se toca: describe el lienzo fisico (si EditorCanvas ya
+      // lo midio), no el mapa cargado. El <canvas> sigue montado y medido despues de
+      // un reset(), y de hecho reset() ni siquiera borra canvasSize. Si reset()
+      // pisara esta bandera a false, VenueEditor (que llama reset() al montarse sin
+      // initialMap, ya con el lienzo medido) haria creer al proximo loadMap directo
+      // -p. ej. el boton "Importar JSON"- que el lienzo nunca fue medido: el encuadre
+      // quedaria pendiente y nada volveria a resolverlo (setCanvasSize no se
+      // reejecuta sin un resize real).
       pendingFit: false,
     }),
 

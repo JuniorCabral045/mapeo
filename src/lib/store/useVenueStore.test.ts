@@ -69,4 +69,23 @@ describe('encuadre al cargar un mapa (orden entre loadMap y setCanvasSize)', () 
     expect(useVenueStore.getState().pendingFit).toBe(false);
     expect(useVenueStore.getState().viewState).toEqual(VISTA_ENCUADRADA);
   });
+
+  it('reset() no debe olvidar que el lienzo ya fue medido: editor vacio -> importar JSON', () => {
+    // Camino real de VenueEditor sin initialMap: EditorCanvas ya midio y publico el
+    // tamaño del lienzo (el <canvas> sigue montado, no desaparece con un reset), y
+    // recien despues VenueEditor llama reset() al montarse. Si reset() pisara
+    // hasMeasuredCanvas a false, el boton "Importar JSON" de la barra (que llama a
+    // loadMap directo) creeria que el lienzo nunca fue medido, dejaria el encuadre
+    // pendiente, y nada volveria a llamar setCanvasSize (su efecto no se re-ejecuta
+    // sin un resize real): el mapa importado quedaria sin encuadrar.
+    useVenueStore.getState().setCanvasSize(800, 600);
+    expect(useVenueStore.getState().hasMeasuredCanvas).toBe(true);
+
+    useVenueStore.getState().reset();
+
+    useVenueStore.getState().loadMap(mapaConSector());
+
+    expect(useVenueStore.getState().pendingFit).toBe(false);
+    expect(useVenueStore.getState().viewState).toEqual(VISTA_ENCUADRADA);
+  });
 });
