@@ -18,6 +18,9 @@ import {
   Grid3x3,
   Magnet,
   Boxes,
+  Copy,
+  FlipHorizontal2,
+  FlipVertical2,
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { serializeVenue } from '../schema';
@@ -37,6 +40,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
     venueName, setVenueName, loadMap,
     backgroundImage, setBackgroundImage, removeBackgroundImage, updateBackgroundOpacity,
     gridConfig, setGridConfig,
+    duplicateSectors,
   } = useVenueStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +84,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
   };
 
   const currentMap = () => serializeVenue(elements, elementIds, venueName, undefined, backgroundImage ?? undefined);
+
+  const sectoresSeleccionados = selectedIds.filter((id) => elements[id] && elements[id].type !== 'seat');
+
+  const duplicar = (mirror: 'horizontal' | 'vertical' | null) => {
+    const paso = gridConfig.size * 2;
+    duplicateSectors(sectoresSeleccionados, {
+      dx: mirror === 'vertical' ? 0 : paso,
+      dy: mirror === 'vertical' ? paso : 0,
+      mirror,
+    });
+  };
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(currentMap(), null, 2)], { type: 'application/json' });
@@ -270,6 +285,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
             title="Eliminar selección"
           >
             <Trash2 size={16} strokeWidth={3} />
+          </button>
+        </div>
+
+        {/* Duplicar y espejar */}
+        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+          <button
+            onClick={() => duplicar(null)}
+            disabled={sectoresSeleccionados.length === 0}
+            className="p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 disabled:opacity-20 rounded-xl transition-colors"
+            title="Duplicar sector (Ctrl+D)"
+          >
+            <Copy size={16} strokeWidth={3} />
+          </button>
+          <button
+            onClick={() => duplicar('horizontal')}
+            disabled={sectoresSeleccionados.length === 0}
+            className="p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 disabled:opacity-20 rounded-xl transition-colors"
+            title="Duplicar espejado en horizontal"
+          >
+            <FlipHorizontal2 size={16} strokeWidth={3} />
+          </button>
+          <button
+            onClick={() => duplicar('vertical')}
+            disabled={sectoresSeleccionados.length === 0}
+            className="p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 disabled:opacity-20 rounded-xl transition-colors"
+            title="Duplicar espejado en vertical"
+          >
+            <FlipVertical2 size={16} strokeWidth={3} />
           </button>
         </div>
       </div>

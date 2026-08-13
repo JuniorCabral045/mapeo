@@ -108,6 +108,16 @@ export interface BaseElement {
   zIndex: number;
 }
 
+/** Parámetros con los que se generaron los asientos de un sector, si los tiene. */
+export interface SeatGenerationParams {
+  rows: number;
+  cols: number;
+  seatRadius: number;
+  startRow: string;
+  startNum: number;
+  numberDirection?: 'ltr' | 'rtl';
+}
+
 export interface ShapeElement extends BaseElement {
   type: 'section' | 'stage';
   width: number;
@@ -127,6 +137,8 @@ export interface ShapeElement extends BaseElement {
   endAngle?: number;
   sectionType: SectorShape;
   radius?: number;
+  /** Últimos parámetros de generación de asientos. Duplicar un sector los conserva. */
+  generation?: SeatGenerationParams;
 }
 
 export interface SeatElement extends BaseElement {

@@ -12,6 +12,7 @@ import { deserializeVenue } from '../schema';
 import { calculateBounds, fitView } from '../utils/bounds';
 import { idsToMoveIndividually, seatsOfSector } from '../utils/sector';
 import { alignElements, distributeElements, type AlignMode, type DistributeAxis, type Movimientos } from '../utils/align';
+import { duplicateSectors as calcularDuplicados, type DuplicateOptions } from '../utils/duplicate';
 
 interface VenueStore {
   elements: Record<string, VenueElement>;
@@ -41,6 +42,8 @@ interface VenueStore {
   addElements: (elements: VenueElement[]) => void;
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
   deleteElements: (ids: string[]) => void;
+  /** Duplica los sectores indicados (con sus asientos) y los deja seleccionados. */
+  duplicateSectors: (sectorIds: string[], options: DuplicateOptions) => void;
   /**
    * Mueve un sector con todos sus asientos.
    * `guardarHistorial` (default true) puede venir en false: el lienzo mueve varios
@@ -217,6 +220,15 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       };
     });
     get().saveHistory();
+  },
+
+  duplicateSectors: (sectorIds, options) => {
+    const { elements, elementIds } = get();
+    const nuevos = calcularDuplicados(elements, elementIds, sectorIds, options);
+    if (nuevos.length === 0) return;
+
+    get().addElements(nuevos);
+    set({ selectedIds: nuevos.filter((el) => el.type !== 'seat').map((el) => el.id) });
   },
 
   moveSector: (id, x, y, guardarHistorial = true) => {
