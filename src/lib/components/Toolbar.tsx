@@ -29,13 +29,14 @@ import { loadScaledImage } from '../utils/image';
 
 interface ToolbarProps {
   onSave?: (map: VenueMap) => void | Promise<void>;
+  onDelete: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
   const {
     currentTool, setTool,
     undo, redo, historyIndex, history,
-    selectedIds, deleteElements,
+    selectedIds,
     addElement, elements, elementIds,
     venueName, setVenueName, loadMap,
     backgroundImage, setBackgroundImage, removeBackgroundImage, updateBackgroundOpacity,
@@ -279,7 +280,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
           </button>
           <div className="h-5 w-px bg-gray-200 mx-0.5" />
           <button
-            onClick={() => deleteElements(selectedIds)}
+            onClick={onDelete}
             disabled={selectedIds.length === 0}
             className="p-2 text-red-500/70 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 rounded-xl transition-colors"
             title="Eliminar selección"

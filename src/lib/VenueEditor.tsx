@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
 import { useVenueStore } from './store/useVenueStore';
 import { Toolbar } from './components/Toolbar';
@@ -7,6 +7,7 @@ import { EditorCanvas } from './components/canvas/EditorCanvas';
 import { AlignBar } from './components/AlignBar';
 import { serializeVenue } from './schema';
 import { VenueMap } from './types';
+import { seatsOfSector } from './utils/sector';
 
 export interface VenueEditorProps {
   /** Mapeo guardado a cargar al montar el editor. */
@@ -30,8 +31,29 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
   onChange,
   className = '',
 }) => {
-  const { selectedIds, viewState, setViewState, fitToContent } = useVenueStore();
+  const { selectedIds, viewState, setViewState, fitToContent, elements, elementIds, deleteElements } = useVenueStore();
   const initialLoaded = useRef(false);
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
+
+  const aBorrar = useMemo(() => {
+    const sectores = selectedIds.filter((id) => elements[id] && elements[id].type !== 'seat');
+    const asientos = sectores.reduce(
+      (n, id) => n + seatsOfSector(elements, elementIds, id).length,
+      0
+    );
+    return { sectores: sectores.length, asientos };
+  }, [selectedIds, elements, elementIds]);
+
+  const pedirBorrado = () => {
+    if (aBorrar.asientos > 0) setConfirmandoBorrado(true);
+    else deleteElements(selectedIds);
+  };
+
+  // Si la selección cambia mientras se pide confirmación, se cierra: el aviso
+  // mostraba un conteo de una selección que ya no es la que "Borrar" borraría.
+  useEffect(() => {
+    setConfirmandoBorrado(false);
+  }, [selectedIds]);
 
   useEffect(() => {
     const store = useVenueStore.getState();
@@ -67,7 +89,7 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
   return (
     <div className={`flex h-full w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 text-gray-700 selection:bg-orange-200/60 ${className}`}>
       <main className="flex-1 min-w-0 relative overflow-hidden bg-[#F3F4F6] touch-none group">
-        <Toolbar onSave={onSave} />
+        <Toolbar onSave={onSave} onDelete={pedirBorrado} />
         <EditorCanvas />
         <AlignBar />
 
@@ -89,9 +111,29 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
 
         {/* Barra de estado */}
         <footer className="absolute bottom-0 left-0 right-0 h-8 bg-white/90 backdrop-blur-sm border-t border-gray-200 flex items-center justify-between px-4 z-[90]">
-          <span className="text-[10px] font-bold text-gray-400">
-            Selección: {selectedIds.length > 0 ? `${selectedIds.length} elementos` : 'Ninguna'}
-          </span>
+          {confirmandoBorrado ? (
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-amber-700">
+                Se borran {aBorrar.sectores} {aBorrar.sectores === 1 ? 'sector' : 'sectores'} y sus {aBorrar.asientos} asientos.
+              </span>
+              <button
+                onClick={() => { deleteElements(selectedIds); setConfirmandoBorrado(false); }}
+                className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-600"
+              >
+                Borrar
+              </button>
+              <button
+                onClick={() => setConfirmandoBorrado(false)}
+                className="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <span className="text-[10px] font-bold text-gray-400">
+              Selección: {selectedIds.length > 0 ? `${selectedIds.length} elementos` : 'Ninguna'}
+            </span>
+          )}
           <span className="text-[10px] font-bold text-[#6F3E8F]">{Math.round(viewState.scale * 100)}%</span>
         </footer>
       </main>

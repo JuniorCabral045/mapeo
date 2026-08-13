@@ -14,6 +14,7 @@ import {
 import { useVenueStore } from '../store/useVenueStore';
 import { SeatGenerationParams, ShapeElement, VenueElement } from '../types';
 import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
+import { seatsOfSector } from '../utils/sector';
 
 // arcRadius/arcAngle quedan fuera: no son parte del estado `gen` (viven en su propio
 // useState porque solo aplican a sectores circulares), se agregan aparte al generar.
@@ -29,6 +30,11 @@ export const PropertyPanel: React.FC = () => {
   const [gen, setGen] = useState<Required<Omit<SeatGenerationParams, 'arcRadius' | 'arcAngle'>>>(GENERACION_POR_DEFECTO);
   const [arcRadius, setArcRadius] = useState(200);
   const [arcAngle, setArcAngle] = useState(120);
+  const [confirmandoRegenerar, setConfirmandoRegenerar] = useState(false);
+
+  const asientosDelSector = element && element.type === 'section'
+    ? seatsOfSector(elements, elementIds, element.id).length
+    : 0;
 
   // Al cambiar de sector se muestran los parámetros con los que se generó ese
   // sector, no los del anterior.
@@ -41,6 +47,7 @@ export const PropertyPanel: React.FC = () => {
       if (generation?.arcRadius !== undefined) setArcRadius(generation.arcRadius);
       if (generation?.arcAngle !== undefined) setArcAngle(generation.arcAngle);
     }
+    setConfirmandoRegenerar(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
@@ -364,12 +371,36 @@ export const PropertyPanel: React.FC = () => {
               </div>
 
               <div className="pt-2">
-                <button
-                  onClick={generateSeats}
-                  className="w-full bg-[#FF6B01] hover:bg-[#e86000] text-white py-3 rounded-2xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 group"
-                >
-                  GENERAR DISTRIBUCIÓN <Maximize2 size={14} className="group-hover:scale-110 transition-transform" />
-                </button>
+                {confirmandoRegenerar ? (
+                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-3">
+                    <p className="text-[10px] font-bold text-amber-700 leading-relaxed">
+                      Se reemplazan {asientosDelSector} asientos.
+                      Los QR ya impresos de este sector dejan de coincidir con sus butacas.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => { setConfirmandoRegenerar(false); generateSeats(); }}
+                        className="bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors"
+                      >
+                        Regenerar
+                      </button>
+                      <button
+                        onClick={() => setConfirmandoRegenerar(false)}
+                        className="bg-white border border-gray-200 text-gray-500 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => (asientosDelSector > 0 ? setConfirmandoRegenerar(true) : generateSeats())}
+                    className="w-full bg-[#FF6B01] hover:bg-[#e86000] text-white py-3 rounded-2xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    {asientosDelSector > 0 ? 'REGENERAR DISTRIBUCIÓN' : 'GENERAR DISTRIBUCIÓN'}
+                    <Maximize2 size={14} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
               </div>
 
               {(element as ShapeElement).generation && (
