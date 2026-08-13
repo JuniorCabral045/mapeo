@@ -10,7 +10,7 @@ import {
 } from '../types';
 import { deserializeVenue } from '../schema';
 import { calculateBounds, fitView } from '../utils/bounds';
-import { seatsOfSector } from '../utils/sector';
+import { idsToMoveIndividually, seatsOfSector } from '../utils/sector';
 import { alignElements, distributeElements, type AlignMode, type DistributeAxis, type Movimientos } from '../utils/align';
 
 interface VenueStore {
@@ -107,6 +107,18 @@ const DEFAULT_VIEW: ViewState = {
  * `guardarHistorial` en false lo usa el empuje con flechas, que agrupa el paso
  * cuando el usuario suelta la tecla: si no, mantener una flecha apretada llenaría
  * los 50 lugares del historial y borraría todo lo anterior.
+ *
+ * Corrección posterior a la revisión de la Tarea 11: si un asiento y su propio
+ * sector están los dos en `movimientos` -fácil con la goma de selección, que
+ * agarra por posición sin filtrar pertenencia-, aplicar los dos movimientos por
+ * separado (el propio del asiento, calculado por align/distribute, y el que le
+ * suma su sector al arrastrar `seatsOfSector`) hacía que el resultado dependiera
+ * del orden de iteración: cuál de los dos ganaba dependía de cuál se procesara
+ * último. `idsToMoveIndividually` -ya usada por el arrastre del lienzo para el
+ * mismo problema- filtra por pertenencia, no por orden: si el sector de un
+ * asiento también está en el conjunto, el asiento se deja afuera de la lista de
+ * movimientos propios y solo lo mueve el paso que arrastra a los asientos del
+ * sector, sin importar en qué orden vinieran los ids.
  */
 const aplicarMovimientos = (
   get: () => VenueStore,
@@ -115,16 +127,17 @@ const aplicarMovimientos = (
   elementIds: string[],
   guardarHistorial = true
 ) => {
-  const ids = Object.keys(movimientos);
+  const ids = idsToMoveIndividually(elements, Object.keys(movimientos));
   if (ids.length === 0) return;
 
   const nuevos = { ...elements };
   for (const id of ids) {
+    const movimiento = movimientos[id];
     const el = nuevos[id];
-    if (!el) continue;
-    const dx = movimientos[id].x - el.x;
-    const dy = movimientos[id].y - el.y;
-    nuevos[id] = { ...el, x: movimientos[id].x, y: movimientos[id].y };
+    if (!movimiento || !el) continue;
+    const dx = movimiento.x - el.x;
+    const dy = movimiento.y - el.y;
+    nuevos[id] = { ...el, x: movimiento.x, y: movimiento.y };
     if (el.type !== 'seat') {
       for (const asiento of seatsOfSector(elements, elementIds, id)) {
         nuevos[asiento.id] = { ...asiento, x: asiento.x + dx, y: asiento.y + dy };

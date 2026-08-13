@@ -7,8 +7,16 @@ export type DistributeAxis = 'x' | 'y';
 /** Posiciones nuevas por id. Solo incluye lo que efectivamente se mueve. */
 export type Movimientos = Record<string, { x: number; y: number }>;
 
-const movibles = (elements: Record<string, VenueElement>, ids: string[]) =>
-  ids.map((id) => elements[id]).filter((el): el is VenueElement => !!el && !el.locked);
+/**
+ * Elementos de la selección con caja calculable. A diferencia del antiguo
+ * `movibles`, esto NO excluye a los bloqueados: un elemento bloqueado sigue
+ * ocupando lugar y tiene que participar del cálculo de la caja del conjunto
+ * (como ancla), aunque nunca reciba un movimiento propio. Excluirlo del todo
+ * -como hacía `movibles`- dejaba que los demás se alinearan o distribuyeran
+ * usando solo sus propios extremos, montándose encima del bloqueado.
+ */
+const conCaja = (elements: Record<string, VenueElement>, ids: string[]) =>
+  ids.map((id) => elements[id]).filter((el): el is VenueElement => !!el);
 
 /**
  * Alinea una selección.
@@ -21,7 +29,7 @@ export const alignElements = (
   ids: string[],
   mode: AlignMode
 ): Movimientos => {
-  const seleccion = movibles(elements, ids);
+  const seleccion = conCaja(elements, ids);
   if (seleccion.length < 2) return {};
 
   const cajas = seleccion.map((el) => ({ el, caja: elementBounds(el) }));
@@ -35,6 +43,9 @@ export const alignElements = (
   const movimientos: Movimientos = {};
 
   for (const { el, caja } of cajas) {
+    // Ancla del cálculo, pero nunca se mueve.
+    if (el.locked) continue;
+
     const ancho = caja.maxX - caja.minX;
     const alto = caja.maxY - caja.minY;
     let destinoX = caja.minX;
@@ -63,7 +74,7 @@ export const distributeElements = (
   ids: string[],
   axis: DistributeAxis
 ): Movimientos => {
-  const seleccion = movibles(elements, ids);
+  const seleccion = conCaja(elements, ids);
   if (seleccion.length < 3) return {};
 
   const cajas = seleccion
@@ -78,6 +89,14 @@ export const distributeElements = (
   const fin = axis === 'x' ? ultimo.caja.maxX : ultimo.caja.maxY;
 
   const ocupado = cajas.reduce((suma, c) => suma + tamano(c), 0);
+  // Si los elementos no entran en el espacio disponible entre los extremos, esta
+  // resta da negativa. No se trata como error: repartir el faltante en partes
+  // iguales es, matemáticamente, la misma cuenta que repartir un sobrante -es
+  // la definición de «distribuir parejo»-, así que no se cambia la fórmula.
+  // Lo que se decide acá es no ocultarlo: con hueco negativo el resultado es un
+  // solapamiento visible, previsible e igual entre todos los elementos del
+  // medio -una decisión tomada a propósito, no un accidente en silencio-. Ver
+  // el caso «hueco negativo» en align.test.ts.
   const hueco = (fin - inicio - ocupado) / (cajas.length - 1);
 
   const movimientos: Movimientos = {};
@@ -87,10 +106,14 @@ export const distributeElements = (
     const { el, caja } = cajas[i];
     const actual = axis === 'x' ? caja.minX : caja.minY;
     const delta = cursor - actual;
-    movimientos[el.id] = {
-      x: axis === 'x' ? el.x + delta : el.x,
-      y: axis === 'y' ? el.y + delta : el.y,
-    };
+    // Ancla del cálculo -el cursor avanza igual, usando su tamaño-, pero un
+    // elemento bloqueado nunca recibe movimiento propio.
+    if (!el.locked) {
+      movimientos[el.id] = {
+        x: axis === 'x' ? el.x + delta : el.x,
+        y: axis === 'y' ? el.y + delta : el.y,
+      };
+    }
     cursor += tamano(cajas[i]) + hueco;
   }
 

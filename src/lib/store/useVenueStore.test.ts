@@ -329,3 +329,134 @@ describe('guardarHistorial opcional (uso real del lienzo)', () => {
     expect(useVenueStore.getState().elements['b1'].rotation).toBeCloseTo(rotacionPreviaB1);
   });
 });
+
+/**
+ * Corrección posterior a la revisión de la Tarea 11: `alignSelection` y
+ * `distributeSelection` reusan `aplicarMovimientos`, que movía sectores y
+ * asientos sueltos a la vez sumando deltas sin filtrar pertenencia. Si un
+ * asiento y su propio sector estaban los dos en la selección -fácil con la
+ * goma, que agarra por posición- el asiento recibía dos movimientos: el suyo
+ * propio (calculado por `alignElements`) y el que le aplica su sector al
+ * arrastrar sus asientos. Cuál ganaba dependía del orden de iteración de
+ * `Object.keys(movimientos)», que sigue el orden de inserción de `selectedIds`.
+ * `idsToMoveIndividually` (ya usado por el arrastre del lienzo para el mismo
+ * problema) es la que decide por pertenencia, no por orden.
+ */
+describe('alinear y distribuir la seleccion (store)', () => {
+  beforeEach(escenario);
+
+  describe('alinear', () => {
+    it('una seleccion de sectores deja un solo paso de historial y los asientos acompañan', () => {
+      useVenueStore.getState().addElements([sector2, { ...asiento('b1', 520, 520), sectionId: 'sector-2' }]);
+      const antes = useVenueStore.getState().historyIndex;
+
+      useVenueStore.getState().selectElements(['sector-1', 'sector-2']);
+      useVenueStore.getState().alignSelection('left');
+
+      // sector-1 esta en x=100 (mas a la izquierda que sector-2 en x=500):
+      // sector-2 se mueve a x=100, arrastrando a b1 con el mismo delta (-400).
+      expect(useVenueStore.getState().elements['sector-2'].x).toBe(100);
+      expect(useVenueStore.getState().elements['b1'].x).toBe(120);
+      // sector-1 no se movio (ya era el mas a la izquierda) y sus asientos tampoco.
+      expect(useVenueStore.getState().elements['a1'].x).toBe(120);
+
+      // Un solo paso de historial para toda la operacion, no uno por elemento.
+      expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+    });
+  });
+
+  describe('distribuir', () => {
+    it('una seleccion de sectores deja un solo paso de historial y los asientos acompañan', () => {
+      useVenueStore.getState().addElements([
+        sector2,
+        { ...asiento('b1', 520, 520), sectionId: 'sector-2' },
+        { ...sector, id: 'sector-3', name: 'Centro', x: 800 },
+      ]);
+      const antes = useVenueStore.getState().historyIndex;
+
+      useVenueStore.getState().selectElements(['sector-1', 'sector-2', 'sector-3']);
+      useVenueStore.getState().distributeSelection('x');
+
+      // sector-1 (100-300) y sector-3 (800-1000) son los extremos: no se mueven.
+      // ocupado=600, hueco=(1000-100-600)/2=150; sector-2 pasa de 500 a 450.
+      expect(useVenueStore.getState().elements['sector-2'].x).toBe(450);
+      // b1 acompaña a sector-2 con el mismo delta (450-500=-50).
+      expect(useVenueStore.getState().elements['b1'].x).toBe(470);
+
+      expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+    });
+  });
+
+  describe('defecto: un sector y un asiento propio seleccionados juntos', () => {
+    // Reproduce el caso del informe: sector S en x=0 con un asiento en x=50 (S se
+    // queda quieto porque ya es el más a la izquierda), más un sector T en
+    // x=-50. Los tres seleccionados, alinear a la izquierda: el asiento tiene
+    // que terminar en x=-45 (acompañando a S, que no se mueve), sin importar en
+    // qué orden vengan los ids en la selección.
+    const construirEscenario = () => {
+      useVenueStore.getState().reset();
+      useVenueStore.getState().addElements([
+        { ...sector, id: 'S', name: 'S', x: 0 },
+        { ...asiento('asiento-de-S', 50, 20), sectionId: 'S' },
+        { ...sector, id: 'T', name: 'T', x: -50 },
+      ]);
+    };
+
+    it('el asiento queda donde corresponde con un orden de seleccion', () => {
+      construirEscenario();
+      useVenueStore.getState().selectElements(['S', 'asiento-de-S', 'T']);
+      useVenueStore.getState().alignSelection('left');
+
+      expect(useVenueStore.getState().elements['S'].x).toBe(-50);
+      expect(useVenueStore.getState().elements['asiento-de-S'].x).toBe(0);
+    });
+
+    it('el resultado no depende del orden de la seleccion', () => {
+      construirEscenario();
+      // Mismo escenario, orden de seleccion distinto: el asiento antes que su sector.
+      useVenueStore.getState().selectElements(['asiento-de-S', 'S', 'T']);
+      useVenueStore.getState().alignSelection('left');
+
+      expect(useVenueStore.getState().elements['S'].x).toBe(-50);
+      expect(useVenueStore.getState().elements['asiento-de-S'].x).toBe(0);
+    });
+  });
+
+  describe('elemento bloqueado', () => {
+    it('no se mueve pero ancla el calculo de los demas', () => {
+      useVenueStore.getState().addElements([{ ...sector2, locked: true }]);
+      // sector-1 (100-300, con a1 y a2) sin bloquear; sector-2 (500-700)
+      // bloqueado. Alinear a la derecha: el borde derecho de la selección lo
+      // pone sector-2 (700) precisamente porque participa del cálculo -si se
+      // lo hubiera ignorado del todo, como antes de la corrección, el único
+      // elemento movible quedaría solo en la selección (largo 1) y
+      // `alignElements` no haría nada-.
+      useVenueStore.getState().selectElements(['sector-1', 'sector-2']);
+      useVenueStore.getState().alignSelection('right');
+
+      // sector-2 esta bloqueado: nunca recibe movimiento, sigue en 500.
+      expect(useVenueStore.getState().elements['sector-2'].x).toBe(500);
+      // sector-1 (ancho 200) se corre para que su borde derecho llegue a 700:
+      // x = 700 - 200 = 500. Sus asientos lo acompañan con el mismo delta (+400).
+      expect(useVenueStore.getState().elements['sector-1'].x).toBe(500);
+      expect(useVenueStore.getState().elements['a1'].x).toBe(520);
+    });
+  });
+
+  describe('undo', () => {
+    it('revierte la operacion entera: sectores y asientos', () => {
+      useVenueStore.getState().addElements([sector2, { ...asiento('b1', 520, 520), sectionId: 'sector-2' }]);
+      const posicionPreviaSector2 = { ...useVenueStore.getState().elements['sector-2'] };
+      const posicionPreviaB1 = { ...useVenueStore.getState().elements['b1'] };
+
+      useVenueStore.getState().selectElements(['sector-1', 'sector-2']);
+      useVenueStore.getState().alignSelection('left');
+      expect(useVenueStore.getState().elements['sector-2'].x).toBe(100);
+
+      useVenueStore.getState().undo();
+
+      expect(useVenueStore.getState().elements['sector-2'].x).toBe(posicionPreviaSector2.x);
+      expect(useVenueStore.getState().elements['b1'].x).toBe(posicionPreviaB1.x);
+    });
+  });
+});
