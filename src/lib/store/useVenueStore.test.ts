@@ -518,3 +518,79 @@ describe('duplicateSectors (store)', () => {
     expect(selectedIds).toEqual([]);
   });
 });
+
+/**
+ * Corrección posterior a la revisión de la Tarea 16: empujar la selección con
+ * las flechas mueve sin guardar historial (`nudgeSelection` llama a
+ * `aplicarMovimientos` con `guardarHistorial` en false) y es
+ * `useEditorShortcuts` quien cierra el paso con un `saveHistory()` propio
+ * cuando el usuario deja de apretar teclas por 400 ms -si cada empuje guardara
+ * su propio paso, mantener una flecha apretada llenaría el historial de
+ * pasos de un solo píxel y desplazaría todo lo anterior fuera de la ventana
+ * de 50.
+ *
+ * El agrupamiento en sí (el temporizador de 400 ms, `useEffect`, `window`)
+ * vive en el hook y no se probó por separado: es puro cableado de un
+ * `setTimeout` a `saveHistory()`, no tiene lógica propia que extraer. Lo que
+ * sí es responsabilidad del store -y lo que se rompió cuando la limpieza del
+ * hook canceló un empuje sin guardar el paso- es este contrato: empujar sin
+ * guardar no dejar rastro en el historial, y guardar después de una ráfaga
+ * deja exactamente un paso que un solo `undo()` revierte entero.
+ */
+describe('empuje con flechas y agrupamiento del historial (store)', () => {
+  beforeEach(escenarioDosSectores);
+
+  it('empujar la selección sin guardar historial mueve los elementos pero no agrega pasos', () => {
+    const antes = useVenueStore.getState().historyIndex;
+
+    useVenueStore.getState().selectElements(['sector-1']);
+    useVenueStore.getState().nudgeSelection(10, 0);
+
+    // El movimiento se aplicó...
+    expect(useVenueStore.getState().elements['sector-1'].x).toBe(110);
+    // ...los asientos del sector lo acompañaron...
+    expect(useVenueStore.getState().elements['a1'].x).toBe(130);
+    // ...pero no quedó registrado en el historial.
+    expect(useVenueStore.getState().historyIndex).toBe(antes);
+  });
+
+  it('varios empujes seguidos sin guardar tampoco agregan pasos (la ráfaga completa)', () => {
+    const antes = useVenueStore.getState().historyIndex;
+
+    useVenueStore.getState().selectElements(['sector-1']);
+    useVenueStore.getState().nudgeSelection(10, 0);
+    useVenueStore.getState().nudgeSelection(10, 0);
+    useVenueStore.getState().nudgeSelection(0, 10);
+
+    expect(useVenueStore.getState().elements['sector-1'].x).toBe(120);
+    expect(useVenueStore.getState().elements['sector-1'].y).toBe(110);
+    expect(useVenueStore.getState().historyIndex).toBe(antes);
+  });
+
+  it('cerrar la ráfaga con saveHistory() deja exactamente un paso, y undo() devuelve todo a la posición previa', () => {
+    const antes = useVenueStore.getState().historyIndex;
+    const posicionPreviaSector = { ...useVenueStore.getState().elements['sector-1'] };
+    const posicionPreviaA1 = { ...useVenueStore.getState().elements['a1'] };
+    const posicionPreviaA2 = { ...useVenueStore.getState().elements['a2'] };
+
+    useVenueStore.getState().selectElements(['sector-1']);
+    // La ráfaga: varios empujes sin guardar, como haría el usuario manteniendo
+    // apretada la flecha, y el hook cerrando el paso una sola vez al soltar.
+    useVenueStore.getState().nudgeSelection(10, 0);
+    useVenueStore.getState().nudgeSelection(10, 0);
+    useVenueStore.getState().nudgeSelection(0, 10);
+    useVenueStore.getState().saveHistory();
+
+    // Un solo paso para toda la ráfaga, no uno por tecla.
+    expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+
+    // undo() devuelve el sector y sus asientos juntos a la posición previa al empuje.
+    useVenueStore.getState().undo();
+    expect(useVenueStore.getState().elements['sector-1'].x).toBe(posicionPreviaSector.x);
+    expect(useVenueStore.getState().elements['sector-1'].y).toBe(posicionPreviaSector.y);
+    expect(useVenueStore.getState().elements['a1'].x).toBe(posicionPreviaA1.x);
+    expect(useVenueStore.getState().elements['a1'].y).toBe(posicionPreviaA1.y);
+    expect(useVenueStore.getState().elements['a2'].x).toBe(posicionPreviaA2.x);
+    expect(useVenueStore.getState().elements['a2'].y).toBe(posicionPreviaA2.y);
+  });
+});

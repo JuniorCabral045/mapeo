@@ -22,12 +22,37 @@ const enCampoDeTexto = (target: EventTarget | null) =>
  * manejo (cancelar/cerrar el polígono). El menú de plantillas escucha `Escape`
  * sobre `document` solo mientras está abierto y únicamente se cierra: que acá
  * también dispare `deselect` no pisa nada, es redundante como mucho.
+ *
+ * Corrección posterior a la revisión de la Tarea 16: `onDelete` tiene que ser
+ * estable entre renders. El efecto lo lleva en sus dependencias, así que cada
+ * vez que cambiaba de identidad se reinstalaba el escuchador -y la limpieza
+ * del anterior cancelaba un empuje pendiente sin guardarlo. `VenueEditor` ya
+ * no cierra sobre la selección para armar `pedirBorrado`: la lee del store en
+ * el momento de invocar, así que su identidad no depende de la selección. Por
+ * las dudas de que algún otro camino vuelva a reinstalar el efecto -o de que
+ * el componente se desmonte- con un empuje a mitad de agrupar, la limpieza
+ * también guarda el paso pendiente en vez de descartarlo (ver
+ * `guardarEmpujePendiente` más abajo).
  */
 export const useEditorShortcuts = (onDelete: () => void) => {
   const temporizadorEmpuje = useRef<ReturnType<typeof setTimeout> | null>(null);
   const herramientaPrevia = useRef<EditorTool | null>(null);
 
   useEffect(() => {
+    // Si hay un empuje pendiente de cerrarse, lo cierra guardando el paso en
+    // vez de descartarlo. La reinstala tanto la limpieza al desmontar como la
+    // que corre cada vez que este efecto se reinstala (hoy solo pasa si
+    // `onDelete` cambia de identidad) -sin esto, deseleccionar con Escape
+    // antes de los 400 ms de un empuje con flechas dejaba el movimiento hecho
+    // en pantalla pero fuera del historial: Ctrl+Z no lo revertía.
+    const guardarEmpujePendiente = () => {
+      if (temporizadorEmpuje.current) {
+        clearTimeout(temporizadorEmpuje.current);
+        temporizadorEmpuje.current = null;
+        useVenueStore.getState().saveHistory();
+      }
+    };
+
     const cerrarEmpuje = () => {
       if (temporizadorEmpuje.current) clearTimeout(temporizadorEmpuje.current);
       temporizadorEmpuje.current = setTimeout(() => {
@@ -114,7 +139,7 @@ export const useEditorShortcuts = (onDelete: () => void) => {
     return () => {
       window.removeEventListener('keydown', alPresionar);
       window.removeEventListener('keyup', alSoltar);
-      if (temporizadorEmpuje.current) clearTimeout(temporizadorEmpuje.current);
+      guardarEmpujePendiente();
     };
   }, [onDelete]);
 };

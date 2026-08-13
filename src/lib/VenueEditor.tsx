@@ -41,10 +41,23 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
     [selectedIds, elements, elementIds]
   );
 
+  // Corrección posterior a la revisión de la Tarea 16: esta función se le pasa
+  // a useEditorShortcuts, cuyo efecto la lleva en las dependencias. Cerrar
+  // sobre `aBorrar`/`selectedIds` la hacía cambiar de identidad en cada clic
+  // de selección -continuo mientras se edita- y cada cambio reinstalaba el
+  // escuchador de teclado, cuya limpieza cancelaba (sin guardar) cualquier
+  // empuje con flechas a mitad de agruparse. Lee la selección del store en el
+  // momento de invocar en vez de capturarla, así que queda estable entre
+  // renders; el conteo del aviso de borrado (`resumenDeBorrado`) se calcula
+  // con los mismos datos que ya usa `aBorrar`, solo que leídos en el momento
+  // en lugar de memorizados, así que el aviso sigue mostrando el número
+  // correcto de lo que "Borrar" va a borrar.
   const pedirBorrado = useCallback(() => {
-    if (aBorrar.asientos > 0) setConfirmandoBorrado(true);
+    const { selectedIds, elements, elementIds, deleteElements } = useVenueStore.getState();
+    const resumen = resumenDeBorrado(elements, elementIds, selectedIds);
+    if (resumen.asientos > 0) setConfirmandoBorrado(true);
     else deleteElements(selectedIds);
-  }, [aBorrar.asientos, selectedIds, deleteElements]);
+  }, []);
 
   useEditorShortcuts(pedirBorrado);
 
