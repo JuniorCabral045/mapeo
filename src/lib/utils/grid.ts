@@ -21,10 +21,16 @@ export const effectiveGridStep = (step: number, scale: number, minPixelSize = 4)
 
 /**
  * Rectángulo, en coordenadas de mundo, sobre el que se dibuja la grilla:
- * el viewport visible más un margen de un viewport entero en cada dirección.
- * El margen existe para que un gesto de paneo sostenido -que Konva anima de
- * forma nativa sin re-renderizar React- encuentre grilla ya dibujada en el
- * borde hacia el que avanza, en vez de recalcular en cada frame.
+ * exactamente el viewport visible, sin margen. El margen de un viewport que
+ * tenía antes esta función existía para que un gesto de paneo sostenido
+ * -que Konva anima de forma nativa sin re-renderizar React- encontrara
+ * grilla ya dibujada en el borde hacia el que avanza; dejó de hacer falta
+ * cuando el `sceneFunc` de la grilla (en `EditorCanvas`) pasó a leer la
+ * posición y la escala en vivo del stage en cada frame del arrastre, en vez
+ * de depender del `viewState` de React, que solo se actualiza al soltar: con
+ * la transformación en vivo, este rectángulo ya es exactamente lo visible en
+ * cada frame intermedio, así que dibujar de más alrededor no suma cobertura,
+ * solo costo.
  */
 export const visibleGridRect = (
   view: { x: number; y: number; scale: number },
@@ -36,9 +42,9 @@ export const visibleGridRect = (
   const originY = -view.y / view.scale;
 
   return {
-    minX: originX - worldWidth,
-    minY: originY - worldHeight,
-    maxX: originX + worldWidth * 2,
-    maxY: originY + worldHeight * 2,
+    minX: originX,
+    minY: originY,
+    maxX: originX + worldWidth,
+    maxY: originY + worldHeight,
   };
 };

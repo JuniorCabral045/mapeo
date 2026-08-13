@@ -252,30 +252,43 @@ export const EditorCanvas: React.FC = () => {
    * Grilla dibujada sobre el rectángulo visible, no sobre un cuadro fijo: antes
    * desaparecía al panear más allá de 5000 y saturaba de líneas al alejarse.
    *
-   * El rectángulo se calcula con un margen de un viewport en cada dirección
-   * (`visibleGridRect`): con la herramienta de mano el `<Stage>` es
-   * `draggable` y Konva lo mueve en cada frame sin volver a renderizar React,
-   * así que este `sceneFunc` sigue siendo el del `viewState` de antes del
-   * arrastre hasta que se suelta el botón. Recalcular en cada frame (moviendo
-   * el cálculo a `setViewState`) dispararía un re-render de React por frame
-   * con miles de asientos en el lienzo, así que en cambio se dibuja de más
-   * alrededor para que el margen absorba el gesto sin recalcular nada.
+   * El rectángulo se calcula a partir de la transformación **en vivo** del
+   * stage (`shape.getStage()`), no del `viewState` capturado en el closure de
+   * este `useMemo`. Con la herramienta de mano el `<Stage>` es `draggable` y
+   * Konva no mueve una capa CSS: repinta con Canvas 2D, así que para que los
+   * asientos sigan al mouse redibuja todos los nodos de la capa -incluido
+   * este `sceneFunc`- en cada frame del arrastre nativo, sin pasar por React.
+   * Leer `stage.x()/y()/scaleX()` ahí adentro, en vez de depender de
+   * `viewState` (que React solo actualiza al soltar el botón), hace que el
+   * rectángulo dibujado sea siempre exactamente el visible, en cualquier
+   * frame intermedio de un arrastre, sin importar cuántos viewports recorra
+   * antes de soltar. Ya no hace falta un margen ni dibujar de más alrededor.
+   *
+   * `viewState` queda solo como respaldo (`stage` puede no existir todavía en
+   * el primer render) y como dependencia del `useMemo`, para que la grilla se
+   * recalcule si `viewState` cambia por una vía que no sea el arrastre nativo
+   * (zoom con la rueda, por ejemplo).
    */
   const Grid = useMemo(() => {
     if (!gridConfig.visible) return null;
 
-    const pasoEfectivo = effectiveGridStep(gridConfig.size, viewState.scale);
-    const { minX, minY, maxX, maxY } = visibleGridRect(viewState, dimensions);
-
     return (
       <Shape
         listening={false}
-        sceneFunc={(ctx) => {
+        sceneFunc={(ctx, shape) => {
+          const stage = shape.getStage();
+          const view = stage
+            ? { x: stage.x(), y: stage.y(), scale: stage.scaleX() }
+            : viewState;
+
+          const pasoEfectivo = effectiveGridStep(gridConfig.size, view.scale);
+          const { minX, minY, maxX, maxY } = visibleGridRect(view, dimensions);
+
           const primeraX = Math.floor(minX / pasoEfectivo) * pasoEfectivo;
           const primeraY = Math.floor(minY / pasoEfectivo) * pasoEfectivo;
 
           ctx.setAttr('strokeStyle', '#DCE0E8');
-          ctx.setAttr('lineWidth', 1 / viewState.scale);
+          ctx.setAttr('lineWidth', 1 / view.scale);
           ctx.beginPath();
           for (let x = primeraX; x <= maxX; x += pasoEfectivo) {
             ctx.moveTo(x, minY);

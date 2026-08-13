@@ -16,7 +16,17 @@ const ESCALAS = [0.05, 0.1, 0.5, 1, 2, 3, 5];
 const UMBRAL_PX = 4;
 
 describe('effectiveGridStep', () => {
-  it('nunca deja la grilla mas fina que el umbral, en toda combinacion alcanzable desde la interfaz', () => {
+  it('nunca deja la grilla mas fina que el umbral, en la formula que rige todo el rango continuo de la interfaz', () => {
+    // Los PASOS y ESCALAS de abajo son puntos discretos de muestreo, no el
+    // dominio real: el selector de paso limita a esos cuatro valores, pero la
+    // rueda del mouse multiplica la escala por 0.9 o 1.1 en cada tick
+    // (handleWheel en EditorCanvas.tsx), asi que en uso real la escala toma
+    // valores continuos como 0.055 o 0.1331, no solo los de esta lista. La
+    // garantia no viene de este muestreo sino de la formula misma
+    // (factor = ceil(minPixelSize / (step*scale))), que por construccion
+    // redondea siempre hacia arriba al proximo multiplo que alcanza el
+    // umbral; el muestreo de abajo es una verificacion adicional sobre casos
+    // representativos, no la prueba de cobertura.
     // Antes: un factor fijo de 5 aplicado una sola vez alcanzaba el umbral en
     // casi todos los casos pero no en el peor -paso 5, escala 0.05-, donde el
     // paso en pantalla quedaba en 1.25px, muy por debajo de los 4px que el
@@ -58,45 +68,38 @@ describe('effectiveGridStep', () => {
 });
 
 describe('visibleGridRect', () => {
-  it('contiene al rectangulo visible con un margen de un viewport en cada direccion', () => {
-    // El margen es lo que evita que la grilla se vea cortada mientras se
-    // sostiene un gesto de paneo: Konva mueve el Stage nativamente en cada
-    // frame sin volver a renderizar React, así que el sceneFunc dibuja con
-    // el viewState de antes del arrastre. Si el margen no cubre el gesto,
-    // el borde por donde avanza el paneo queda sin grilla hasta soltar.
+  it('coincide exactamente con el rectangulo visible, sin margen', () => {
+    // El margen que tenia antes esta funcion compensaba que el sceneFunc de
+    // la grilla dibujaba con el viewState de React, desactualizado durante un
+    // arrastre nativo del Stage. Ahora el sceneFunc lee la posicion y escala
+    // en vivo del stage en cada frame (ver EditorCanvas.tsx), asi que este
+    // rectangulo ya es exactamente lo visible en todo momento y dibujar de
+    // mas no suma cobertura.
     const view = { x: -100, y: -50, scale: 2 };
     const viewport = { width: 800, height: 600 };
     const rect = visibleGridRect(view, viewport);
 
-    // Rectángulo visible sin margen, en coordenadas de mundo.
     const visibleMinX = -view.x / view.scale;
     const visibleMinY = -view.y / view.scale;
     const visibleMaxX = visibleMinX + viewport.width / view.scale;
     const visibleMaxY = visibleMinY + viewport.height / view.scale;
 
-    expect(rect.minX).toBeLessThanOrEqual(visibleMinX);
-    expect(rect.minY).toBeLessThanOrEqual(visibleMinY);
-    expect(rect.maxX).toBeGreaterThanOrEqual(visibleMaxX);
-    expect(rect.maxY).toBeGreaterThanOrEqual(visibleMaxY);
-
-    // El margen es del orden de un viewport completo, no un puñado de
-    // píxeles: alcanza para cubrir un arrastre sostenido, no solo un frame.
-    const margenX = visibleMinX - rect.minX;
-    const margenY = visibleMinY - rect.minY;
-    expect(margenX).toBeCloseTo(viewport.width / view.scale);
-    expect(margenY).toBeCloseTo(viewport.height / view.scale);
+    expect(rect.minX).toBeCloseTo(visibleMinX);
+    expect(rect.minY).toBeCloseTo(visibleMinY);
+    expect(rect.maxX).toBeCloseTo(visibleMaxX);
+    expect(rect.maxY).toBeCloseTo(visibleMaxY);
   });
 
-  it('el margen crece al alejar el zoom, en unidades de mundo', () => {
-    // A menor escala, un mismo desplazamiento en pantalla (drag) recorre más
-    // unidades de mundo; el margen tiene que escalar igual o el paneo vuelve
-    // a descubrirse antes en zoom alejado.
+  it('el rectangulo crece al alejar el zoom, en unidades de mundo', () => {
+    // A menor escala, el mismo viewport en pantalla cubre mas unidades de
+    // mundo: el rectangulo tiene que escalar igual, sin depender de un
+    // margen fijo para hacerlo.
     const viewport = { width: 800, height: 600 };
     const cerca = visibleGridRect({ x: 0, y: 0, scale: 2 }, viewport);
     const lejos = visibleGridRect({ x: 0, y: 0, scale: 0.5 }, viewport);
 
-    const margenCerca = cerca.maxX - cerca.minX;
-    const margenLejos = lejos.maxX - lejos.minX;
-    expect(margenLejos).toBeGreaterThan(margenCerca);
+    const anchoCerca = cerca.maxX - cerca.minX;
+    const anchoLejos = lejos.maxX - lejos.minX;
+    expect(anchoLejos).toBeGreaterThan(anchoCerca);
   });
 });
