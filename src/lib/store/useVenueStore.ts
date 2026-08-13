@@ -11,6 +11,7 @@ import {
 import { deserializeVenue } from '../schema';
 import { calculateBounds, fitView } from '../utils/bounds';
 import { seatsOfSector } from '../utils/sector';
+import { alignElements, distributeElements, type AlignMode, type DistributeAxis, type Movimientos } from '../utils/align';
 
 interface VenueStore {
   elements: Record<string, VenueElement>;
@@ -59,6 +60,8 @@ interface VenueStore {
   // Selección
   selectElements: (ids: string[]) => void;
   clearSelection: () => void;
+  alignSelection: (mode: AlignMode) => void;
+  distributeSelection: (axis: DistributeAxis) => void;
 
   // Vista / configuración
   setViewState: (updates: Partial<ViewState>) => void;
@@ -95,6 +98,42 @@ const DEFAULT_VIEW: ViewState = {
   scale: 1,
   x: 100,
   y: 100,
+};
+
+/**
+ * Aplica un conjunto de movimientos en un solo paso de historial.
+ * Los sectores se mueven con seatsOfSector para que sus asientos acompañen.
+ *
+ * `guardarHistorial` en false lo usa el empuje con flechas, que agrupa el paso
+ * cuando el usuario suelta la tecla: si no, mantener una flecha apretada llenaría
+ * los 50 lugares del historial y borraría todo lo anterior.
+ */
+const aplicarMovimientos = (
+  get: () => VenueStore,
+  movimientos: Movimientos,
+  elements: Record<string, VenueElement>,
+  elementIds: string[],
+  guardarHistorial = true
+) => {
+  const ids = Object.keys(movimientos);
+  if (ids.length === 0) return;
+
+  const nuevos = { ...elements };
+  for (const id of ids) {
+    const el = nuevos[id];
+    if (!el) continue;
+    const dx = movimientos[id].x - el.x;
+    const dy = movimientos[id].y - el.y;
+    nuevos[id] = { ...el, x: movimientos[id].x, y: movimientos[id].y };
+    if (el.type !== 'seat') {
+      for (const asiento of seatsOfSector(elements, elementIds, id)) {
+        nuevos[asiento.id] = { ...asiento, x: asiento.x + dx, y: asiento.y + dy };
+      }
+    }
+  }
+
+  useVenueStore.setState({ elements: nuevos });
+  if (guardarHistorial) get().saveHistory();
 };
 
 export const useVenueStore = create<VenueStore>()((set, get) => ({
@@ -220,6 +259,16 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
 
   selectElements: (ids) => set({ selectedIds: ids }),
   clearSelection: () => set({ selectedIds: [] }),
+
+  alignSelection: (mode) => {
+    const { elements, elementIds, selectedIds } = get();
+    aplicarMovimientos(get, alignElements(elements, selectedIds, mode), elements, elementIds);
+  },
+
+  distributeSelection: (axis) => {
+    const { elements, elementIds, selectedIds } = get();
+    aplicarMovimientos(get, distributeElements(elements, selectedIds, axis), elements, elementIds);
+  },
 
   setViewState: (updates) =>
     set((state) => ({ viewState: { ...state.viewState, ...updates } })),

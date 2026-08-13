@@ -4,6 +4,7 @@ import { useVenueStore } from './store/useVenueStore';
 import { Toolbar } from './components/Toolbar';
 import { PropertyPanel } from './components/PropertyPanel';
 import { EditorCanvas } from './components/canvas/EditorCanvas';
+import { AlignBar } from './components/AlignBar';
 import { serializeVenue } from './schema';
 import { VenueMap } from './types';
 
@@ -68,6 +69,7 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
       <main className="flex-1 min-w-0 relative overflow-hidden bg-[#F3F4F6] touch-none group">
         <Toolbar onSave={onSave} />
         <EditorCanvas />
+        <AlignBar />
 
         {/* Controles de zoom */}
         <div className="absolute bottom-12 right-6 flex flex-col gap-3 z-50">
