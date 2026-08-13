@@ -26,6 +26,7 @@ import { useVenueStore } from '../store/useVenueStore';
 import { serializeVenue } from '../schema';
 import { VenueMap } from '../types';
 import { loadScaledImage } from '../utils/image';
+import { TemplateMenu } from './TemplateMenu';
 
 interface ToolbarProps {
   onSave?: (map: VenueMap) => void | Promise<void>;
@@ -201,6 +202,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
           <button onClick={() => handleAddSection('stage')} className="p-2 hover:bg-purple-50 text-gray-400 hover:text-[#6F3E8F] rounded-xl transition-colors" title="Escenario">
             <Flag size={16} strokeWidth={3} />
           </button>
+          <div className="h-5 w-px bg-gray-200 mx-0.5" />
+          <TemplateMenu />
         </div>
 
         {/* Grilla e imán */}

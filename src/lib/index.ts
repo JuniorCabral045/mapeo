@@ -32,3 +32,7 @@ export {
 } from './utils/layout';
 export type { LayoutParams } from './utils/layout';
 export { pointInPolygon } from './utils/geometry';
+
+// Plantillas de recinto
+export { TEMPLATES } from './utils/templates';
+export type { VenueTemplate, TemplateId } from './utils/templates';

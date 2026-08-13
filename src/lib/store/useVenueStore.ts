@@ -40,6 +40,8 @@ interface VenueStore {
   // Elementos
   addElement: (element: VenueElement) => void;
   addElements: (elements: VenueElement[]) => void;
+  /** Inserta los elementos de una plantilla sin borrar lo que ya hay. */
+  applyTemplate: (elements: VenueElement[]) => void;
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
   deleteElements: (ids: string[]) => void;
   /** Duplica los sectores indicados (con sus asientos) y los deja seleccionados. */
@@ -187,6 +189,11 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       return { elements, elementIds };
     });
     get().saveHistory();
+  },
+
+  applyTemplate: (nuevos) => {
+    get().addElements(nuevos);
+    get().fitToContent();
   },
 
   updateElement: (id, updates) => {
