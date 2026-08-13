@@ -5,7 +5,7 @@ import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
 import { effectiveGridStep, visibleGridRect } from '../../utils/grid';
-import { idsToMoveIndividually } from '../../utils/sector';
+import { idsToMoveIndividually, idsToExcludeFromSnap } from '../../utils/sector';
 import { transformerConfigFor } from '../../utils/transformer';
 import { snapPosition, type Guide } from '../../utils/snapping';
 import { elementBounds } from '../../utils/bounds';
@@ -323,10 +323,24 @@ export const EditorCanvas: React.FC = () => {
     ? 'cursor-grab active:cursor-grabbing'
     : 'cursor-crosshair';
 
+  // Evita re-renderizar sectores y asientos en cada tick del arrastre cuando
+  // la lista de guías no cambió (p.ej. sigue vacía porque no hay nada cerca).
+  const actualizarGuias = (nuevas: Guide[]) => {
+    setGuias((previas) => {
+      if (
+        previas.length === nuevas.length &&
+        previas.every((g, i) => g.axis === nuevas[i].axis && g.pos === nuevas[i].pos)
+      ) {
+        return previas;
+      }
+      return nuevas;
+    });
+  };
+
   /** Aplica el imán (grilla y/o bordes de otros sectores) durante el arrastre. Con Alt se ignora. */
   const aplicarIman = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
     if (e.evt.altKey) {
-      setGuias([]);
+      actualizarGuias([]);
       return;
     }
     const el = elements[id];
@@ -337,7 +351,7 @@ export const EditorCanvas: React.FC = () => {
       y: e.target.y(),
       width: caja.maxX - caja.minX,
       height: caja.maxY - caja.minY,
-      excludedIds: selectedIds.length > 1 ? selectedIds : [id],
+      excludedIds: idsToExcludeFromSnap(id, selectedIds),
       elements,
       elementIds,
       grid: gridConfig,
@@ -345,7 +359,7 @@ export const EditorCanvas: React.FC = () => {
     });
     e.target.x(r.x);
     e.target.y(r.y);
-    setGuias(r.guides);
+    actualizarGuias(r.guides);
   };
 
   // ── Drag grupal: toda la selección sigue al elemento arrastrado ──

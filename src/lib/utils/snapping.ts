@@ -1,5 +1,6 @@
 import { GridConfig, ShapeElement, VenueElement } from '../types';
 import { elementBounds } from './bounds';
+import { snapToGrid } from './grid';
 
 export interface Guide {
   axis: 'v' | 'h';
@@ -44,8 +45,9 @@ export const snapPosition = ({
   const guides: Guide[] = [];
 
   if (grid.enabled) {
-    snappedX = Math.round(x / grid.size) * grid.size;
-    snappedY = Math.round(y / grid.size) * grid.size;
+    const ajustado = snapToGrid(x, y, grid.size);
+    snappedX = ajustado.x;
+    snappedY = ajustado.y;
   }
 
   if (!grid.snapToElements) return { x: snappedX, y: snappedY, guides };

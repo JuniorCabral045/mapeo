@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { idsToMoveIndividually } from './sector';
+import { idsToMoveIndividually, idsToExcludeFromSnap } from './sector';
 import type { SeatElement, ShapeElement, VenueElement } from '../types';
 
 /**
@@ -96,5 +96,31 @@ describe('idsToMoveIndividually', () => {
 
     expect(conAsientoPrimero).toEqual(conSectorPrimero);
     expect(conAsientoPrimero).toEqual(['sector-1']);
+  });
+});
+
+describe('idsToExcludeFromSnap', () => {
+  /**
+   * El defecto que esto cubre: con una seleccion multiple [A, B] ya hecha, si
+   * se arrastra un tercer elemento C sin deseleccionar primero -Konva no
+   * dispara `click` cuando el puntero se movio antes de soltar, asi que la
+   * seleccion de React no se actualiza-, mirar solo el TAMANO de
+   * `selectedIds` (> 1) dejaba a C fuera de los excluidos: se enganchaba
+   * contra su propia caja. La condicion correcta es pertenencia.
+   */
+  it('excluye solo al propio elemento si arrastra algo fuera de una seleccion multiple existente', () => {
+    expect(idsToExcludeFromSnap('c', ['a', 'b'])).toEqual(['c']);
+  });
+
+  it('excluye toda la seleccion si el elemento arrastrado es parte de ella', () => {
+    expect(idsToExcludeFromSnap('a', ['a', 'b'])).toEqual(['a', 'b']);
+  });
+
+  it('con seleccion de uno solo, excluye unicamente ese elemento', () => {
+    expect(idsToExcludeFromSnap('a', ['a'])).toEqual(['a']);
+  });
+
+  it('sin seleccion (arrastre libre), excluye solo el elemento arrastrado', () => {
+    expect(idsToExcludeFromSnap('a', [])).toEqual(['a']);
   });
 });

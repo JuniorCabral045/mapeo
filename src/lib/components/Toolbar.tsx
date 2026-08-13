@@ -17,6 +17,7 @@ import {
   ImageOff,
   Grid3x3,
   Magnet,
+  Boxes,
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { serializeVenue } from '../schema';
@@ -201,6 +202,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
             title="Imán a la grilla"
           >
             <Magnet size={16} strokeWidth={3} />
+          </button>
+          <button
+            onClick={() => setGridConfig({ snapToElements: !gridConfig.snapToElements })}
+            className={`p-2 rounded-xl transition-all ${gridConfig.snapToElements ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            title="Imán a otros sectores (bordes y centros)"
+          >
+            <Boxes size={16} strokeWidth={3} />
           </button>
           <select
             value={gridConfig.size}

@@ -1,5 +1,22 @@
 import { SeatElement, VenueElement } from '../types';
 
+/**
+ * Ids que el imán entre elementos debe excluir como candidatos al arrastrar
+ * `id`: siempre el propio elemento, más el resto de la selección cuando `id`
+ * forma parte de ella.
+ *
+ * Mirar solo el tamaño de la selección (`selectedIds.length > 1 ? selectedIds
+ * : [id]`) no alcanza: si ya había una selección múltiple `[A, B]` y se
+ * arrastra un tercer elemento `C` sin deseleccionar primero -Konva no dispara
+ * `click` cuando el puntero se movió antes de soltar, así que la selección
+ * React no se actualiza-, `selectedIds` seguía siendo `[A, B]` y `C` no
+ * quedaba excluido: se enganchaba contra su propia caja y volvía a su
+ * posición de origen. La condición correcta es pertenencia (`includes`), no
+ * tamaño.
+ */
+export const idsToExcludeFromSnap = (id: string, selectedIds: string[]): string[] =>
+  selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id];
+
 /** Asientos que pertenecen a un sector, en el orden del lienzo. */
 export const seatsOfSector = (
   elements: Record<string, VenueElement>,
