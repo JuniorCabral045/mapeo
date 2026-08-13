@@ -1,16 +1,52 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutTemplate } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { TEMPLATES } from '../utils/templates';
+
+// La cantidad de asientos de cada plantilla no depende de ningun estado del
+// store: se calcula una sola vez fuera del componente, no en cada render.
+const CANTIDADES_POR_PLANTILLA = new Map(
+  TEMPLATES.map((plantilla) => [
+    plantilla.id,
+    plantilla.build().filter((e) => e.type === 'seat').length,
+  ]),
+);
 
 /** Inserta una plantilla. Nunca reemplaza: si ya hay contenido, avisa. */
 export const TemplateMenu: React.FC = () => {
   const { elementIds, applyTemplate } = useVenueStore();
   const [abierto, setAbierto] = useState(false);
+  const contenedorRef = useRef<HTMLDivElement>(null);
+  const botonRef = useRef<HTMLButtonElement>(null);
+
+  const cantidades = useMemo(() => CANTIDADES_POR_PLANTILLA, []);
+
+  useEffect(() => {
+    if (!abierto) return;
+
+    const alHacerClic = (evento: MouseEvent) => {
+      const objetivo = evento.target as Node;
+      if (botonRef.current?.contains(objetivo)) return;
+      if (contenedorRef.current && !contenedorRef.current.contains(objetivo)) {
+        setAbierto(false);
+      }
+    };
+    const alPresionarTecla = (evento: KeyboardEvent) => {
+      if (evento.key === 'Escape') setAbierto(false);
+    };
+
+    document.addEventListener('mousedown', alHacerClic);
+    document.addEventListener('keydown', alPresionarTecla);
+    return () => {
+      document.removeEventListener('mousedown', alHacerClic);
+      document.removeEventListener('keydown', alPresionarTecla);
+    };
+  }, [abierto]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={contenedorRef}>
       <button
+        ref={botonRef}
         onClick={() => setAbierto((v) => !v)}
         className={`p-2 rounded-xl transition-all ${abierto ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
         title="Plantillas de recinto"
@@ -26,7 +62,7 @@ export const TemplateMenu: React.FC = () => {
             </p>
           )}
           {TEMPLATES.map((plantilla) => {
-            const cantidad = plantilla.build().filter((e) => e.type === 'seat').length;
+            const cantidad = cantidades.get(plantilla.id) ?? 0;
             return (
               <button
                 key={plantilla.id}
