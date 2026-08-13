@@ -10,10 +10,16 @@ export type Movimientos = Record<string, { x: number; y: number }>;
 /**
  * Elementos de la selección con caja calculable. A diferencia del antiguo
  * `movibles`, esto NO excluye a los bloqueados: un elemento bloqueado sigue
- * ocupando lugar y tiene que participar del cálculo de la caja del conjunto
- * (como ancla), aunque nunca reciba un movimiento propio. Excluirlo del todo
- * -como hacía `movibles`- dejaba que los demás se alinearan o distribuyeran
- * usando solo sus propios extremos, montándose encima del bloqueado.
+ * ocupando lugar y tiene que participar del cálculo del conjunto, aunque
+ * nunca reciba un movimiento propio. Excluirlo del todo -como hacía
+ * `movibles`- dejaba que los demás se alinearan o distribuyeran usando solo
+ * sus propios extremos, montándose encima del bloqueado.
+ *
+ * Cuánto pesa esa participación no es lo mismo en las dos funciones de abajo:
+ * en `alignElements` el bloqueado es una ancla real -los demás terminan
+ * tocando su borde-; en `distributeElements` solo aporta su tamaño al reparto
+ * y su posición real nunca se lee, así que puede quedar lejos de donde el
+ * cálculo lo supone. El comentario de cada función detalla su caso.
  */
 const conCaja = (elements: Record<string, VenueElement>, ids: string[]) =>
   ids.map((id) => elements[id]).filter((el): el is VenueElement => !!el);
@@ -43,7 +49,8 @@ export const alignElements = (
   const movimientos: Movimientos = {};
 
   for (const { el, caja } of cajas) {
-    // Ancla del cálculo, pero nunca se mueve.
+    // Ancla real: su destino se calcula igual que el de cualquier otro, y como
+    // nunca se mueve, los demás terminan tocando su borde efectivo.
     if (el.locked) continue;
 
     const ancho = caja.maxX - caja.minX;
@@ -106,8 +113,17 @@ export const distributeElements = (
     const { el, caja } = cajas[i];
     const actual = axis === 'x' ? caja.minX : caja.minY;
     const delta = cursor - actual;
-    // Ancla del cálculo -el cursor avanza igual, usando su tamaño-, pero un
-    // elemento bloqueado nunca recibe movimiento propio.
+    // A diferencia de alignElements, acá "ancla" es una palabra más débil: el
+    // cursor solo toma el tamaño del bloqueado para seguir avanzando -el reparto
+    // uniforme es una sola pasada de izquierda a derecha, sin una segunda vuelta
+    // que reubique el cursor sobre su posición real-, así que su x/y real nunca
+    // se lee. Si el bloqueado no cae exactamente donde el reparto uniforme lo
+    // hubiera puesto, los elementos siguientes se calculan igual respecto de un
+    // punto donde el bloqueado no está, y los huecos a su alrededor quedan
+    // desparejos. Es una limitación conocida y aceptada, no un olvido: fijarla
+    // exigiría segmentar la distribución en tramos alrededor de cada bloqueado,
+    // un algoritmo distinto y más grande que el de esta función. Ver el caso
+    // «bloqueado en el medio» en align.test.ts.
     if (!el.locked) {
       movimientos[el.id] = {
         x: axis === 'x' ? el.x + delta : el.x,

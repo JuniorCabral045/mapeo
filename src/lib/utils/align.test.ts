@@ -99,4 +99,36 @@ describe('distribuir', () => {
     expect(r['a']).toBeUndefined();
     expect(r['c']).toBeUndefined();
   });
+
+  it('con un bloqueado en el medio, el cursor no lo sigue y los huecos quedan desparejos', () => {
+    // Limitación conocida y aceptada, no un descuido: el reparto uniforme es una
+    // sola pasada que usa el tamaño del bloqueado para avanzar el cursor, pero
+    // nunca lee su posición real. Si el bloqueado no cae justo donde esa pasada
+    // lo hubiera puesto, los elementos siguientes se calculan igual respecto de
+    // un punto donde el bloqueado no está.
+    const elements = escena(
+      sector('a', 0, 0, 100),
+      { ...sector('b', 150, 0, 100), locked: true },
+      sector('c', 300, 0, 100),
+      sector('d', 2000, 0, 100)
+    );
+
+    const r = distributeElements(elements, ['a', 'b', 'c', 'd'], 'x');
+
+    // hueco = (2100 - 0 - 400) / 3 = 566,6666...
+    // cursor tras "pasar" por b (con su tamaño, no con su x real): 0 + 100 +
+    // 566,6666... + 100 + 566,6666... = 1333,3333...
+    // c.x = 300 + (1333,3333... - 300) = 1333,3333...
+    expect(r['a']).toBeUndefined();
+    expect(r['b']).toBeUndefined(); // bloqueado: nunca recibe movimiento propio.
+    expect(r['c'].x).toBeCloseTo(1333.3333333333333, 9);
+    expect(r['d']).toBeUndefined();
+
+    // b se queda donde estaba (150–250) en vez de en el punto que el cursor
+    // supone (666,67–766,67): por eso los huecos quedan desparejos.
+    // a-b: 150 - 100 = 50. b-c: 1333,33 - 250 = 1083,33. c-d: 2000 - 1433,33 = 566,67.
+    expect(150 - 100).toBe(50);
+    expect(r['c'].x - 250).toBeCloseTo(1083.3333333333333, 9);
+    expect(2000 - (r['c'].x + 100)).toBeCloseTo(566.6666666666667, 9);
+  });
 });
