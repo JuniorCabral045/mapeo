@@ -7,7 +7,7 @@ import { EditorCanvas } from './components/canvas/EditorCanvas';
 import { AlignBar } from './components/AlignBar';
 import { serializeVenue } from './schema';
 import { VenueMap } from './types';
-import { seatsOfSector } from './utils/sector';
+import { resumenDeBorrado, textoAvisoDeBorrado } from './utils/sector';
 
 export interface VenueEditorProps {
   /** Mapeo guardado a cargar al montar el editor. */
@@ -35,14 +35,10 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
   const initialLoaded = useRef(false);
   const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
 
-  const aBorrar = useMemo(() => {
-    const sectores = selectedIds.filter((id) => elements[id] && elements[id].type !== 'seat');
-    const asientos = sectores.reduce(
-      (n, id) => n + seatsOfSector(elements, elementIds, id).length,
-      0
-    );
-    return { sectores: sectores.length, asientos };
-  }, [selectedIds, elements, elementIds]);
+  const aBorrar = useMemo(
+    () => resumenDeBorrado(elements, elementIds, selectedIds),
+    [selectedIds, elements, elementIds]
+  );
 
   const pedirBorrado = () => {
     if (aBorrar.asientos > 0) setConfirmandoBorrado(true);
@@ -114,7 +110,7 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
           {confirmandoBorrado ? (
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold text-amber-700">
-                Se borran {aBorrar.sectores} {aBorrar.sectores === 1 ? 'sector' : 'sectores'} y sus {aBorrar.asientos} asientos.
+                {textoAvisoDeBorrado(aBorrar)}
               </span>
               <button
                 onClick={() => { deleteElements(selectedIds); setConfirmandoBorrado(false); }}

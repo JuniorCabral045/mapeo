@@ -14,7 +14,7 @@ import {
 import { useVenueStore } from '../store/useVenueStore';
 import { SeatGenerationParams, ShapeElement, VenueElement } from '../types';
 import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
-import { seatsOfSector } from '../utils/sector';
+import { pluralizar, seatsOfSector } from '../utils/sector';
 
 // arcRadius/arcAngle quedan fuera: no son parte del estado `gen` (viven en su propio
 // useState porque solo aplican a sectores circulares), se agregan aparte al generar.
@@ -374,7 +374,7 @@ export const PropertyPanel: React.FC = () => {
                 {confirmandoRegenerar ? (
                   <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-3">
                     <p className="text-[10px] font-bold text-amber-700 leading-relaxed">
-                      Se reemplazan {asientosDelSector} asientos.
+                      {pluralizar(asientosDelSector, 'Se reemplaza', 'Se reemplazan')} {asientosDelSector} {pluralizar(asientosDelSector, 'asiento', 'asientos')}.
                       Los QR ya impresos de este sector dejan de coincidir con sus butacas.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
