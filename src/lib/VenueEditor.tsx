@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
 import { useVenueStore } from './store/useVenueStore';
 import { Toolbar } from './components/Toolbar';
@@ -8,6 +8,7 @@ import { AlignBar } from './components/AlignBar';
 import { serializeVenue } from './schema';
 import { VenueMap } from './types';
 import { resumenDeBorrado, textoAvisoDeBorrado } from './utils/sector';
+import { useEditorShortcuts } from './hooks/useEditorShortcuts';
 
 export interface VenueEditorProps {
   /** Mapeo guardado a cargar al montar el editor. */
@@ -40,10 +41,12 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
     [selectedIds, elements, elementIds]
   );
 
-  const pedirBorrado = () => {
+  const pedirBorrado = useCallback(() => {
     if (aBorrar.asientos > 0) setConfirmandoBorrado(true);
     else deleteElements(selectedIds);
-  };
+  }, [aBorrar.asientos, selectedIds, deleteElements]);
+
+  useEditorShortcuts(pedirBorrado);
 
   // Si la selección cambia mientras se pide confirmación, se cierra: el aviso
   // mostraba un conteo de una selección que ya no es la que "Borrar" borraría.

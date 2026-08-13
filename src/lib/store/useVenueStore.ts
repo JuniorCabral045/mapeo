@@ -54,6 +54,8 @@ interface VenueStore {
    * historial una sola vez, no cada llamada individual.
    */
   moveSector: (id: string, x: number, y: number, guardarHistorial?: boolean) => void;
+  /** Empuja la selección. Los sectores llevan sus asientos. */
+  nudgeSelection: (dx: number, dy: number) => void;
   /** Aplica al sector y a sus asientos la misma transformación afín. Mismo motivo
    * para `guardarHistorial` que en `moveSector`. */
   transformSector: (
@@ -287,6 +289,18 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
       return { elements };
     });
     if (guardarHistorial) get().saveHistory();
+  },
+
+  nudgeSelection: (dx, dy) => {
+    const { elements, elementIds, selectedIds } = get();
+    const movimientos: Movimientos = {};
+    for (const id of selectedIds) {
+      const el = elements[id];
+      if (!el || el.locked) continue;
+      movimientos[id] = { x: el.x + dx, y: el.y + dy };
+    }
+    // Sin historial: lo agrupa el hook cuando el usuario deja de empujar.
+    aplicarMovimientos(get, movimientos, elements, elementIds, false);
   },
 
   selectElements: (ids) => set({ selectedIds: ids }),
