@@ -460,3 +460,61 @@ describe('alinear y distribuir la seleccion (store)', () => {
     });
   });
 });
+
+/**
+ * Corrección posterior a la revisión de la Tarea 12: falta de cobertura de
+ * `duplicateSectors` a nivel del store. `calcularDuplicados` (utils/duplicate.ts)
+ * ya tiene su batería propia; lo que hace falta fijar acá es lo que el store le
+ * agrega encima -que el duplicado quede seleccionado, listo para moverlo, y que
+ * toda la operación (sector + asientos) sea un solo paso de historial, como el
+ * resto de las operaciones múltiples de este archivo.
+ */
+describe('duplicateSectors (store)', () => {
+  beforeEach(escenario);
+
+  it('deja seleccionado el sector duplicado, no el original', () => {
+    useVenueStore.getState().duplicateSectors(['sector-1'], { dx: 0, dy: 300, mirror: null });
+
+    const { selectedIds, elementIds } = useVenueStore.getState();
+    const idNuevo = elementIds.find((id) => id !== 'sector-1' && id !== 'a1' && id !== 'a2' && !id.startsWith('seat-'));
+
+    expect(idNuevo).toBeDefined();
+    expect(selectedIds).toEqual([idNuevo]);
+  });
+
+  it('agrega el sector y sus asientos duplicados a la escena', () => {
+    useVenueStore.getState().duplicateSectors(['sector-1'], { dx: 0, dy: 300, mirror: null });
+
+    const { elements, elementIds } = useVenueStore.getState();
+    // 3 originales (sector-1, a1, a2) + 3 duplicados (sector + 2 asientos).
+    expect(elementIds).toHaveLength(6);
+    const nuevoSector = elementIds
+      .map((id) => elements[id])
+      .find((el) => el.type !== 'seat' && el.id !== 'sector-1')!;
+    expect(nuevoSector.x).toBe(100);
+    expect(nuevoSector.y).toBe(400);
+  });
+
+  it('deja un solo paso de historial para todo el duplicado (sector + asientos)', () => {
+    const antes = useVenueStore.getState().historyIndex;
+
+    useVenueStore.getState().duplicateSectors(['sector-1'], { dx: 0, dy: 300, mirror: null });
+
+    expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+  });
+
+  it('un solo undo() revierte el duplicado entero: sector y asientos desaparecen juntos', () => {
+    const elementsPrevios = useVenueStore.getState().elements;
+
+    useVenueStore.getState().duplicateSectors(['sector-1'], { dx: 0, dy: 300, mirror: null });
+    expect(useVenueStore.getState().elementIds).toHaveLength(6);
+
+    useVenueStore.getState().undo();
+
+    const { elementIds, elements, selectedIds } = useVenueStore.getState();
+    expect(elementIds).toEqual(['sector-1', 'a1', 'a2']);
+    expect(elements).toEqual(elementsPrevios);
+    // El undo no deja seleccionado el sector duplicado, que ya no existe.
+    expect(selectedIds).toEqual([]);
+  });
+});

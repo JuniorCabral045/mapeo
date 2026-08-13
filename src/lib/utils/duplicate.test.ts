@@ -186,3 +186,147 @@ describe('varios sectores a la vez', () => {
     expect(new Set(nuevos.map(e => e.id)).size).toBe(nuevos.length);
   });
 });
+
+/**
+ * Corrección posterior a la revisión: el id de cada asiento salía de
+ * `seat-${idSector}-${fila}-${numero}`, sin garantía de unicidad propia (a
+ * diferencia del id del sector, que sale de `newId()`). El panel de
+ * propiedades deja editar fila/número como texto libre sin validar unicidad,
+ * así que un sector con dos butacas de la misma fila y número es alcanzable
+ * hoy; al duplicarlo los dos generaban el mismo id y `addElements` (que
+ * sobreescribe por id) hacía desaparecer una en silencio. El id de cada
+ * asiento es lo que va en el QR de la butaca: perder uno es perder un asiento
+ * vendible sin ningún error visible.
+ */
+describe('unicidad de ids entre asientos duplicados', () => {
+  it('dos asientos de la misma fila y número no se pisan al duplicar', () => {
+    // 'a2' repite fila A número '1', igual que 'a1' — alcanzable hoy porque
+    // el panel de propiedades no valida unicidad de fila/número.
+    const chocan = [asiento('a1', 120, '1'), { ...asiento('a2', 160, '1') }];
+    const { elements, elementIds } = escena(sector(), chocan);
+
+    const nuevos = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 300, mirror: null, newId: () => 'sur',
+    });
+    const nuevosAsientos = nuevos.filter((e): e is SeatElement => e.type === 'seat');
+
+    // Ninguno se perdió, y sus ids no colisionan entre sí.
+    expect(nuevosAsientos).toHaveLength(2);
+    expect(new Set(nuevosAsientos.map(a => a.id)).size).toBe(2);
+  });
+
+  it('espejar también preserva ambos: renumerarFilas reescribe el id a partir de fila y número', () => {
+    // El caso más peligroso: renumerarFilas vuelve a calcular el id de cada
+    // asiento después de reordenar, así que una unicidad resuelta antes de
+    // espejar no alcanza si esa reescritura la puede volver a romper.
+    const chocan = [asiento('a1', 120, '1'), asiento('a2', 160, '1')];
+    const { elements, elementIds } = escena(sector(), chocan);
+
+    const nuevos = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 0, mirror: 'horizontal', newId: () => 'sur',
+    });
+    const nuevosAsientos = nuevos.filter((e): e is SeatElement => e.type === 'seat');
+
+    expect(nuevosAsientos).toHaveLength(2);
+    expect(new Set(nuevosAsientos.map(a => a.id)).size).toBe(2);
+  });
+
+  it('duplicar dos veces seguidas no colisiona entre los dos duplicados', () => {
+    const { elements, elementIds } = escena(sector(), fila);
+
+    const primero = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 300, mirror: null, newId: () => 'sur',
+    });
+    const segundo = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 600, mirror: null, newId: () => 'sur2',
+    });
+
+    const todosLosIds = [...primero, ...segundo].map(e => e.id);
+    expect(new Set(todosLosIds).size).toBe(todosLosIds.length);
+  });
+
+  it('duplicar un duplicado tampoco colisiona', () => {
+    const { elements, elementIds } = escena(sector(), fila);
+
+    const primero = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 300, mirror: null, newId: () => 'sur',
+    });
+
+    // Se agrega el duplicado a la escena, como haría el store, y se duplica de nuevo.
+    const elements2 = { ...elements };
+    const elementIds2 = [...elementIds];
+    for (const el of primero) {
+      elements2[el.id] = el;
+      elementIds2.push(el.id);
+    }
+    const sectorDuplicado = primero.find(e => e.type !== 'seat')!;
+
+    const segundo = duplicateSectors(elements2, elementIds2, [sectorDuplicado.id], {
+      dx: 0, dy: 300, mirror: null, newId: () => 'sur-de-sur',
+    });
+
+    const todosLosIds = [...primero, ...segundo].map(e => e.id);
+    expect(new Set(todosLosIds).size).toBe(todosLosIds.length);
+  });
+});
+
+/**
+ * Corrección posterior a la revisión: `centerOf`/`elementBounds` calculan la
+ * caja sin contemplar la rotación, pero Konva rota el `Group` pivotando en
+ * `(x, y)` -la esquina-, no en el centro. Espejar con ese centro "de mentira"
+ * dejaba al sector rotado en una posición y orientación que no son el
+ * reflejo de nada. La identidad que ordena esto es M∘R(r) = R(−r)∘M: el
+ * reflejo de una forma rotada es la misma forma con rotación invertida,
+ * origen reflejado sobre el centro real (el que sí contempla la rotación) y
+ * geometría local reflejada.
+ *
+ * Cálculo a mano (ver informe para la derivación completa):
+ * sector x=100,y=100,width=200,height=100,rotation=90°.
+ * Centro real = origen + Rot(90°)·(ancho/2, alto/2)
+ *             = (100,100) + Rot(90°)·(100,50) = (100,100) + (-50,100) = (50,200).
+ * Espejo horizontal (eje vertical x=50): rotación nueva = normalizar(-90) = 270.
+ * Origen reflejado = (2·50-100, 100) = (0,100).
+ * Corrección de origen = Rot(270°)·(ancho,0) = Rot(270°)·(200,0) = (0,-200).
+ * x,y nuevos = (0,100) - (0,-200) = (0,300).
+ */
+describe('espejar un sector rotado', () => {
+  it('invierte la rotación del propio sector, no solo la de sus asientos', () => {
+    const rotado = sector({ rotation: 90 });
+    const { elements, elementIds } = escena(rotado, []);
+
+    const [nuevo] = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 0, mirror: 'horizontal', newId: () => 'sur',
+    }) as ShapeElement[];
+
+    expect(nuevo.rotation).toBeCloseTo(270);
+  });
+
+  it('reubica el origen usando el centro real (contemplando la rotación), no la caja sin rotar', () => {
+    const rotado = sector({ rotation: 90 });
+    const { elements, elementIds } = escena(rotado, []);
+
+    const [nuevo] = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 0, mirror: 'horizontal', newId: () => 'sur',
+    }) as ShapeElement[];
+
+    expect(nuevo.x).toBeCloseTo(0);
+    expect(nuevo.y).toBeCloseTo(300);
+  });
+
+  it('un asiento dentro del sector rotado se refleja sobre el centro real, no sobre el de la caja sin rotar', () => {
+    // Centro real = (50,200) (ver arriba). Un asiento en (90,150) refleja a
+    // (2·50-90, 150) = (10,150). Su rotación (0°) pasa a 180-0=180 (espejo horizontal).
+    const rotado = sector({ rotation: 90 });
+    const conAsiento = [{ ...asiento('a1', 90, '1'), y: 150 }];
+    const { elements, elementIds } = escena(rotado, conAsiento);
+
+    const nuevos = duplicateSectors(elements, elementIds, ['sector-norte'], {
+      dx: 0, dy: 0, mirror: 'horizontal', newId: () => 'sur',
+    });
+    const nuevoAsiento = nuevos.find((e): e is SeatElement => e.type === 'seat')!;
+
+    expect(nuevoAsiento.x).toBeCloseTo(10);
+    expect(nuevoAsiento.y).toBeCloseTo(150);
+    expect(nuevoAsiento.rotation).toBeCloseTo(180);
+  });
+});
