@@ -15,7 +15,9 @@ import { useVenueStore } from '../store/useVenueStore';
 import { SeatGenerationParams, ShapeElement, VenueElement } from '../types';
 import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
 
-const GENERACION_POR_DEFECTO: Required<SeatGenerationParams> = {
+// arcRadius/arcAngle quedan fuera: no son parte del estado `gen` (viven en su propio
+// useState porque solo aplican a sectores circulares), se agregan aparte al generar.
+const GENERACION_POR_DEFECTO: Required<Omit<SeatGenerationParams, 'arcRadius' | 'arcAngle'>> = {
   rows: 5, cols: 10, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr',
 };
 
@@ -24,7 +26,7 @@ export const PropertyPanel: React.FC = () => {
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const element = selectedId ? elements[selectedId] : null;
 
-  const [gen, setGen] = useState<Required<SeatGenerationParams>>(GENERACION_POR_DEFECTO);
+  const [gen, setGen] = useState<Required<Omit<SeatGenerationParams, 'arcRadius' | 'arcAngle'>>>(GENERACION_POR_DEFECTO);
   const [arcRadius, setArcRadius] = useState(200);
   const [arcAngle, setArcAngle] = useState(120);
 
@@ -34,6 +36,10 @@ export const PropertyPanel: React.FC = () => {
     if (element?.type === 'section') {
       const generation = (element as ShapeElement).generation;
       setGen(generation ? { ...GENERACION_POR_DEFECTO, ...generation } : GENERACION_POR_DEFECTO);
+      // arcRadius/arcAngle solo aplican a sectores circulares; si el sector no los trae
+      // (mapa anterior a esta función, u otra forma) se conservan los valores por defecto.
+      if (generation?.arcRadius !== undefined) setArcRadius(generation.arcRadius);
+      if (generation?.arcAngle !== undefined) setArcAngle(generation.arcAngle);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
@@ -123,7 +129,12 @@ export const PropertyPanel: React.FC = () => {
             });
     useVenueStore.getState().addElements(seats);
     // Queda registrado en el sector: regenerar más adelante reproduce lo mismo.
-    updateElement(element.id, { generation: gen });
+    // Para 'circle' se suman arcRadius/arcAngle, que también alimentan el generador
+    // pero vivían solo en estado local del panel; el resto de las formas no los usa.
+    const generation: SeatGenerationParams = shape.sectionType === 'circle'
+      ? { ...gen, arcRadius, arcAngle }
+      : gen;
+    updateElement(element.id, { generation });
   };
 
   const inputClass = 'w-full px-4 py-2 bg-indigo-50 border border-transparent rounded-xl text-xs font-bold text-gray-800 focus:border-[#FF6B01] outline-none transition-colors';
@@ -365,6 +376,11 @@ export const PropertyPanel: React.FC = () => {
                 <p className="text-[9px] text-[#6F3E8F]/60 font-bold text-center pt-2">
                   Generado {(element as ShapeElement).generation!.rows} × {(element as ShapeElement).generation!.cols},
                   desde {(element as ShapeElement).generation!.startRow}{(element as ShapeElement).generation!.startNum}
+                  {(element as ShapeElement).sectionType === 'circle'
+                    && (element as ShapeElement).generation!.arcRadius !== undefined
+                    && (element as ShapeElement).generation!.arcAngle !== undefined && (
+                    <>, radio {(element as ShapeElement).generation!.arcRadius}m, arco {(element as ShapeElement).generation!.arcAngle}°</>
+                  )}
                 </p>
               )}
             </div>

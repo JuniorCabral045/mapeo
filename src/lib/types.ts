@@ -118,6 +118,10 @@ export interface SeatGenerationParams {
   startRow: string;
   startNum: number;
   numberDirection?: 'ltr' | 'rtl';
+  /** Radio interior del arco (solo sectores 'circle'). Ausente en mapas anteriores a esta función. */
+  arcRadius?: number;
+  /** Ángulo total del arco en grados (solo sectores 'circle'). Ausente en mapas anteriores a esta función. */
+  arcAngle?: number;
 }
 
 export interface ShapeElement extends BaseElement {

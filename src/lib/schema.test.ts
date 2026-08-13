@@ -92,4 +92,45 @@ describe('ida y vuelta del mapeo', () => {
 
     expect((vuelta.elements['s1'] as ShapeElement).generation).toBeUndefined();
   });
+
+  it('conserva arcRadius y arcAngle de un sector circular', () => {
+    // Sin esto, regenerar un sector circular reproduce filas/columnas/numeración
+    // pero no necesariamente el mismo arco: el mapa guardado no dice toda la verdad.
+    const sector: ShapeElement = {
+      ...arco,
+      id: 'sector-circular',
+      sectionType: 'circle',
+      radius: 220,
+      generation: {
+        rows: 4, cols: 12, seatRadius: 3.5, startRow: 'A', startNum: 1,
+        numberDirection: 'ltr', arcRadius: 200, arcAngle: 120,
+      },
+    };
+    const elements: Record<string, VenueElement> = { [sector.id]: sector };
+    const mapa = serializeVenue(elements, [sector.id], 'Estadio');
+    const vuelta = deserializeVenue(mapa);
+
+    expect((vuelta.elements[sector.id] as ShapeElement).generation).toEqual(sector.generation);
+  });
+
+  it('un generation guardado sin arcRadius/arcAngle se lee sin problema (retrocompatibilidad)', () => {
+    // Mapas guardados antes de sumar estos dos campos: generation existe pero
+    // sin arco. No debe romperse ni inventar valores.
+    const vuelta = deserializeVenue({
+      version: 1,
+      name: 'Viejo',
+      sectors: [{
+        id: 's1', name: 'Circular', kind: 'section', shape: 'circle',
+        x: 0, y: 0, width: 440, height: 440, rotation: 0,
+        fill: '#6F3E8F', active: true, radius: 220,
+        generation: { rows: 4, cols: 12, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr' },
+        seats: [],
+      }],
+    });
+
+    const generation = (vuelta.elements['s1'] as ShapeElement).generation;
+    expect(generation?.arcRadius).toBeUndefined();
+    expect(generation?.arcAngle).toBeUndefined();
+    expect(generation?.rows).toBe(4);
+  });
 });
