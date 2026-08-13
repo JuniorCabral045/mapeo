@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Circle as CircleIcon,
   Square,
@@ -12,22 +12,31 @@ import {
   Maximize2,
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
-import { ShapeElement, VenueElement } from '../types';
+import { SeatGenerationParams, ShapeElement, VenueElement } from '../types';
 import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
+
+const GENERACION_POR_DEFECTO: Required<SeatGenerationParams> = {
+  rows: 5, cols: 10, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr',
+};
 
 export const PropertyPanel: React.FC = () => {
   const { elements, elementIds, selectedIds, updateElement, selectElements } = useVenueStore();
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const element = selectedId ? elements[selectedId] : null;
 
-  const [genRows, setGenRows] = useState(5);
-  const [genCols, setGenCols] = useState(10);
+  const [gen, setGen] = useState<Required<SeatGenerationParams>>(GENERACION_POR_DEFECTO);
   const [arcRadius, setArcRadius] = useState(200);
   const [arcAngle, setArcAngle] = useState(120);
-  const [genSeatRadius, setGenSeatRadius] = useState(3.5);
-  const [genStartRow, setGenStartRow] = useState('A');
-  const [genStartNum, setGenStartNum] = useState(1);
-  const [genDirection, setGenDirection] = useState<'ltr' | 'rtl'>('ltr');
+
+  // Al cambiar de sector se muestran los parámetros con los que se generó ese
+  // sector, no los del anterior.
+  useEffect(() => {
+    if (element?.type === 'section') {
+      const generation = (element as ShapeElement).generation;
+      setGen(generation ? { ...GENERACION_POR_DEFECTO, ...generation } : GENERACION_POR_DEFECTO);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   if (!element) return (
     <aside className="w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
@@ -92,27 +101,29 @@ export const PropertyPanel: React.FC = () => {
 
     const shape = element as ShapeElement;
     const base = {
-      rows: genRows, cols: genCols,
-      rowSpacing: genSeatRadius * 1.5, colSpacing: genSeatRadius * 1.5,
-      seatRadius: genSeatRadius,
-      startRow: (genStartRow || 'A').toUpperCase(),
-      startNum: genStartNum,
-      numberDirection: genDirection,
+      rows: gen.rows, cols: gen.cols,
+      rowSpacing: gen.seatRadius * 1.5, colSpacing: gen.seatRadius * 1.5,
+      seatRadius: gen.seatRadius,
+      startRow: (gen.startRow || 'A').toUpperCase(),
+      startNum: gen.startNum,
+      numberDirection: gen.numberDirection,
     };
     const seats = shape.sectionType === 'rectangle'
       ? generateRectLayout(shape, base)
       : shape.sectionType === 'polygon'
         ? generatePolygonLayout(shape, base)
         : shape.sectionType === 'arc'
-          ? generateArcSectorLayout(shape, { ...base, rowSpacing: genSeatRadius * 2 })
+          ? generateArcSectorLayout(shape, { ...base, rowSpacing: gen.seatRadius * 2 })
           : generateArcLayout(shape, {
               ...base,
-              rowSpacing: genSeatRadius * 2,
+              rowSpacing: gen.seatRadius * 2,
               innerRadius: arcRadius,
               startAngle: 180 - arcAngle / 2,
               endAngle: 180 + arcAngle / 2,
             });
     useVenueStore.getState().addElements(seats);
+    // Queda registrado en el sector: regenerar más adelante reproduce lo mismo.
+    updateElement(element.id, { generation: gen });
   };
 
   const inputClass = 'w-full px-4 py-2 bg-indigo-50 border border-transparent rounded-xl text-xs font-bold text-gray-800 focus:border-[#FF6B01] outline-none transition-colors';
@@ -284,20 +295,26 @@ export const PropertyPanel: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className={labelClass}>Filas</label>
-                  <input type="number" min="1" value={genRows} onChange={(e) => setGenRows(Math.max(1, parseInt(e.target.value) || 1))} className={inputClass} />
+                  <input type="number" min="1" value={gen.rows}
+                    onChange={(e) => setGen({ ...gen, rows: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className={inputClass} />
                 </div>
                 <div className="space-y-1.5">
                   <label className={labelClass}>Asientos por Fila</label>
-                  <input type="number" min="1" value={genCols} onChange={(e) => setGenCols(Math.max(1, parseInt(e.target.value) || 1))} className={inputClass} />
+                  <input type="number" min="1" value={gen.cols}
+                    onChange={(e) => setGen({ ...gen, cols: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className={inputClass} />
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <label className={labelClass}>Tamaño de Asiento</label>
-                  <span className="text-[10px] font-bold text-[#FF6B01]">{genSeatRadius}px</span>
+                  <span className="text-[10px] font-bold text-[#FF6B01]">{gen.seatRadius}px</span>
                 </div>
-                <input type="range" min="2" max="15" step="0.5" value={genSeatRadius} onChange={(e) => setGenSeatRadius(parseFloat(e.target.value))} className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]" />
+                <input type="range" min="2" max="15" step="0.5" value={gen.seatRadius}
+                  onChange={(e) => setGen({ ...gen, seatRadius: parseFloat(e.target.value) })}
+                  className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]" />
               </div>
 
               {/* Numeración */}
@@ -307,8 +324,8 @@ export const PropertyPanel: React.FC = () => {
                   <input
                     type="text"
                     maxLength={1}
-                    value={genStartRow}
-                    onChange={(e) => setGenStartRow(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+                    value={gen.startRow}
+                    onChange={(e) => setGen({ ...gen, startRow: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
                     className={inputClass}
                   />
                 </div>
@@ -317,8 +334,8 @@ export const PropertyPanel: React.FC = () => {
                   <input
                     type="number"
                     min="1"
-                    value={genStartNum}
-                    onChange={(e) => setGenStartNum(Math.max(1, parseInt(e.target.value) || 1))}
+                    value={gen.startNum}
+                    onChange={(e) => setGen({ ...gen, startNum: Math.max(1, parseInt(e.target.value) || 1) })}
                     className={inputClass}
                   />
                 </div>
@@ -326,8 +343,8 @@ export const PropertyPanel: React.FC = () => {
               <div className="space-y-1.5">
                 <label className={labelClass}>Dirección de numeración</label>
                 <select
-                  value={genDirection}
-                  onChange={(e) => setGenDirection(e.target.value as 'ltr' | 'rtl')}
+                  value={gen.numberDirection}
+                  onChange={(e) => setGen({ ...gen, numberDirection: e.target.value as 'ltr' | 'rtl' })}
                   className={inputClass}
                 >
                   <option value="ltr">Izquierda → Derecha</option>
@@ -343,6 +360,13 @@ export const PropertyPanel: React.FC = () => {
                   GENERAR DISTRIBUCIÓN <Maximize2 size={14} className="group-hover:scale-110 transition-transform" />
                 </button>
               </div>
+
+              {(element as ShapeElement).generation && (
+                <p className="text-[9px] text-[#6F3E8F]/60 font-bold text-center pt-2">
+                  Generado {(element as ShapeElement).generation!.rows} × {(element as ShapeElement).generation!.cols},
+                  desde {(element as ShapeElement).generation!.startRow}{(element as ShapeElement).generation!.startNum}
+                </p>
+              )}
             </div>
           </section>
         )}

@@ -53,6 +53,7 @@ export const serializeVenue = (
       outerRadius: shape.outerRadius,
       startAngle: shape.startAngle,
       endAngle: shape.endAngle,
+      generation: shape.generation,
       seats: [],
     };
     sectors.push(sector);
@@ -142,6 +143,7 @@ export const deserializeVenue = (
       endAngle: sector.endAngle,
       sectionType: sector.shape,
       radius: sector.radius,
+      generation: sector.generation,
     };
     elements[shape.id] = shape;
     elementIds.push(shape.id);

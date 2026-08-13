@@ -64,4 +64,32 @@ describe('ida y vuelta del mapeo', () => {
 
     expect(vuelta.elements['a1'].rotation).toBe(0);
   });
+
+  it('conserva los parámetros de generación de un sector', () => {
+    const sector: ShapeElement = {
+      ...arco,
+      id: 'sector-gen',
+      generation: { rows: 4, cols: 12, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr' },
+    };
+    const elements: Record<string, VenueElement> = { [sector.id]: sector };
+    const mapa = serializeVenue(elements, [sector.id], 'Estadio');
+    const vuelta = deserializeVenue(mapa);
+
+    expect((vuelta.elements[sector.id] as ShapeElement).generation).toEqual(sector.generation);
+  });
+
+  it('un mapa viejo sin campo generation se lee sin problema (retrocompatibilidad)', () => {
+    const vuelta = deserializeVenue({
+      version: 1,
+      name: 'Viejo',
+      sectors: [{
+        id: 's1', name: 'Norte', kind: 'section', shape: 'rectangle',
+        x: 0, y: 0, width: 100, height: 100, rotation: 0,
+        fill: '#6F3E8F', active: true,
+        seats: [],
+      }],
+    });
+
+    expect((vuelta.elements['s1'] as ShapeElement).generation).toBeUndefined();
+  });
 });

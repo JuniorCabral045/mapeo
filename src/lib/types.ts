@@ -56,6 +56,8 @@ export interface SectorData {
   outerRadius?: number;
   startAngle?: number;
   endAngle?: number;
+  /** Con qué parámetros se generaron los asientos. Ausente en mapas anteriores a 2026-08. */
+  generation?: SeatGenerationParams;
   seats: SeatData[];
 }
 
