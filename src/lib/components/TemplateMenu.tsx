@@ -1,16 +1,24 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LayoutTemplate } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
 import { TEMPLATES } from '../utils/templates';
 
 // La cantidad de asientos de cada plantilla no depende de ningun estado del
-// store: se calcula una sola vez fuera del componente, no en cada render.
-const CANTIDADES_POR_PLANTILLA = new Map(
-  TEMPLATES.map((plantilla) => [
-    plantilla.id,
-    plantilla.build().filter((e) => e.type === 'seat').length,
-  ]),
-);
+// store, pero calcularla (build() de cada plantilla) tiene costo: no debe
+// pagarse al importar el modulo, solo la primera vez que hace falta el dato.
+let cantidadesPorPlantilla: Map<string, number> | null = null;
+
+function obtenerCantidadesPorPlantilla(): Map<string, number> {
+  if (!cantidadesPorPlantilla) {
+    cantidadesPorPlantilla = new Map(
+      TEMPLATES.map((plantilla) => [
+        plantilla.id,
+        plantilla.build().filter((e) => e.type === 'seat').length,
+      ]),
+    );
+  }
+  return cantidadesPorPlantilla;
+}
 
 /** Inserta una plantilla. Nunca reemplaza: si ya hay contenido, avisa. */
 export const TemplateMenu: React.FC = () => {
@@ -18,8 +26,6 @@ export const TemplateMenu: React.FC = () => {
   const [abierto, setAbierto] = useState(false);
   const contenedorRef = useRef<HTMLDivElement>(null);
   const botonRef = useRef<HTMLButtonElement>(null);
-
-  const cantidades = useMemo(() => CANTIDADES_POR_PLANTILLA, []);
 
   useEffect(() => {
     if (!abierto) return;
@@ -62,7 +68,7 @@ export const TemplateMenu: React.FC = () => {
             </p>
           )}
           {TEMPLATES.map((plantilla) => {
-            const cantidad = cantidades.get(plantilla.id) ?? 0;
+            const cantidad = obtenerCantidadesPorPlantilla().get(plantilla.id) ?? 0;
             return (
               <button
                 key={plantilla.id}
