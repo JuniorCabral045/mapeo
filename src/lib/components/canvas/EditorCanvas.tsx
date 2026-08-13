@@ -4,9 +4,11 @@ import Konva from 'konva';
 import { useVenueStore } from '../../store/useVenueStore';
 import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
-import { snapToGrid, effectiveGridStep, visibleGridRect } from '../../utils/grid';
+import { effectiveGridStep, visibleGridRect } from '../../utils/grid';
 import { idsToMoveIndividually } from '../../utils/sector';
 import { transformerConfigFor } from '../../utils/transformer';
+import { snapPosition, type Guide } from '../../utils/snapping';
+import { elementBounds } from '../../utils/bounds';
 import { ShapeElement, SeatElement } from '../../types';
 
 /** Capa del plano de referencia (solo editor, no interactiva). */
@@ -52,6 +54,8 @@ export const EditorCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 1000, height: 800 });
   const [selectionBox, setSelectionBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  // Guías del imán a otros sectores, vigentes solo durante el arrastre en curso
+  const [guias, setGuias] = useState<Guide[]>([]);
 
   // Dibujo de polígono: vértices en coordenadas de mundo + posición del cursor
   const [draftPoints, setDraftPoints] = useState<number[]>([]);
@@ -319,12 +323,29 @@ export const EditorCanvas: React.FC = () => {
     ? 'cursor-grab active:cursor-grabbing'
     : 'cursor-crosshair';
 
-  const handleGridSnap = (e: Konva.KonvaEventObject<DragEvent>) => {
-    if (gridConfig.enabled) {
-      const { x, y } = snapToGrid(e.target.x(), e.target.y(), gridConfig.size);
-      e.target.x(x);
-      e.target.y(y);
+  /** Aplica el imán (grilla y/o bordes de otros sectores) durante el arrastre. Con Alt se ignora. */
+  const aplicarIman = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    if (e.evt.altKey) {
+      setGuias([]);
+      return;
     }
+    const el = elements[id];
+    if (!el) return;
+    const caja = elementBounds(el);
+    const r = snapPosition({
+      x: e.target.x(),
+      y: e.target.y(),
+      width: caja.maxX - caja.minX,
+      height: caja.maxY - caja.minY,
+      excludedIds: selectedIds.length > 1 ? selectedIds : [id],
+      elements,
+      elementIds,
+      grid: gridConfig,
+      scale: viewState.scale,
+    });
+    e.target.x(r.x);
+    e.target.y(r.y);
+    setGuias(r.guides);
   };
 
   // ── Drag grupal: toda la selección sigue al elemento arrastrado ──
@@ -342,7 +363,7 @@ export const EditorCanvas: React.FC = () => {
   };
 
   const handleDragMove = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    handleGridSnap(e);
+    aplicarIman(id, e);
     const start = dragStart.current;
     if (!start || !start[id]) return;
     const dx = e.target.x() - start[id].x;
@@ -386,6 +407,7 @@ export const EditorCanvas: React.FC = () => {
     // Un solo paso de historial por gesto de arrastre, sea un asiento suelto,
     // uno o varios sectores, o una selección mixta.
     useVenueStore.getState().saveHistory();
+    setGuias([]);
   };
 
   // ── Transform (el nodo es el Group del elemento) ──
@@ -527,6 +549,20 @@ export const EditorCanvas: React.FC = () => {
               />
             );
           })}
+
+          {/* Guías del imán a otros sectores */}
+          {guias.map((g, i) => (
+            <Line
+              key={`guia-${i}`}
+              points={g.axis === 'v'
+                ? [g.pos, -10000, g.pos, 10000]
+                : [-10000, g.pos, 10000, g.pos]}
+              stroke="#FF6B01"
+              strokeWidth={1 / viewState.scale}
+              dash={[4 / viewState.scale, 4 / viewState.scale]}
+              listening={false}
+            />
+          ))}
 
           {/* Borrador del polígono en dibujo */}
           {draftPreview.length >= 2 && (
