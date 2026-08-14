@@ -100,29 +100,35 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
 
   return (
     <div className={`flex h-full w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 text-gray-700 selection:bg-orange-200/60 ${className}`}>
-      <main className="flex-1 min-w-0 relative overflow-hidden bg-[#F3F4F6] touch-none group">
+      {/* La barra ya no flota sobre el lienzo: es una fila propia arriba de todo.
+          Flotando, tapaba el recinto —el escenario quedaba escondido detrás— y
+          crecía cada vez que se sumaba un grupo de botones. */}
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[#F3F4F6] touch-none group">
         <Toolbar onSave={onSave} onDelete={pedirBorrado} />
-        <EditorCanvas />
-        <AlignBar />
 
-        {/* Controles de zoom */}
-        <div className="absolute bottom-12 right-6 flex flex-col gap-3 z-50">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col p-1">
-            <button onClick={() => handleZoom(1.1)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all rounded-lg" title="Aumentar Zoom"><Plus size={18} /></button>
-            <div className="h-px bg-gray-200 mx-2" />
-            <button onClick={() => handleZoom(0.9)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all rounded-lg" title="Disminuir Zoom"><Minus size={18} /></button>
+        <div className="relative flex-1 min-h-0">
+          <EditorCanvas />
+          <AlignBar />
+
+          {/* Controles de zoom */}
+          <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-50">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col p-1">
+              <button onClick={() => handleZoom(1.1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all rounded-lg" title="Aumentar Zoom"><Plus size={16} /></button>
+              <div className="h-px bg-gray-200 mx-2" />
+              <button onClick={() => handleZoom(0.9)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all rounded-lg" title="Disminuir Zoom"><Minus size={16} /></button>
+            </div>
+            <button
+              onClick={fitToContent}
+              className="w-11 h-11 bg-white rounded-xl shadow-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all"
+              title="Encuadrar el recinto"
+            >
+              <Maximize size={16} />
+            </button>
           </div>
-          <button
-            onClick={fitToContent}
-            className="w-12 h-12 bg-white rounded-xl shadow-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all"
-            title="Encuadrar el recinto"
-          >
-            <Maximize size={18} />
-          </button>
         </div>
 
         {/* Barra de estado */}
-        <footer className="absolute bottom-0 left-0 right-0 h-8 bg-white/90 backdrop-blur-sm border-t border-gray-200 flex items-center justify-between px-4 z-[90]">
+        <footer className="h-8 shrink-0 bg-white border-t border-gray-200 flex items-center justify-between px-4">
           {confirmandoBorrado ? (
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold text-amber-700">

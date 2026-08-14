@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Circle as CircleIcon,
   Flag,
@@ -16,6 +16,7 @@ import {
   ImagePlus,
   ImageOff,
   Grid3x3,
+  Tag,
   Magnet,
   Boxes,
   Copy,
@@ -26,6 +27,7 @@ import { useVenueStore } from '../store/useVenueStore';
 import { serializeVenue } from '../schema';
 import { VenueMap } from '../types';
 import { loadScaledImage } from '../utils/image';
+import { validarMapa, type Problema } from '../utils/validation';
 import { TemplateMenu } from './TemplateMenu';
 
 interface ToolbarProps {
@@ -41,9 +43,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
     addElement, elements, elementIds,
     venueName, setVenueName, loadMap,
     backgroundImage, setBackgroundImage, removeBackgroundImage, updateBackgroundOpacity,
-    gridConfig, setGridConfig,
+    gridConfig, setGridConfig, sectorLabels, setSectorLabels,
+    selectElements,
     duplicateSectors,
   } = useVenueStore();
+
+  // Problemas detectados al intentar guardar. Vacío = no se está preguntando nada.
+  const [revision, setRevision] = useState<Problema[] | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const planoInputRef = useRef<HTMLInputElement>(null);
@@ -126,14 +132,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
   };
 
   return (
-    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-3">
-      <div className="bg-white border border-gray-200 p-2 rounded-2xl shadow-lg flex items-center gap-2">
+    <div className="shrink-0 bg-white border-b border-gray-200 px-3 py-1.5 flex items-center gap-x-1 gap-y-1.5 flex-wrap">
+      <div className="flex items-center gap-2">
         {/* Nombre del recinto */}
         <input
           type="text"
           value={venueName}
           onChange={(e) => setVenueName(e.target.value)}
-          className="bg-indigo-50 border border-transparent rounded-xl px-4 py-2 text-xs font-bold text-gray-800 w-48 focus:border-[#FF6B01] outline-none transition-colors placeholder:text-gray-400"
+          className="bg-indigo-50 border border-transparent rounded-lg px-3 py-1.5 text-xs font-bold text-gray-800 w-36 focus:border-[#FF6B01] outline-none transition-colors placeholder:text-gray-400"
           placeholder="Nombre del recinto"
           title="Nombre del recinto"
         />
@@ -144,30 +150,79 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
         <div className="flex items-center gap-1.5 px-1">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 text-gray-400 hover:text-[#6F3E8F] transition-all hover:bg-purple-50 rounded-xl"
+            className="p-2 text-gray-400 hover:text-[#6F3E8F] transition-all hover:bg-purple-50 rounded-xl"
             title="Importar JSON"
           >
             <Upload size={18} />
           </button>
           <input ref={fileInputRef} type="file" className="hidden" accept=".json" onChange={importJSON} />
-          <button onClick={exportJSON} className="p-2.5 text-gray-400 hover:text-[#6F3E8F] transition-all hover:bg-purple-50 rounded-xl" title="Exportar JSON">
+          <button onClick={exportJSON} className="p-2 text-gray-400 hover:text-[#6F3E8F] transition-all hover:bg-purple-50 rounded-xl" title="Exportar JSON">
             <Download size={18} />
           </button>
         </div>
 
         {onSave && (
-          <button
-            onClick={() => onSave(currentMap())}
-            className="bg-[#FF6B01] hover:bg-[#e86000] text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm flex items-center gap-2"
-          >
-            <Save size={14} /> GUARDAR
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => {
+                // Revisar antes de guardar: lo que sale de acá es el contrato con
+                // el backend y los ids que se imprimen en los QR de las butacas.
+                const mapa = currentMap();
+                const problemas = validarMapa(mapa);
+                if (problemas.length === 0) onSave(mapa);
+                else setRevision(problemas);
+              }}
+              className="bg-[#FF6B01] hover:bg-[#e86000] text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm shadow-orange-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm flex items-center gap-2"
+            >
+              <Save size={14} /> GUARDAR
+            </button>
+
+            {revision && (
+              <div className="absolute top-10 right-0 w-80 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-[120]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+                  Antes de guardar
+                </p>
+                <ul className="space-y-2 max-h-52 overflow-y-auto">
+                  {revision.map((problema, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span
+                        className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${
+                          problema.severidad === 'error' ? 'bg-red-500' : 'bg-amber-400'
+                        }`}
+                      />
+                      <button
+                        onClick={() => { selectElements(problema.ids); setRevision(null); }}
+                        className="text-left text-[11px] leading-snug text-gray-600 hover:text-[#6F3E8F]"
+                        title="Seleccionar en el lienzo"
+                      >
+                        {problema.mensaje}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <button
+                    onClick={() => { setRevision(null); onSave(currentMap()); }}
+                    className="bg-[#FF6B01] hover:bg-[#e86000] text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors"
+                  >
+                    Guardar igual
+                  </button>
+                  <button
+                    onClick={() => setRevision(null)}
+                    className="bg-white border border-gray-200 text-gray-500 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                  >
+                    Revisar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* Herramientas de edición */}
-      <div className="flex items-center gap-3">
-        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+      <>
+        <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <button
             onClick={() => setTool('select')}
             className={`p-2 rounded-xl transition-all ${currentTool === 'select' ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
@@ -207,7 +262,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
         </div>
 
         {/* Grilla e imán */}
-        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+        <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <button
             onClick={() => setGridConfig({ visible: !gridConfig.visible })}
             className={`p-2 rounded-xl transition-all ${gridConfig.visible ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
@@ -229,6 +284,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
           >
             <Boxes size={16} strokeWidth={3} />
           </button>
+          <button
+            onClick={() => setSectorLabels(!sectorLabels)}
+            className={`p-2 rounded-xl transition-all ${sectorLabels ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            title="Mostrar el nombre de cada sector sobre el lienzo"
+          >
+            <Tag size={16} strokeWidth={3} />
+          </button>
           <select
             value={gridConfig.size}
             onChange={(e) => setGridConfig({ size: parseInt(e.target.value) })}
@@ -242,7 +304,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
         </div>
 
         {/* Plano de fondo para calcar */}
-        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+        <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <input ref={planoInputRef} type="file" className="hidden" accept="image/*" onChange={handlePlanoUpload} />
           <button
             onClick={() => planoInputRef.current?.click()}
@@ -274,7 +336,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+        <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <button onClick={undo} disabled={historyIndex <= 0} className="p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 disabled:opacity-20 rounded-xl transition-colors" title="Deshacer">
             <Undo2 size={16} strokeWidth={3} />
           </button>
@@ -293,7 +355,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
         </div>
 
         {/* Duplicar y espejar */}
-        <div className="bg-white border border-gray-200 p-1.5 rounded-2xl flex items-center gap-1 shadow-lg">
+        <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <button
             onClick={() => duplicar(null)}
             disabled={sectoresSeleccionados.length === 0}
@@ -319,7 +381,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
             <FlipVertical2 size={16} strokeWidth={3} />
           </button>
         </div>
-      </div>
+      </>
     </div>
   );
 };

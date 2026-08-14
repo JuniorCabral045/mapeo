@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Circle as CircleIcon,
   Square,
@@ -10,9 +10,10 @@ import {
   Palette,
   Settings2,
   Maximize2,
+  ChevronDown,
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
-import { SeatGenerationParams, ShapeElement, VenueElement } from '../types';
+import { SeatElement, SeatGenerationParams, ShapeElement, VenueElement } from '../types';
 import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
 import { pluralizar, seatsOfSector } from '../utils/sector';
 
@@ -21,6 +22,12 @@ import { pluralizar, seatsOfSector } from '../utils/sector';
 const GENERACION_POR_DEFECTO: Required<Omit<SeatGenerationParams, 'arcRadius' | 'arcAngle'>> = {
   rows: 5, cols: 10, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr',
 };
+
+/** Cuántas butacas se listan al desplegar un sector antes de cortar. */
+const ASIENTOS_VISIBLES = 50;
+
+/** Id ficticio del grupo que junta los asientos sin sector. */
+const SIN_SECTOR = '__sin-sector__';
 
 export const PropertyPanel: React.FC = () => {
   const { elements, elementIds, selectedIds, updateElement, selectElements } = useVenueStore();
@@ -31,6 +38,7 @@ export const PropertyPanel: React.FC = () => {
   const [arcRadius, setArcRadius] = useState(200);
   const [arcAngle, setArcAngle] = useState(120);
   const [confirmandoRegenerar, setConfirmandoRegenerar] = useState(false);
+  const [sectorDesplegado, setSectorDesplegado] = useState<string | null>(null);
 
   const asientosDelSector = element && element.type === 'section'
     ? seatsOfSector(elements, elementIds, element.id).length
@@ -51,42 +59,150 @@ export const PropertyPanel: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
+  /**
+   * Sectores y escenarios con sus butacas colgando, en el orden del lienzo.
+   * Los asientos huérfanos (sin sector, o apuntando a uno que ya no existe)
+   * se juntan aparte: si no, desaparecerían de la lista sin que nadie note
+   * que están.
+   */
+  const contenedores = useMemo(() => {
+    const porId = new Map<string, { contenedor: ShapeElement; asientos: SeatElement[] }>();
+    const huerfanos: SeatElement[] = [];
+
+    for (const id of elementIds) {
+      const el = elements[id];
+      if (el && el.type !== 'seat') {
+        porId.set(id, { contenedor: el as ShapeElement, asientos: [] });
+      }
+    }
+
+    for (const id of elementIds) {
+      const el = elements[id];
+      if (!el || el.type !== 'seat') continue;
+      const grupo = el.sectionId ? porId.get(el.sectionId) : undefined;
+      if (grupo) grupo.asientos.push(el as SeatElement);
+      else huerfanos.push(el as SeatElement);
+    }
+
+    const lista = [...porId.values()];
+    if (huerfanos.length > 0) {
+      lista.push({
+        contenedor: {
+          id: SIN_SECTOR,
+          type: 'section',
+          name: 'Asientos sueltos',
+          locked: false,
+        } as ShapeElement,
+        asientos: huerfanos,
+      });
+    }
+    return lista;
+  }, [elements, elementIds]);
+
+  /**
+   * Capacidad total del recinto: la suma de las butacas dibujadas más la
+   * capacidad declarada de los sectores que no tienen ninguna. Es el número que
+   * antes había que sacar a mano contando capas.
+   */
+  const resumenDelRecinto = useMemo(() => {
+    let sectores = 0;
+    let butacas = 0;
+    for (const { contenedor, asientos } of contenedores) {
+      if (contenedor.id === SIN_SECTOR) {
+        butacas += asientos.length;
+        continue;
+      }
+      if (contenedor.type === 'section') sectores += 1;
+      butacas += asientos.length || (contenedor.capacity ?? 0);
+    }
+    if (sectores === 0 && butacas === 0) return 'Lienzo vacío';
+    return `${sectores} ${pluralizar(sectores, 'sector', 'sectores')} · ${butacas.toLocaleString('es')} ${pluralizar(butacas, 'lugar', 'lugares')}`;
+  }, [contenedores]);
+
   if (!element) return (
     <aside className="w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
       <div className="p-6 border-b border-gray-200 bg-gray-50">
         <h2 className="text-sm font-bold text-[#6F3E8F] tracking-tight uppercase flex items-center gap-2">
           <LayoutGrid size={16} className="text-[#FF6B01]" /> Elementos
         </h2>
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Total {elementIds.length} Capas</p>
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+          {resumenDelRecinto}
+        </p>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
-        {elementIds.map((id) => {
-          const el = elements[id];
-          if (!el) return null;
+        {/* La lista muestra sectores y escenarios; las butacas quedan plegadas
+            dentro de su sector. Antes se pintaba una fila por elemento, así que
+            un recinto de veinte mil asientos eran veinte mil filas de DOM y el
+            panel se volvía inusable justo en los recintos que importan. */}
+        {contenedores.map(({ contenedor, asientos }) => {
+          const id = contenedor.id;
           const isSelected = selectedIds.includes(id);
+          const desplegado = sectorDesplegado === id;
+          const visibles = desplegado ? asientos.slice(0, ASIENTOS_VISIBLES) : [];
+
           return (
-            <div
-              key={id}
-              onClick={(e) => {
-                if (e.shiftKey) selectElements([...selectedIds, id]);
-                else selectElements([id]);
-              }}
-              className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
-                isSelected
-                  ? 'bg-orange-50 border-[#FF6B01]/30 text-[#FF6B01] shadow-sm translate-x-1'
-                  : 'border-transparent bg-gray-50 text-gray-500 hover:bg-purple-50 hover:text-[#6F3E8F]'
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                isSelected ? 'bg-[#FF6B01] text-white shadow-md shadow-orange-500/30 scale-110' : 'bg-gray-200 text-gray-500 group-hover:bg-[#6F3E8F] group-hover:text-white'
-              }`}>
-                {el.type === 'seat' ? <CircleIcon size={12} strokeWidth={3} /> : el.type === 'stage' ? <Flag size={12} strokeWidth={3} /> : <Square size={12} strokeWidth={3} />}
+            <div key={id} className="space-y-1">
+              <div
+                onClick={(e) => {
+                  if (e.shiftKey) selectElements([...selectedIds, id]);
+                  else selectElements([id]);
+                }}
+                className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
+                  isSelected
+                    ? 'bg-orange-50 border-[#FF6B01]/30 text-[#FF6B01] shadow-sm translate-x-1'
+                    : 'border-transparent bg-gray-50 text-gray-500 hover:bg-purple-50 hover:text-[#6F3E8F]'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                  isSelected ? 'bg-[#FF6B01] text-white shadow-md shadow-orange-500/30 scale-110' : 'bg-gray-200 text-gray-500 group-hover:bg-[#6F3E8F] group-hover:text-white'
+                }`}>
+                  {contenedor.type === 'stage' ? <Flag size={12} strokeWidth={3} /> : <Square size={12} strokeWidth={3} />}
+                </div>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-xs font-bold truncate">{contenedor.name}</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">
+                    {contenedor.type === 'stage' ? 'escenario' : 'sector'}
+                    {asientos.length > 0 && ` · ${asientos.length} asientos`}
+                  </span>
+                </div>
+                {contenedor.locked && <Lock size={12} className="text-gray-400" />}
+                {asientos.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSectorDesplegado(desplegado ? null : id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-[#6F3E8F] transition-colors"
+                    title={desplegado ? 'Ocultar asientos' : 'Ver asientos'}
+                  >
+                    <ChevronDown size={14} className={`transition-transform ${desplegado ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
               </div>
-              <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-xs font-bold truncate">{el.name}</span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase">{el.type === 'seat' ? 'asiento' : el.type === 'stage' ? 'escenario' : 'sector'}</span>
-              </div>
-              {el.locked && <Lock size={12} className="text-gray-400" />}
+
+              {visibles.map((asiento) => (
+                <div
+                  key={asiento.id}
+                  onClick={(e) => {
+                    if (e.shiftKey) selectElements([...selectedIds, asiento.id]);
+                    else selectElements([asiento.id]);
+                  }}
+                  className={`ml-6 flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer text-[11px] font-bold transition-colors ${
+                    selectedIds.includes(asiento.id)
+                      ? 'bg-orange-50 text-[#FF6B01]'
+                      : 'text-gray-400 hover:bg-purple-50 hover:text-[#6F3E8F]'
+                  }`}
+                >
+                  <CircleIcon size={9} strokeWidth={3} />
+                  <span className="truncate">{asiento.name}</span>
+                </div>
+              ))}
+
+              {desplegado && asientos.length > ASIENTOS_VISIBLES && (
+                <p className="ml-6 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-300">
+                  y {asientos.length - ASIENTOS_VISIBLES} más — se eligen en el lienzo
+                </p>
+              )}
             </div>
           );
         })}

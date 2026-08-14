@@ -44,7 +44,7 @@ export const EditorCanvas: React.FC = () => {
   const {
     elements, elementIds, selectedIds,
     viewState, setViewState,
-    gridConfig, currentTool, setTool,
+    gridConfig, currentTool, setTool, sectorLabels,
     selectElements, updateElement, addElement, setCanvasSize,
     moveSector, transformSector,
   } = useVenueStore();
@@ -314,6 +314,35 @@ export const EditorCanvas: React.FC = () => {
     return 'none' as const;
   }, [viewState.scale]);
 
+  /**
+   * Segunda línea del rótulo de cada sector: cuántas butacas tiene, o la
+   * capacidad declarada si no tiene ninguna dibujada. Se cuenta de una sola
+   * pasada sobre todos los elementos; preguntárselo a cada sector por separado
+   * sería recorrer el recinto entero una vez por tribuna.
+   */
+  const subtitulosDeSector = useMemo(() => {
+    const cuenta: Record<string, number> = {};
+    for (const id of elementIds) {
+      const el = elements[id];
+      if (el?.type === 'seat' && el.sectionId) {
+        cuenta[el.sectionId] = (cuenta[el.sectionId] ?? 0) + 1;
+      }
+    }
+
+    const subtitulos: Record<string, string> = {};
+    for (const id of elementIds) {
+      const el = elements[id];
+      if (!el || el.type === 'seat') continue;
+      const asientos = cuenta[id];
+      if (asientos) {
+        subtitulos[id] = `${asientos} ${asientos === 1 ? 'asiento' : 'asientos'}`;
+      } else if (el.type === 'section' && (el as ShapeElement).capacity) {
+        subtitulos[id] = `${(el as ShapeElement).capacity} de capacidad`;
+      }
+    }
+    return subtitulos;
+  }, [elements, elementIds]);
+
   const transformerConfig = useMemo(
     () => transformerConfigFor(selectedIds.map((id) => elements[id]).filter(Boolean)),
     [selectedIds, elements]
@@ -521,6 +550,9 @@ export const EditorCanvas: React.FC = () => {
                 key={id}
                 element={shape}
                 isSelected={isSelected}
+                scale={viewState.scale}
+                showLabel={sectorLabels}
+                subtitle={sectorLabels ? subtitulosDeSector[id] : undefined}
                 draggable={currentTool === 'select'}
                 onSelect={(e) => {
                   if (currentTool !== 'select') return;

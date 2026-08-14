@@ -22,6 +22,7 @@ interface VenueStore {
   gridConfig: GridConfig;
   venueName: string;
   currentTool: EditorTool;
+  sectorLabels: boolean;
   backgroundImage: BackgroundImage | null;
   /** Tamaño del lienzo en píxeles. Lo publica EditorCanvas; lo necesita fitToContent. */
   canvasSize: { width: number; height: number };
@@ -77,6 +78,12 @@ interface VenueStore {
   fitToContent: () => void;
   setGridConfig: (updates: Partial<GridConfig>) => void;
   setTool: (tool: EditorTool) => void;
+  /**
+   * Dibujar el nombre de cada sector sobre el lienzo. Apagado por omisión: con
+   * las tribunas llenas de butacas el texto encima estorba. Es una preferencia
+   * de vista, no parte del mapeo: no se guarda ni entra al historial.
+   */
+  setSectorLabels: (visible: boolean) => void;
   setVenueName: (name: string) => void;
 
   // Plano de fondo (solo editor)
@@ -164,6 +171,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   gridConfig: DEFAULT_GRID,
   venueName: 'Nuevo Recinto',
   currentTool: 'select',
+  sectorLabels: false,
   backgroundImage: null,
   canvasSize: { width: 1000, height: 800 },
   hasMeasuredCanvas: false,
@@ -337,6 +345,7 @@ export const useVenueStore = create<VenueStore>()((set, get) => ({
   setGridConfig: (updates) =>
     set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
   setTool: (tool) => set({ currentTool: tool }),
+  setSectorLabels: (sectorLabels) => set({ sectorLabels }),
   setVenueName: (name) => set({ venueName: name }),
 
   setBackgroundImage: (image) => set({ backgroundImage: image }),

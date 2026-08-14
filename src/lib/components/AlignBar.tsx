@@ -34,13 +34,13 @@ export const AlignBar: React.FC = () => {
   ];
 
   return (
-    <div className="absolute left-6 top-1/2 -translate-y-1/2 z-[95] bg-white border border-gray-200 p-1.5 rounded-2xl shadow-lg flex flex-col gap-1">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[95] bg-white border border-gray-200 p-1.5 rounded-2xl shadow-lg flex items-center gap-1">
       {alinear.map((a) => (
         <button key={a.mode} onClick={() => alignSelection(a.mode)} className={boton} title={a.titulo}>
           {a.icono}
         </button>
       ))}
-      <div className="h-px w-5 bg-gray-200 mx-auto my-0.5" />
+      <div className="w-px h-5 bg-gray-200 mx-1" />
       {distribuir.map((d) => (
         <button
           key={d.axis}

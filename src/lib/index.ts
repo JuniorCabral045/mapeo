@@ -34,5 +34,7 @@ export type { LayoutParams } from './utils/layout';
 export { pointInPolygon } from './utils/geometry';
 
 // Plantillas de recinto
+export { validarMapa, aforoTotal } from './utils/validation';
+export type { Problema, Severidad } from './utils/validation';
 export { TEMPLATES } from './utils/templates';
 export type { VenueTemplate, TemplateId } from './utils/templates';

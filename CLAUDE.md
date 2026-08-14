@@ -56,6 +56,7 @@ src/
                           duplicate.ts duplicar y espejar un sector con sus asientos
                           templates.ts plantillas de recinto (estadio recto, estadio curvo, teatro)
                           transformer.ts anclas del Transformer y si mantiene la proporción
+                          validation.ts revisión del mapa antes de guardar + aforo total
                           shortcuts.ts tecla → acción del editor (pura)
                           grid.ts      snapToGrid, effectiveGridStep, visibleGridRect
                           geometry.ts  pointInPolygon, createRoundedRectPath
@@ -71,6 +72,9 @@ src/
 - **Availability is runtime data**, never stored in the map: the viewer merges `availability[seatId]` over each seat's design-time status when rendering; missing entries mean `available`. Seats that aren't `available` (or whose sector `active === false`) are not selectable.
 - Canvas renders in two passes over `elementIds`: sections/stages first (`CustomShape`), then seats (`Seat`) — seats always sit visually above sections. `CustomShape` builds an SVG path (`createRoundedRectPath`) to support per-corner radii.
 - History: `saveHistory()` deep-clones `{elements, elementIds}` (50-snapshot cap). Mutating store actions call it themselves; drag/transform handlers in `EditorCanvas` call it on gesture end so intermediate frames aren't recorded. `PropertyPanel.handleUpdate` intentionally does NOT snapshot (would spam history on keystrokes).
+- **La barra de herramientas es una fila propia, no flota.** `VenueEditor` es una columna: barra, lienzo, barra de estado. Flotando sobre el lienzo tapaba el recinto —el escenario quedaba escondido detrás— y crecía con cada grupo nuevo de botones. La barra de alinear sí flota, pero abajo y centrada, donde no choca con nada.
+- **Los nombres de sector sobre el lienzo son opcionales** (`sectorLabels` en el store, apagado por omisión; en el visor es estado local). Encima de una tribuna llena de butacas el texto estorba. El escenario es la excepción: siempre lleva su nombre, porque es una figura sólida y vacía. El rótulo se contra-rota para no aparecer cabeza abajo en un sector girado, y se omite cuando el zoom lo dejaría en una mancha.
+- **Guardar pasa por `validarMapa`.** Los ids de asiento repetidos y las butacas sin sector son errores; los sectores sin aforo, los nombres repetidos o vacíos y los asientos lejos de su tribuna son avisos. No bloquea: informa y deja guardar igual. `aforoTotal` cuenta butacas dibujadas y, solo si no hay ninguna, la capacidad declarada.
 - **Un gesto del usuario = un paso de historial.** Arrastrar, transformar, alinear, distribuir, duplicar o empujar con flechas dejan **uno**, sea cual sea la selección. `moveSector`/`transformSector` aceptan un parámetro para omitir el guardado cuando quien llama cierra el paso él mismo (el lienzo, al terminar el gesto; el hook de atajos, 400 ms después de la última flecha). Esta invariante se rompió tres veces durante la Fase 1: si tocás esos caminos, probala.
 - Deliberately removed in the library simplification (don't re-add without need): grouping, copy/paste, RBush spatial index (el imán entre elementos volvió en `utils/snapping.ts`, pero con un barrido lineal sobre los sectores, sin índice), demo templates (volvieron en `utils/templates.ts`).
 
