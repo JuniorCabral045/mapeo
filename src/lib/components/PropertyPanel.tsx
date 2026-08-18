@@ -381,7 +381,7 @@ export const PropertyPanel: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <label className={labelClass}>Capacidad (sin asientos)</label>
+                  <label className={labelClass}>Capacidad (Sin asientos numerados)</label>
                   <input
                     type="number"
                     min="0"
@@ -478,11 +478,13 @@ export const PropertyPanel: React.FC = () => {
                 <label className={labelClass}>Dirección de numeración</label>
                 <select
                   value={gen.numberDirection}
-                  onChange={(e) => setGen({ ...gen, numberDirection: e.target.value as 'ltr' | 'rtl' })}
+                  onChange={(e) => setGen({ ...gen, numberDirection: e.target.value as SeatGenerationParams['numberDirection'] })}
                   className={inputClass}
                 >
                   <option value="ltr">Izquierda → Derecha</option>
                   <option value="rtl">Derecha → Izquierda</option>
+                  <option value="ttb">Arriba → Abajo</option>
+                  <option value="btt">Abajo → Arriba</option>
                 </select>
               </div>
 

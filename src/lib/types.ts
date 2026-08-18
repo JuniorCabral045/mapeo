@@ -117,7 +117,8 @@ export interface SeatGenerationParams {
   seatRadius: number;
   startRow: string;
   startNum: number;
-  numberDirection?: 'ltr' | 'rtl';
+  /** Sentido de numeración: horizontal ('ltr'/'rtl') o vertical/transpuesta ('ttb'/'btt'). 'ttb'/'btt' ausentes en mapas anteriores a esa función. */
+  numberDirection?: 'ltr' | 'rtl' | 'ttb' | 'btt';
   /** Radio interior del arco (solo sectores 'circle'). Ausente en mapas anteriores a esta función. */
   arcRadius?: number;
   /** Ángulo total del arco en grados (solo sectores 'circle'). Ausente en mapas anteriores a esta función. */

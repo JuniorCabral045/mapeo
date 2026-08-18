@@ -85,6 +85,42 @@ describe('generación de asientos rectangulares', () => {
     expect(primeraFila.map(s => s.number)).toEqual(['101', '102', '103']);
   });
 
+  it('numera hacia abajo por columna cuando se pide de arriba a abajo', () => {
+    // Vertical: el número corre a lo alto de la columna en vez de a lo ancho de
+    // la fila. En una sola columna quedan A1, A2, A3 de arriba hacia abajo.
+    const columna = generateRectLayout(contenedor, params({ rows: 3, cols: 1, numberDirection: 'ttb' }));
+
+    expect(columna.map(s => s.name)).toEqual(['A1', 'A2', 'A3']);
+    expect(columna.map(s => s.number)).toEqual(['1', '2', '3']);
+  });
+
+  it('en vertical la letra pasa a indexar la columna (transpuesta)', () => {
+    // Con la numeración vertical, la letra deja de ser la fila y pasa a ser la
+    // columna: A la primera, B la segunda… y el número sube por la vertical.
+    const asientos = generateRectLayout(contenedor, params({ rows: 2, cols: 3, numberDirection: 'ttb' }));
+
+    expect(asientos.map(s => s.name)).toEqual(['A1', 'B1', 'C1', 'A2', 'B2', 'C2']);
+  });
+
+  it('numera de abajo hacia arriba cuando se pide así', () => {
+    // El asiento de más abajo lleva el 1 y el de más arriba el mayor.
+    const columna = generateRectLayout(contenedor, params({ rows: 3, cols: 1, numberDirection: 'btt' }));
+
+    // Generados de arriba (r=0) a abajo, así que el primero es el 3 y el último el 1.
+    expect(columna.map(s => s.number)).toEqual(['3', '2', '1']);
+  });
+
+  it('la dirección de numeración no mueve los asientos, solo reetiqueta', () => {
+    const posiciones = (dir?: LayoutParams['numberDirection']) =>
+      generateRectLayout(contenedor, params({ rows: 3, cols: 2, numberDirection: dir }))
+        .map(s => ({ x: s.x, y: s.y }));
+
+    const base = posiciones('ltr');
+    for (const dir of ['rtl', 'ttb', 'btt'] as const) {
+      expect(posiciones(dir)).toEqual(base);
+    }
+  });
+
   it('el nombre combina fila y número, que es lo que se lee en la butaca', () => {
     const [primero] = generateRectLayout(contenedor, params({ rows: 1, cols: 1, startRow: 'B', startNum: 7 }));
 

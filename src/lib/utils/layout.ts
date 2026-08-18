@@ -9,9 +9,19 @@ export interface LayoutParams {
   seatRadius: number;
   startRow: string;
   startNum: number;
-  /** Dirección de numeración dentro de cada fila. Default 'ltr' (izq → der). */
-  numberDirection?: 'ltr' | 'rtl';
+  /**
+   * Dirección de numeración. Default 'ltr'.
+   *
+   *  - **Horizontal** ('ltr' izq → der, 'rtl' der → izq): la letra recorre las
+   *    filas (A arriba) y el número corre a lo ancho de la fila.
+   *  - **Vertical** ('ttb' arriba → abajo, 'btt' abajo → arriba): la letra
+   *    recorre las columnas (A a la izquierda) y el número corre a lo alto de la
+   *    columna. Es la transpuesta: `A1 B1 C1 / A2 B2 C2 / A3 B3 C3`.
+   */
+  numberDirection?: NumberDirection;
 }
+
+export type NumberDirection = 'ltr' | 'rtl' | 'ttb' | 'btt';
 
 /**
  * Etiqueta de fila: A…Z, AA, AB… desde la fila inicial indicada.
@@ -59,13 +69,45 @@ const makeSeat = (
   radius,
 });
 
-/** Número de asiento según posición en la fila y dirección de numeración. */
+/** Número de asiento según posición y sentido dentro del eje que numera. */
 const seatNum = (
   index: number,
   total: number,
   startNum: number,
-  direction?: 'ltr' | 'rtl'
-): number => (direction === 'rtl' ? startNum + (total - 1 - index) : startNum + index);
+  invertido: boolean
+): number => (invertido ? startNum + (total - 1 - index) : startNum + index);
+
+const esVertical = (direction?: NumberDirection): boolean =>
+  direction === 'ttb' || direction === 'btt';
+
+/**
+ * Fila (letra) y número de un asiento de grilla según su posición y la dirección
+ * de numeración, sin mover el asiento: solo decide qué etiqueta le toca.
+ *
+ * En horizontal la letra indexa la fila y el número corre a lo ancho; en
+ * vertical se transpone: la letra indexa la columna y el número corre a lo alto.
+ */
+const etiquetarAsiento = (
+  r: number,
+  c: number,
+  rows: number,
+  cols: number,
+  startRow: string,
+  startNum: number,
+  direction?: NumberDirection
+): { row: string; num: number } => {
+  if (esVertical(direction)) {
+    return {
+      row: rowLabel(c, startRow),
+      num: seatNum(r, rows, startNum, direction === 'btt'),
+    };
+  }
+
+  return {
+    row: rowLabel(r, startRow),
+    num: seatNum(c, cols, startNum, direction === 'rtl'),
+  };
+};
 
 /** Genera asientos en grilla rectangular, centrados dentro del sector. */
 export const generateRectLayout = (
@@ -82,14 +124,14 @@ export const generateRectLayout = (
   const startY = container.y + (container.height - totalH) / 2 + seatRadius;
 
   for (let r = 0; r < rows; r++) {
-    const rowEtiqueta = rowLabel(r, startRow);
     for (let c = 0; c < cols; c++) {
+      const { row, num } = etiquetarAsiento(r, c, rows, cols, startRow, startNum, numberDirection);
       seats.push(
         makeSeat(
           `seat-${container.id}-${r}-${c}`,
           container.id,
-          rowEtiqueta,
-          seatNum(c, cols, startNum, numberDirection),
+          row,
+          num,
           startX + c * (seatRadius * 2 + colSpacing),
           startY + r * (seatRadius * 2 + rowSpacing),
           0,
@@ -124,7 +166,7 @@ export const generateArcLayout = (
           `seat-arc-${container.id}-${r}-${c}`,
           container.id,
           rowEtiqueta,
-          seatNum(c, cols, startNum, numberDirection),
+          seatNum(c, cols, startNum, numberDirection === 'rtl'),
           container.x + radius * Math.cos(rad),
           container.y + radius * Math.sin(rad),
           angle + 90,
@@ -168,7 +210,7 @@ export const generatePolygonLayout = (
           `seat-${container.id}-${r}-${c}`,
           container.id,
           rowEtiqueta,
-          seatNum(c, row.xs.length, startNum, numberDirection),
+          seatNum(c, row.xs.length, startNum, numberDirection === 'rtl'),
           container.x + px,
           container.y + row.y,
           0,
@@ -211,7 +253,7 @@ export const generateArcSectorLayout = (
           `seat-arc-${container.id}-${r}-${c}`,
           container.id,
           rowEtiqueta,
-          seatNum(c, count, startNum, numberDirection),
+          seatNum(c, count, startNum, numberDirection === 'rtl'),
           container.x + radius * Math.cos(rad),
           container.y + radius * Math.sin(rad),
           angle + 90,
