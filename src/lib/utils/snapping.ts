@@ -1,4 +1,4 @@
-import { GridConfig, ShapeElement, VenueElement } from '../types';
+import { GridConfig, VenueElement } from '../types';
 import { elementBounds } from './bounds';
 import { snapToGrid } from './grid';
 
@@ -14,10 +14,17 @@ export interface SnapResult {
 }
 
 export interface SnapArgs {
+  /** Posición del nodo arrastrado (su origen, no su caja). */
   x: number;
   y: number;
   width: number;
   height: number;
+  /**
+   * Distancia del origen a la esquina de su caja. Cero para rectángulos y
+   * polígonos; `-radio` para círculos y arcos, que se dibujan centrados.
+   */
+  offsetX?: number;
+  offsetY?: number;
   /** Ids que no cuentan como candidatos (lo que se está arrastrando). */
   excludedIds: string[];
   elements: Record<string, VenueElement>;
@@ -30,6 +37,30 @@ export interface SnapArgs {
 /** Distancia de enganche, en píxeles de pantalla. */
 const UMBRAL_PX = 6;
 
+interface Enganche {
+  distancia: number;
+  desplazamiento: number;
+  guias: number[];
+}
+
+/** El objetivo más cercano dentro del umbral, con todas las guías que coinciden con él. */
+const mejorEnganche = (mios: number[], objetivos: number[], umbral: number): Enganche | null => {
+  let mejor: Enganche | null = null;
+  for (const objetivo of objetivos) {
+    for (const mio of mios) {
+      const distancia = Math.abs(objetivo - mio);
+      if (distancia > umbral) continue;
+      const desplazamiento = objetivo - mio;
+      if (!mejor || distancia < mejor.distancia) {
+        mejor = { distancia, desplazamiento, guias: [objetivo] };
+      } else if (desplazamiento === mejor.desplazamiento && !mejor.guias.includes(objetivo)) {
+        mejor.guias.push(objetivo);
+      }
+    }
+  }
+  return mejor;
+};
+
 /**
  * Ajusta una posición al imán de grilla y al de otros sectores.
  *
@@ -38,11 +69,11 @@ const UMBRAL_PX = 6;
  * real, un barrido lineal alcanza y evita mantener un índice espacial.
  */
 export const snapPosition = ({
-  x, y, width, height, excludedIds, elements, elementIds, grid, scale,
+  x, y, width, height, offsetX = 0, offsetY = 0,
+  excludedIds, elements, elementIds, grid, scale,
 }: SnapArgs): SnapResult => {
   let snappedX = x;
   let snappedY = y;
-  const guides: Guide[] = [];
 
   if (grid.enabled) {
     const ajustado = snapToGrid(x, y, grid.size);
@@ -50,42 +81,36 @@ export const snapPosition = ({
     snappedY = ajustado.y;
   }
 
-  if (!grid.snapToElements) return { x: snappedX, y: snappedY, guides };
+  if (!grid.snapToElements) return { x: snappedX, y: snappedY, guides: [] };
 
   const umbral = UMBRAL_PX / (scale || 1);
   const excluidos = new Set(excludedIds);
 
-  // Bordes y centro de lo que se arrastra.
-  const misX = [x, x + width / 2, x + width];
-  const misY = [y, y + height / 2, y + height];
+  const izquierda = x + offsetX;
+  const arriba = y + offsetY;
+  const misX = [izquierda, izquierda + width / 2, izquierda + width];
+  const misY = [arriba, arriba + height / 2, arriba + height];
 
+  const objetivosX: number[] = [];
+  const objetivosY: number[] = [];
   for (const id of elementIds) {
     const el = elements[id];
-    if (!el || excluidos.has(id)) continue;
-    if (el.type === 'seat') continue;
-    if ((el as ShapeElement).locked) continue;
-
+    if (!el || excluidos.has(id) || el.type === 'seat' || el.locked) continue;
     const caja = elementBounds(el);
-    const objetivosX = [caja.minX, (caja.minX + caja.maxX) / 2, caja.maxX];
-    const objetivosY = [caja.minY, (caja.minY + caja.maxY) / 2, caja.maxY];
+    objetivosX.push(caja.minX, (caja.minX + caja.maxX) / 2, caja.maxX);
+    objetivosY.push(caja.minY, (caja.minY + caja.maxY) / 2, caja.maxY);
+  }
 
-    for (const objetivo of objetivosX) {
-      for (const mio of misX) {
-        if (Math.abs(mio - objetivo) <= umbral) {
-          snappedX = objetivo - (mio - x);
-          guides.push({ axis: 'v', pos: objetivo });
-        }
-      }
-    }
-
-    for (const objetivo of objetivosY) {
-      for (const mio of misY) {
-        if (Math.abs(mio - objetivo) <= umbral) {
-          snappedY = objetivo - (mio - y);
-          guides.push({ axis: 'h', pos: objetivo });
-        }
-      }
-    }
+  const guides: Guide[] = [];
+  const enX = mejorEnganche(misX, objetivosX, umbral);
+  if (enX) {
+    snappedX = x + enX.desplazamiento;
+    guides.push(...enX.guias.map((pos) => ({ axis: 'v' as const, pos })));
+  }
+  const enY = mejorEnganche(misY, objetivosY, umbral);
+  if (enY) {
+    snappedY = y + enY.desplazamiento;
+    guides.push(...enY.guias.map((pos) => ({ axis: 'h' as const, pos })));
   }
 
   return { x: snappedX, y: snappedY, guides };

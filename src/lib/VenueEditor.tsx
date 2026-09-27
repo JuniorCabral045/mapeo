@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Minus, Maximize } from 'lucide-react';
-import { useVenueStore } from './store/useVenueStore';
+import { huboCambioConfirmado, mapaDelEditor, useVenueStore } from './store/useVenueStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Toolbar } from './components/Toolbar';
 import { PropertyPanel } from './components/PropertyPanel';
 import { EditorCanvas } from './components/canvas/EditorCanvas';
 import { AlignBar } from './components/AlignBar';
-import { serializeVenue } from './schema';
+import { zoomAt } from './utils/bounds';
 import { VenueMap } from './types';
 import { resumenDeBorrado, textoAvisoDeBorrado } from './utils/sector';
 import { useEditorShortcuts } from './hooks/useEditorShortcuts';
@@ -32,7 +33,9 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
   onChange,
   className = '',
 }) => {
-  const { selectedIds, viewState, setViewState, fitToContent, elements, elementIds, deleteElements } = useVenueStore();
+  const { selectedIds, viewState, setViewState, fitToContent, elements, elementIds, deleteElements } = useVenueStore(
+    useShallow((s) => ({ selectedIds: s.selectedIds, viewState: s.viewState, setViewState: s.setViewState, fitToContent: s.fitToContent, elements: s.elements, elementIds: s.elementIds, deleteElements: s.deleteElements }))
+  );
   const initialLoaded = useRef(false);
   const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
 
@@ -41,17 +44,8 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
     [selectedIds, elements, elementIds]
   );
 
-  // Corrección posterior a la revisión de la Tarea 16: esta función se le pasa
-  // a useEditorShortcuts, cuyo efecto la lleva en las dependencias. Cerrar
-  // sobre `aBorrar`/`selectedIds` la hacía cambiar de identidad en cada clic
-  // de selección -continuo mientras se edita- y cada cambio reinstalaba el
-  // escuchador de teclado, cuya limpieza cancelaba (sin guardar) cualquier
-  // empuje con flechas a mitad de agruparse. Lee la selección del store en el
-  // momento de invocar en vez de capturarla, así que queda estable entre
-  // renders; el conteo del aviso de borrado (`resumenDeBorrado`) se calcula
-  // con los mismos datos que ya usa `aBorrar`, solo que leídos en el momento
-  // en lugar de memorizados, así que el aviso sigue mostrando el número
-  // correcto de lo que "Borrar" va a borrar.
+  // Lee la selección del store al invocarse: si cerrara sobre ella cambiaría de
+  // identidad en cada clic y useEditorShortcuts reinstalaría su escuchador.
   const pedirBorrado = useCallback(() => {
     const { selectedIds, elements, elementIds, deleteElements } = useVenueStore.getState();
     const resumen = resumenDeBorrado(elements, elementIds, selectedIds);
@@ -61,8 +55,7 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
 
   useEditorShortcuts(pedirBorrado);
 
-  // Si la selección cambia mientras se pide confirmación, se cierra: el aviso
-  // mostraba un conteo de una selección que ya no es la que "Borrar" borraría.
+  // El aviso cuenta la selección actual: si cambia, deja de ser cierto.
   useEffect(() => {
     setConfirmandoBorrado(false);
   }, [selectedIds]);
@@ -80,29 +73,18 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
 
   useEffect(() => {
     if (!onChange) return;
-    // Notificar cambios confirmados observando el historial (no cada frame de drag)
     return useVenueStore.subscribe((state, prev) => {
-      if (state.historyIndex !== prev.historyIndex || state.backgroundImage !== prev.backgroundImage) {
-        onChange(serializeVenue(
-          state.elements,
-          state.elementIds,
-          state.venueName,
-          undefined,
-          state.backgroundImage ?? undefined
-        ));
-      }
+      if (huboCambioConfirmado(state, prev)) onChange(mapaDelEditor(state));
     });
   }, [onChange]);
 
   const handleZoom = (delta: number) => {
-    setViewState({ scale: Math.max(0.05, Math.min(5, viewState.scale * delta)) });
+    const { width, height } = useVenueStore.getState().canvasSize;
+    setViewState(zoomAt(viewState, { x: width / 2, y: height / 2 }, delta));
   };
 
   return (
     <div className={`flex h-full w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 text-gray-700 selection:bg-orange-200/60 ${className}`}>
-      {/* La barra ya no flota sobre el lienzo: es una fila propia arriba de todo.
-          Flotando, tapaba el recinto —el escenario quedaba escondido detrás— y
-          crecía cada vez que se sumaba un grupo de botones. */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[#F3F4F6] touch-none group">
         <Toolbar onSave={onSave} onDelete={pedirBorrado} />
 
@@ -110,7 +92,6 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
           <EditorCanvas />
           <AlignBar />
 
-          {/* Controles de zoom */}
           <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-50">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col p-1">
               <button onClick={() => handleZoom(1.1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-[#FF6B01] hover:bg-orange-50 transition-all rounded-lg" title="Aumentar Zoom"><Plus size={16} /></button>
@@ -127,7 +108,6 @@ export const VenueEditor: React.FC<VenueEditorProps> = ({
           </div>
         </div>
 
-        {/* Barra de estado */}
         <footer className="h-8 shrink-0 bg-white border-t border-gray-200 flex items-center justify-between px-4">
           {confirmandoBorrado ? (
             <div className="flex items-center gap-3">

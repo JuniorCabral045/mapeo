@@ -1,7 +1,7 @@
 import React from 'react';
 import { Path, Group, Rect, Circle, Text, Line, Arc } from 'react-konva';
 import Konva from 'konva';
-import { ShapeElement, CornerRadius } from '../../types';
+import { ShapeElement } from '../../types';
 import { createRoundedRectPath } from '../../utils/geometry';
 
 interface CustomShapeProps {
@@ -17,12 +17,7 @@ interface CustomShapeProps {
   scale?: number;
   /** Segunda línea bajo el nombre, p. ej. «320 asientos». */
   subtitle?: string;
-  /**
-   * Dibujar el nombre del sector sobre la figura. Apagado por omisión: con los
-   * sectores llenos de butacas el texto encima estorba más de lo que ayuda, así
-   * que se prende desde la barra cuando hace falta ubicarse. El escenario es la
-   * excepción y siempre lleva su nombre — es una figura sólida y vacía.
-   */
+  /** Nombre del sector sobre la figura. El escenario lo lleva siempre. */
   showLabel?: boolean;
 }
 
@@ -30,11 +25,8 @@ interface CustomShapeProps {
 const MINIMO_LEGIBLE_PX = 9;
 
 /**
- * Dónde va el rótulo del sector, en coordenadas locales del grupo.
- *
- * Cada forma tiene su propio origen: los rectángulos y polígonos nacen en su
- * esquina, los círculos y los anillos están centrados en el origen. Sin esto,
- * el nombre de un sector curvo caía lejos de su tribuna.
+ * Dónde va el rótulo, en coordenadas locales del grupo: rectángulos y polígonos
+ * nacen en su esquina; círculos y anillos, centrados en el origen.
  */
 const ubicacionDelRotulo = (element: ShapeElement) => {
   const { width, height, sectionType } = element;
@@ -87,8 +79,15 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
 
   const fillColor = isActive ? (element.type === 'stage' ? '#6F3E8F' : fill) : '#C7CBD4';
   const strokeColor = isSelected ? '#FF6B01' : stroke || (isActive ? fill : '#9AA1AE');
-  // El escenario se pinta sólido (texto blanco encima); los sectores translúcidos
   const shapeOpacity = element.type === 'stage' ? (isActive ? 0.95 : 0.4) : isActive ? 0.35 : 0.15;
+
+  const estilo = {
+    fill: fillColor,
+    stroke: strokeColor,
+    strokeWidth: isSelected ? 3 : 1.5,
+    dash: isSelected ? [] : [10, 5],
+    opacity: shapeOpacity,
+  };
 
   const renderShape = () => {
     if (sectionType === 'polygon' && element.points && element.points.length >= 6) {
@@ -96,11 +95,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
         <Line
           points={element.points}
           closed
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={isSelected ? 3 : 1.5}
-          dash={isSelected ? [] : [10, 5]}
-          opacity={shapeOpacity}
+          {...estilo}
         />
       );
     }
@@ -112,36 +107,24 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
           outerRadius={element.outerRadius ?? 200}
           angle={(element.endAngle ?? 340) - (element.startAngle ?? 200)}
           rotation={element.startAngle ?? 200}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={isSelected ? 3 : 1.5}
-          dash={isSelected ? [] : [10, 5]}
-          opacity={shapeOpacity}
+          {...estilo}
         />
       );
     }
 
     if (sectionType === 'rectangle' || element.type === 'stage') {
-      // Path para radios de esquina independientes; Rect para radio uniforme
+      // Path para radios de esquina independientes; Rect para radio uniforme.
       return typeof cornerRadius === 'object' ? (
         <Path
-          data={createRoundedRectPath(0, 0, width, height, cornerRadius as CornerRadius)}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={isSelected ? 3 : 1.5}
-          dash={isSelected ? [] : [10, 5]}
-          opacity={shapeOpacity}
+          data={createRoundedRectPath(0, 0, width, height, cornerRadius)}
+          {...estilo}
         />
       ) : (
         <Rect
           width={width}
           height={height}
           cornerRadius={typeof cornerRadius === 'number' ? cornerRadius : 0}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={isSelected ? 3 : 1.5}
-          dash={isSelected ? [] : [10, 5]}
-          opacity={shapeOpacity}
+          {...estilo}
         />
       );
     }
@@ -150,11 +133,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
       return (
         <Circle
           radius={radius || width / 2}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={isSelected ? 3 : 1.5}
-          dash={isSelected ? [] : [10, 5]}
-          opacity={shapeOpacity}
+          {...estilo}
         />
       );
     }
@@ -162,7 +141,6 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
     return null;
   };
 
-  // El rótulo se omite cuando el zoom lo dejaría en una mancha de píxeles.
   const candidato = ubicacionDelRotulo(element);
   const conRotulo = element.type === 'stage' || showLabel;
   const rotulo = conRotulo && candidato.tamano * scale >= MINIMO_LEGIBLE_PX ? candidato : null;
@@ -183,9 +161,7 @@ export const CustomShape: React.FC<CustomShapeProps> = ({
     >
       {renderShape()}
       {rotulo && (
-        // El rótulo se contra-rota: si heredara la rotación del sector, una
-        // tribuna girada lo mostraría de costado o cabeza abajo. Va en su propio
-        // grupo centrado en el ancla, así que acompaña al sector sin torcerse.
+        // Contra-rotado para que una tribuna girada no lo muestre cabeza abajo.
         <Group x={rotulo.cx} y={rotulo.cy} rotation={-rotation} listening={false}>
           <Text
             text={element.type === 'stage' ? name.toUpperCase() : name}

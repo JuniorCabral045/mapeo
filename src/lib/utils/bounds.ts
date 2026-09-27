@@ -7,23 +7,20 @@ export interface Bounds {
   maxY: number;
 }
 
-/** Escala mínima y máxima del lienzo. Es el mismo rango que aplica la rueda. */
-const MIN_SCALE = 0.05;
-const MAX_SCALE = 5;
+export const MIN_SCALE = 0.05;
+export const MAX_SCALE = 5;
 
-const clamp = (valor: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, valor));
+export const clampScale = (scale: number) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
 
 /** Formas que Konva dibuja centradas en el origen del grupo, no desde la esquina. */
-const esRadial = (el: ShapeElement) =>
+export const esRadial = (el: ShapeElement) =>
   el.sectionType === 'circle' || el.sectionType === 'arc';
 
 /**
  * Caja que ocupa un elemento en coordenadas de mundo.
  *
- * No contempla la rotación: la caja de un sector rotado queda algo más chica que
- * su huella real. Para encuadrar alcanza, y evita tener que rotar cuatro esquinas
- * en el camino caliente del render.
+ * No contempla la rotación: para encuadrar alcanza, y evita rotar cuatro
+ * esquinas en el camino caliente del render.
  */
 export const elementBounds = (el: VenueElement): Bounds => {
   if (el.type === 'seat') {
@@ -33,13 +30,10 @@ export const elementBounds = (el: VenueElement): Bounds => {
 
   const shape = el as ShapeElement;
 
-  if (shape.sectionType === 'circle') {
-    const r = shape.radius ?? shape.width / 2;
-    return { minX: shape.x - r, minY: shape.y - r, maxX: shape.x + r, maxY: shape.y + r };
-  }
-
-  if (shape.sectionType === 'arc') {
-    const r = shape.outerRadius ?? shape.width / 2;
+  if (esRadial(shape)) {
+    const r = shape.sectionType === 'circle'
+      ? shape.radius ?? shape.width / 2
+      : shape.outerRadius ?? shape.width / 2;
     return { minX: shape.x - r, minY: shape.y - r, maxX: shape.x + r, maxY: shape.y + r };
   }
 
@@ -85,10 +79,7 @@ export const calculateBounds = (
   return hubo ? { minX, minY, maxX, maxY } : null;
 };
 
-/**
- * Vista que deja la caja centrada dentro de un contenedor de `width` × `height`.
- * `margin` < 1 deja aire alrededor.
- */
+/** Vista que deja la caja centrada en un contenedor de `width` × `height`; `margin` < 1 deja aire. */
 export const fitView = (
   bounds: Bounds,
   width: number,
@@ -97,15 +88,28 @@ export const fitView = (
 ): ViewState => {
   const ancho = bounds.maxX - bounds.minX || 1;
   const alto = bounds.maxY - bounds.minY || 1;
-  const scale = clamp(
-    Math.min(width / ancho, height / alto) * margin,
-    MIN_SCALE,
-    MAX_SCALE
-  );
+  const scale = clampScale(Math.min(width / ancho, height / alto) * margin);
 
   return {
     scale,
     x: (width - ancho * scale) / 2 - bounds.minX * scale,
     y: (height - alto * scale) / 2 - bounds.minY * scale,
+  };
+};
+
+/**
+ * Vista escalada por `factor` dejando fijo el punto de pantalla `punto`: lo que
+ * está bajo el mouse (o en el centro, para los botones) sigue ahí después del zoom.
+ */
+export const zoomAt = (
+  view: ViewState,
+  punto: { x: number; y: number },
+  factor: number
+): ViewState => {
+  const scale = clampScale(view.scale * factor);
+  return {
+    scale,
+    x: punto.x - ((punto.x - view.x) / view.scale) * scale,
+    y: punto.y - ((punto.y - view.y) / view.scale) * scale,
   };
 };

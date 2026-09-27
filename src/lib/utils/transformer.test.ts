@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { transformerConfigFor } from './transformer';
+import { geometriaEscalada, transformerConfigFor } from './transformer';
 import type { ShapeElement, VenueElement } from '../types';
 
 /**
@@ -95,5 +95,24 @@ describe('configuración del transformador', () => {
 
     expect(config.anchors).toEqual(ESQUINAS);
     expect(config.keepRatio).toBe(false);
+  });
+});
+
+describe('escala horneada en la geometría', () => {
+  it('un rectángulo cambia ancho y alto por separado', () => {
+    const r = geometriaEscalada(forma('rectangle'), 2, 0.5);
+    expect(r.cambios).toEqual({ width: 200, height: 50 });
+    expect(r.scaleY).toBe(0.5);
+  });
+
+  it('un círculo escala su radio y descarta scaleY', () => {
+    const r = geometriaEscalada({ ...forma('circle'), radius: 40 }, 2, 3);
+    expect(r.cambios).toEqual({ radius: 80, width: 160, height: 160 });
+    expect(r.scaleY).toBe(2);
+  });
+
+  it('un polígono escala cada vértice en su eje', () => {
+    const r = geometriaEscalada({ ...forma('polygon'), points: [0, 0, 10, 0, 10, 20] }, 2, 3);
+    expect(r.cambios.points).toEqual([0, 0, 20, 0, 20, 60]);
   });
 });

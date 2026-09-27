@@ -191,4 +191,32 @@ describe('imán entre elementos', () => {
 
     expect(r.x).toBe(205);
   });
+
+  it('un círculo arrastrado engancha por su borde, no por su origen', () => {
+    // El origen de un círculo es su centro: con radio 30 en x=227 su borde
+    // izquierdo está en 197, a 3 del borde del sector.
+    const { elements, elementIds } = escena(sector('s1', 200, 0));
+
+    const r = snapPosition({
+      x: 227, y: 500, width: 60, height: 60, offsetX: -30, offsetY: -30,
+      excludedIds: [], elements, elementIds, grid: grilla(), scale: 1,
+    });
+
+    expect(r.x).toBe(230);
+    expect(r.guides).toContainEqual({ axis: 'v', pos: 200 });
+  });
+
+  it('con varios candidatos gana el más cercano y solo se dibujan sus guías', () => {
+    // El borde izquierdo (97) está a 3 del de s1 (100); el derecho (197) está a
+    // 1 del de s2 (198). Antes ganaba el último recorrido y se dibujaban las dos.
+    const { elements, elementIds } = escena(sector('s2', 98, 1500), sector('s1', 100, 900));
+
+    const r = snapPosition({
+      x: 97, y: 0, width: 100, height: 100,
+      excludedIds: [], elements, elementIds, grid: grilla(), scale: 1,
+    });
+
+    expect(r.x).toBe(98);
+    expect(r.guides.filter((g) => g.axis === 'v').map((g) => g.pos)).toEqual([98, 148, 198]);
+  });
 });

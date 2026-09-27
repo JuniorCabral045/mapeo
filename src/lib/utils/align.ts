@@ -8,18 +8,9 @@ export type DistributeAxis = 'x' | 'y';
 export type Movimientos = Record<string, { x: number; y: number }>;
 
 /**
- * Elementos de la selección con caja calculable. A diferencia del antiguo
- * `movibles`, esto NO excluye a los bloqueados: un elemento bloqueado sigue
- * ocupando lugar y tiene que participar del cálculo del conjunto, aunque
- * nunca reciba un movimiento propio. Excluirlo del todo -como hacía
- * `movibles`- dejaba que los demás se alinearan o distribuyeran usando solo
- * sus propios extremos, montándose encima del bloqueado.
- *
- * Cuánto pesa esa participación no es lo mismo en las dos funciones de abajo:
- * en `alignElements` el bloqueado es una ancla real -los demás terminan
- * tocando su borde-; en `distributeElements` solo aporta su tamaño al reparto
- * y su posición real nunca se lee, así que puede quedar lejos de donde el
- * cálculo lo supone. El comentario de cada función detalla su caso.
+ * Elementos de la selección que existen. Incluye los bloqueados: no se mueven,
+ * pero ocupan lugar. En `alignElements` son un ancla real; en
+ * `distributeElements` solo aportan su tamaño al reparto.
  */
 const conCaja = (elements: Record<string, VenueElement>, ids: string[]) =>
   ids.map((id) => elements[id]).filter((el): el is VenueElement => !!el);
@@ -49,8 +40,6 @@ export const alignElements = (
   const movimientos: Movimientos = {};
 
   for (const { el, caja } of cajas) {
-    // Ancla real: su destino se calcula igual que el de cualquier otro, y como
-    // nunca se mueve, los demás terminan tocando su borde efectivo.
     if (el.locked) continue;
 
     const ancho = caja.maxX - caja.minX;
@@ -96,14 +85,7 @@ export const distributeElements = (
   const fin = axis === 'x' ? ultimo.caja.maxX : ultimo.caja.maxY;
 
   const ocupado = cajas.reduce((suma, c) => suma + tamano(c), 0);
-  // Si los elementos no entran en el espacio disponible entre los extremos, esta
-  // resta da negativa. No se trata como error: repartir el faltante en partes
-  // iguales es, matemáticamente, la misma cuenta que repartir un sobrante -es
-  // la definición de «distribuir parejo»-, así que no se cambia la fórmula.
-  // Lo que se decide acá es no ocultarlo: con hueco negativo el resultado es un
-  // solapamiento visible, previsible e igual entre todos los elementos del
-  // medio -una decisión tomada a propósito, no un accidente en silencio-. Ver
-  // el caso «hueco negativo» en align.test.ts.
+  // Si no entran entre los extremos el hueco es negativo y se solapan parejo, a propósito.
   const hueco = (fin - inicio - ocupado) / (cajas.length - 1);
 
   const movimientos: Movimientos = {};
@@ -113,17 +95,8 @@ export const distributeElements = (
     const { el, caja } = cajas[i];
     const actual = axis === 'x' ? caja.minX : caja.minY;
     const delta = cursor - actual;
-    // A diferencia de alignElements, acá "ancla" es una palabra más débil: el
-    // cursor solo toma el tamaño del bloqueado para seguir avanzando -el reparto
-    // uniforme es una sola pasada de izquierda a derecha, sin una segunda vuelta
-    // que reubique el cursor sobre su posición real-, así que su x/y real nunca
-    // se lee. Si el bloqueado no cae exactamente donde el reparto uniforme lo
-    // hubiera puesto, los elementos siguientes se calculan igual respecto de un
-    // punto donde el bloqueado no está, y los huecos a su alrededor quedan
-    // desparejos. Es una limitación conocida y aceptada, no un olvido: fijarla
-    // exigiría segmentar la distribución en tramos alrededor de cada bloqueado,
-    // un algoritmo distinto y más grande que el de esta función. Ver el caso
-    // «bloqueado en el medio» en align.test.ts.
+    // Limitación aceptada: un bloqueado en el medio aporta su tamaño pero no su
+    // posición real, así que los huecos a su alrededor pueden quedar desparejos.
     if (!el.locked) {
       movimientos[el.id] = {
         x: axis === 'x' ? el.x + delta : el.x,

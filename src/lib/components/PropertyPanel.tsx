@@ -1,270 +1,99 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Circle as CircleIcon,
-  Square,
-  ChevronLeft,
-  Flag,
-  Lock,
-  LayoutGrid,
-  Sliders,
-  Palette,
-  Settings2,
-  Maximize2,
-  ChevronDown,
-} from 'lucide-react';
+import React from 'react';
+import { ChevronLeft, Lock, Sliders, Palette, Settings2 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
-import { SeatElement, SeatGenerationParams, ShapeElement, VenueElement } from '../types';
-import { generateRectLayout, generateArcLayout, generatePolygonLayout, generateArcSectorLayout } from '../utils/layout';
-import { pluralizar, seatsOfSector } from '../utils/sector';
+import { useShallow } from 'zustand/react/shallow';
+import { ShapeElement, VenueElement } from '../types';
+import { seatsOfSector } from '../utils/sector';
+import { ElementList } from './panel/ElementList';
+import { SeatGenerator } from './panel/SeatGenerator';
+import { inputClass, labelClass } from './panel/styles';
 
-// arcRadius/arcAngle quedan fuera: no son parte del estado `gen` (viven en su propio
-// useState porque solo aplican a sectores circulares), se agregan aparte al generar.
-const GENERACION_POR_DEFECTO: Required<Omit<SeatGenerationParams, 'arcRadius' | 'arcAngle'>> = {
-  rows: 5, cols: 10, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr',
+const ASIDE = 'w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden';
+
+const Campo: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="space-y-1.5">
+    <label className={labelClass}>{label}</label>
+    {children}
+  </div>
+);
+
+const Encabezado: React.FC<{ icono: React.ReactNode; titulo: string }> = ({ icono, titulo }) => (
+  <div className="flex items-center gap-2 mb-4 text-[#6F3E8F]">
+    {icono}
+    <h2 className="text-xs font-bold uppercase tracking-widest">{titulo}</h2>
+  </div>
+);
+
+const Valor: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="bg-gray-100 border border-gray-200 rounded-xl px-3 py-2">
+    <span className="text-xs font-bold text-[#6F3E8F]">{children}</span>
+  </div>
+);
+
+/** Radios y ángulos de un sector curvo, sin dejar que se crucen. */
+const CamposDeArco: React.FC<{ arc: ShapeElement; onChange: (u: Partial<ShapeElement>) => void }> = ({ arc, onChange }) => {
+  const acotar = (updates: Partial<ShapeElement>) => {
+    const inner = updates.innerRadius ?? arc.innerRadius ?? 100;
+    const outer = updates.outerRadius ?? arc.outerRadius ?? 200;
+    const start = updates.startAngle ?? arc.startAngle ?? 200;
+    const end = updates.endAngle ?? arc.endAngle ?? 340;
+    onChange({
+      innerRadius: Math.max(0, Math.min(inner, outer - 10)),
+      outerRadius: Math.max(inner + 10, outer),
+      startAngle: Math.min(start, end - 5),
+      endAngle: Math.max(start + 5, end),
+    });
+  };
+  const campos: { label: string; key: keyof ShapeElement; valor: number; minimo: number }[] = [
+    { label: 'Radio interior', key: 'innerRadius', valor: arc.innerRadius ?? 100, minimo: 0 },
+    { label: 'Radio exterior', key: 'outerRadius', valor: arc.outerRadius ?? 200, minimo: 10 },
+    { label: 'Ángulo inicial', key: 'startAngle', valor: arc.startAngle ?? 200, minimo: 0 },
+    { label: 'Ángulo final', key: 'endAngle', valor: arc.endAngle ?? 340, minimo: 0 },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {campos.map((c) => (
+        <Campo key={c.key} label={c.label}>
+          <input
+            type="number"
+            min={c.key.endsWith('Radius') ? c.minimo : undefined}
+            value={Math.round(c.valor)}
+            onChange={(e) => acotar({ [c.key]: parseInt(e.target.value) || c.minimo })}
+            className={inputClass}
+          />
+        </Campo>
+      ))}
+    </div>
+  );
 };
 
-/** Cuántas butacas se listan al desplegar un sector antes de cortar. */
-const ASIENTOS_VISIBLES = 50;
-
-/** Id ficticio del grupo que junta los asientos sin sector. */
-const SIN_SECTOR = '__sin-sector__';
-
+/**
+ * Panel lateral: lista de elementos sin selección, propiedades con uno solo.
+ * Los cambios no guardan historial: se disparan en cada tecla.
+ */
 export const PropertyPanel: React.FC = () => {
-  const { elements, elementIds, selectedIds, updateElement, selectElements } = useVenueStore();
+  const { elements, elementIds, selectedIds, updateElement, placeElement, selectElements } = useVenueStore(
+    useShallow((s) => ({ elements: s.elements, elementIds: s.elementIds, selectedIds: s.selectedIds, updateElement: s.updateElement, placeElement: s.placeElement, selectElements: s.selectElements }))
+  );
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const element = selectedId ? elements[selectedId] : null;
 
-  const [gen, setGen] = useState<Required<Omit<SeatGenerationParams, 'arcRadius' | 'arcAngle'>>>(GENERACION_POR_DEFECTO);
-  const [arcRadius, setArcRadius] = useState(200);
-  const [arcAngle, setArcAngle] = useState(120);
-  const [confirmandoRegenerar, setConfirmandoRegenerar] = useState(false);
-  const [sectorDesplegado, setSectorDesplegado] = useState<string | null>(null);
+  if (!element) {
+    return (
+      <aside className={ASIDE}>
+        <ElementList />
+      </aside>
+    );
+  }
 
-  const asientosDelSector = element && element.type === 'section'
-    ? seatsOfSector(elements, elementIds, element.id).length
-    : 0;
-
-  // Al cambiar de sector se muestran los parámetros con los que se generó ese
-  // sector, no los del anterior.
-  useEffect(() => {
-    if (element?.type === 'section') {
-      const generation = (element as ShapeElement).generation;
-      setGen(generation ? { ...GENERACION_POR_DEFECTO, ...generation } : GENERACION_POR_DEFECTO);
-      // arcRadius/arcAngle solo aplican a sectores circulares; si el sector no los trae
-      // (mapa anterior a esta función, u otra forma) se conservan los valores por defecto.
-      if (generation?.arcRadius !== undefined) setArcRadius(generation.arcRadius);
-      if (generation?.arcAngle !== undefined) setArcAngle(generation.arcAngle);
-    }
-    setConfirmandoRegenerar(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
-
-  /**
-   * Sectores y escenarios con sus butacas colgando, en el orden del lienzo.
-   * Los asientos huérfanos (sin sector, o apuntando a uno que ya no existe)
-   * se juntan aparte: si no, desaparecerían de la lista sin que nadie note
-   * que están.
-   */
-  const contenedores = useMemo(() => {
-    const porId = new Map<string, { contenedor: ShapeElement; asientos: SeatElement[] }>();
-    const huerfanos: SeatElement[] = [];
-
-    for (const id of elementIds) {
-      const el = elements[id];
-      if (el && el.type !== 'seat') {
-        porId.set(id, { contenedor: el as ShapeElement, asientos: [] });
-      }
-    }
-
-    for (const id of elementIds) {
-      const el = elements[id];
-      if (!el || el.type !== 'seat') continue;
-      const grupo = el.sectionId ? porId.get(el.sectionId) : undefined;
-      if (grupo) grupo.asientos.push(el as SeatElement);
-      else huerfanos.push(el as SeatElement);
-    }
-
-    const lista = [...porId.values()];
-    if (huerfanos.length > 0) {
-      lista.push({
-        contenedor: {
-          id: SIN_SECTOR,
-          type: 'section',
-          name: 'Asientos sueltos',
-          locked: false,
-        } as ShapeElement,
-        asientos: huerfanos,
-      });
-    }
-    return lista;
-  }, [elements, elementIds]);
-
-  /**
-   * Capacidad total del recinto: la suma de las butacas dibujadas más la
-   * capacidad declarada de los sectores que no tienen ninguna. Es el número que
-   * antes había que sacar a mano contando capas.
-   */
-  const resumenDelRecinto = useMemo(() => {
-    let sectores = 0;
-    let butacas = 0;
-    for (const { contenedor, asientos } of contenedores) {
-      if (contenedor.id === SIN_SECTOR) {
-        butacas += asientos.length;
-        continue;
-      }
-      if (contenedor.type === 'section') sectores += 1;
-      butacas += asientos.length || (contenedor.capacity ?? 0);
-    }
-    if (sectores === 0 && butacas === 0) return 'Lienzo vacío';
-    return `${sectores} ${pluralizar(sectores, 'sector', 'sectores')} · ${butacas.toLocaleString('es')} ${pluralizar(butacas, 'lugar', 'lugares')}`;
-  }, [contenedores]);
-
-  if (!element) return (
-    <aside className="w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
-      <div className="p-6 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-sm font-bold text-[#6F3E8F] tracking-tight uppercase flex items-center gap-2">
-          <LayoutGrid size={16} className="text-[#FF6B01]" /> Elementos
-        </h2>
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-          {resumenDelRecinto}
-        </p>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
-        {/* La lista muestra sectores y escenarios; las butacas quedan plegadas
-            dentro de su sector. Antes se pintaba una fila por elemento, así que
-            un recinto de veinte mil asientos eran veinte mil filas de DOM y el
-            panel se volvía inusable justo en los recintos que importan. */}
-        {contenedores.map(({ contenedor, asientos }) => {
-          const id = contenedor.id;
-          const isSelected = selectedIds.includes(id);
-          const desplegado = sectorDesplegado === id;
-          const visibles = desplegado ? asientos.slice(0, ASIENTOS_VISIBLES) : [];
-
-          return (
-            <div key={id} className="space-y-1">
-              <div
-                onClick={(e) => {
-                  if (e.shiftKey) selectElements([...selectedIds, id]);
-                  else selectElements([id]);
-                }}
-                className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
-                  isSelected
-                    ? 'bg-orange-50 border-[#FF6B01]/30 text-[#FF6B01] shadow-sm translate-x-1'
-                    : 'border-transparent bg-gray-50 text-gray-500 hover:bg-purple-50 hover:text-[#6F3E8F]'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                  isSelected ? 'bg-[#FF6B01] text-white shadow-md shadow-orange-500/30 scale-110' : 'bg-gray-200 text-gray-500 group-hover:bg-[#6F3E8F] group-hover:text-white'
-                }`}>
-                  {contenedor.type === 'stage' ? <Flag size={12} strokeWidth={3} /> : <Square size={12} strokeWidth={3} />}
-                </div>
-                <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-xs font-bold truncate">{contenedor.name}</span>
-                  <span className="text-[10px] text-gray-400 font-bold uppercase">
-                    {contenedor.type === 'stage' ? 'escenario' : 'sector'}
-                    {asientos.length > 0 && ` · ${asientos.length} asientos`}
-                  </span>
-                </div>
-                {contenedor.locked && <Lock size={12} className="text-gray-400" />}
-                {asientos.length > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSectorDesplegado(desplegado ? null : id);
-                    }}
-                    className="p-1 text-gray-400 hover:text-[#6F3E8F] transition-colors"
-                    title={desplegado ? 'Ocultar asientos' : 'Ver asientos'}
-                  >
-                    <ChevronDown size={14} className={`transition-transform ${desplegado ? 'rotate-180' : ''}`} />
-                  </button>
-                )}
-              </div>
-
-              {visibles.map((asiento) => (
-                <div
-                  key={asiento.id}
-                  onClick={(e) => {
-                    if (e.shiftKey) selectElements([...selectedIds, asiento.id]);
-                    else selectElements([asiento.id]);
-                  }}
-                  className={`ml-6 flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer text-[11px] font-bold transition-colors ${
-                    selectedIds.includes(asiento.id)
-                      ? 'bg-orange-50 text-[#FF6B01]'
-                      : 'text-gray-400 hover:bg-purple-50 hover:text-[#6F3E8F]'
-                  }`}
-                >
-                  <CircleIcon size={9} strokeWidth={3} />
-                  <span className="truncate">{asiento.name}</span>
-                </div>
-              ))}
-
-              {desplegado && asientos.length > ASIENTOS_VISIBLES && (
-                <p className="ml-6 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-300">
-                  y {asientos.length - ASIENTOS_VISIBLES} más — se eligen en el lienzo
-                </p>
-              )}
-            </div>
-          );
-        })}
-        {elementIds.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 text-center text-gray-300">
-            <LayoutGrid size={48} className="mb-4" />
-            <p className="text-xs font-bold uppercase tracking-widest">Lienzo Vacío</p>
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-
-  const handleUpdate = (updates: Partial<VenueElement>) => {
-    if (selectedId) updateElement(selectedId, updates);
-  };
-
-  const generateSeats = () => {
-    // Regenerar: elimina los asientos previos del sector y crea los nuevos
-    const seatsToRemove = elementIds.filter((id) => {
-      const el = elements[id];
-      return el?.type === 'seat' && el.sectionId === element.id;
-    });
-    if (seatsToRemove.length > 0) useVenueStore.getState().deleteElements(seatsToRemove);
-
-    const shape = element as ShapeElement;
-    const base = {
-      rows: gen.rows, cols: gen.cols,
-      rowSpacing: gen.seatRadius * 1.5, colSpacing: gen.seatRadius * 1.5,
-      seatRadius: gen.seatRadius,
-      startRow: (gen.startRow || 'A').toUpperCase(),
-      startNum: gen.startNum,
-      numberDirection: gen.numberDirection,
-    };
-    const seats = shape.sectionType === 'rectangle'
-      ? generateRectLayout(shape, base)
-      : shape.sectionType === 'polygon'
-        ? generatePolygonLayout(shape, base)
-        : shape.sectionType === 'arc'
-          ? generateArcSectorLayout(shape, { ...base, rowSpacing: gen.seatRadius * 2 })
-          : generateArcLayout(shape, {
-              ...base,
-              rowSpacing: gen.seatRadius * 2,
-              innerRadius: arcRadius,
-              startAngle: 180 - arcAngle / 2,
-              endAngle: 180 + arcAngle / 2,
-            });
-    useVenueStore.getState().addElements(seats);
-    // Queda registrado en el sector: regenerar más adelante reproduce lo mismo.
-    // Para 'circle' se suman arcRadius/arcAngle, que también alimentan el generador
-    // pero vivían solo en estado local del panel; el resto de las formas no los usa.
-    const generation: SeatGenerationParams = shape.sectionType === 'circle'
-      ? { ...gen, arcRadius, arcAngle }
-      : gen;
-    updateElement(element.id, { generation });
-  };
-
-  const inputClass = 'w-full px-4 py-2 bg-indigo-50 border border-transparent rounded-xl text-xs font-bold text-gray-800 focus:border-[#FF6B01] outline-none transition-colors';
-  const labelClass = 'text-[10px] font-bold uppercase text-gray-400 tracking-widest';
+  const shape = element.type !== 'seat' ? (element as ShapeElement) : null;
+  const asientos = element.type === 'section' ? seatsOfSector(elements, elementIds, element.id).length : 0;
+  const handleUpdate = (updates: Partial<VenueElement>) => updateElement(element.id, updates);
+  const radial = shape?.sectionType === 'arc' || shape?.sectionType === 'circle';
 
   return (
-    <aside className="w-72 xl:w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 shadow-lg overflow-hidden">
+    <aside className={ASIDE}>
       <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
         <button
           onClick={() => selectElements([])}
@@ -276,268 +105,56 @@ export const PropertyPanel: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-20">
-        {/* Propiedades básicas */}
         <section>
-          <div className="flex items-center gap-2 mb-4 text-[#6F3E8F]">
-            <Settings2 size={16} className="text-[#FF6B01]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest">Propiedades</h2>
-          </div>
+          <Encabezado icono={<Settings2 size={16} className="text-[#FF6B01]" />} titulo="Propiedades" />
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className={labelClass}>Tipo</label>
-              <div className="bg-gray-100 border border-gray-200 rounded-xl px-3 py-2">
-                <span className="text-xs font-bold text-[#6F3E8F] uppercase">
+            <Campo label="Tipo">
+              <Valor>
+                <span className="uppercase">
                   {element.type === 'seat' ? 'asiento' : element.type === 'stage' ? 'escenario' : 'sector'}
                 </span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className={labelClass}>Nombre a Mostrar</label>
-              <input
-                type="text"
-                value={element.name}
-                onChange={(e) => handleUpdate({ name: e.target.value })}
-                className={inputClass}
-              />
-            </div>
+              </Valor>
+            </Campo>
+            <Campo label="Nombre a Mostrar">
+              <input type="text" value={element.name} onChange={(e) => handleUpdate({ name: e.target.value })} className={inputClass} />
+            </Campo>
             {element.type === 'seat' && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Fila</label>
-                  <input
-                    type="text"
-                    value={element.row}
-                    onChange={(e) => handleUpdate({ row: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Número</label>
-                  <input
-                    type="text"
-                    value={element.number}
-                    onChange={(e) => handleUpdate({ number: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
+                <Campo label="Fila">
+                  <input type="text" value={element.row} onChange={(e) => handleUpdate({ row: e.target.value })} className={inputClass} />
+                </Campo>
+                <Campo label="Número">
+                  <input type="text" value={element.number} onChange={(e) => handleUpdate({ number: e.target.value })} className={inputClass} />
+                </Campo>
               </div>
             )}
-            {element.type === 'section' && (element as ShapeElement).sectionType === 'arc' && (() => {
-              const arc = element as ShapeElement;
-              const clampArc = (updates: Partial<ShapeElement>) => {
-                const inner = updates.innerRadius ?? arc.innerRadius ?? 100;
-                const outer = updates.outerRadius ?? arc.outerRadius ?? 200;
-                const start = updates.startAngle ?? arc.startAngle ?? 200;
-                const end = updates.endAngle ?? arc.endAngle ?? 340;
-                handleUpdate({
-                  innerRadius: Math.max(0, Math.min(inner, outer - 10)),
-                  outerRadius: Math.max(inner + 10, outer),
-                  startAngle: Math.min(start, end - 5),
-                  endAngle: Math.max(start + 5, end),
-                });
-              };
-              return (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Radio interior</label>
-                    <input type="number" min="0" value={Math.round(arc.innerRadius ?? 100)}
-                      onChange={(e) => clampArc({ innerRadius: parseInt(e.target.value) || 0 })}
-                      className={inputClass} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Radio exterior</label>
-                    <input type="number" min="10" value={Math.round(arc.outerRadius ?? 200)}
-                      onChange={(e) => clampArc({ outerRadius: parseInt(e.target.value) || 10 })}
-                      className={inputClass} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Ángulo inicial</label>
-                    <input type="number" value={Math.round(arc.startAngle ?? 200)}
-                      onChange={(e) => clampArc({ startAngle: parseInt(e.target.value) || 0 })}
-                      className={inputClass} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={labelClass}>Ángulo final</label>
-                    <input type="number" value={Math.round(arc.endAngle ?? 340)}
-                      onChange={(e) => clampArc({ endAngle: parseInt(e.target.value) || 0 })}
-                      className={inputClass} />
-                  </div>
-                </div>
-              );
-            })()}
-            {element.type === 'section' && (() => {
-              const seatCount = elementIds.filter((sid) => {
-                const s = elements[sid];
-                return s?.type === 'seat' && s.sectionId === element.id;
-              }).length;
-              return seatCount > 0 ? (
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Capacidad</label>
-                  <div className="bg-gray-100 border border-gray-200 rounded-xl px-3 py-2">
-                    <span className="text-xs font-bold text-[#6F3E8F]">
-                      {seatCount} asientos (calculada)
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Capacidad (Sin asientos numerados)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={(element as ShapeElement).capacity ?? ''}
-                    onChange={(e) => handleUpdate({ capacity: e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value) || 0) })}
-                    className={inputClass}
-                    placeholder="Ej: 500"
-                  />
-                </div>
-              );
-            })()}
+            {element.type === 'section' && shape?.sectionType === 'arc' && (
+              <CamposDeArco arc={shape} onChange={handleUpdate} />
+            )}
+            {element.type === 'section' && (asientos > 0 ? (
+              <Campo label="Capacidad">
+                <Valor>{asientos} asientos (calculada)</Valor>
+              </Campo>
+            ) : (
+              <Campo label="Capacidad (Sin asientos numerados)">
+                <input
+                  type="number"
+                  min="0"
+                  value={shape?.capacity ?? ''}
+                  onChange={(e) => handleUpdate({ capacity: e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value) || 0) })}
+                  className={inputClass}
+                  placeholder="Ej: 500"
+                />
+              </Campo>
+            ))}
           </div>
         </section>
 
-        {/* Generador de asientos */}
-        {element.type === 'section' && (
-          <section className="bg-purple-50 rounded-3xl border border-purple-100 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-xl bg-[#6F3E8F]/10 flex items-center justify-center text-[#6F3E8F]">
-                <LayoutGrid size={16} />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-[#6F3E8F] uppercase tracking-widest leading-none mb-1">Generador de Distribución</h3>
-                <p className="text-[9px] text-[#6F3E8F]/60 font-bold">Auto-generar patrones de asientos</p>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {(element as ShapeElement).sectionType === 'circle' && (
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <label className={labelClass}>Radio / Curvatura</label>
-                    <span className="text-[10px] font-bold text-[#FF6B01]">{arcRadius}m</span>
-                  </div>
-                  <input type="range" min="50" max="1000" value={arcRadius} onChange={(e) => setArcRadius(parseInt(e.target.value))} className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]" />
-
-                  <div className="flex justify-between pt-2">
-                    <label className={labelClass}>Ángulo del Arco</label>
-                    <span className="text-[10px] font-bold text-[#FF6B01]">{arcAngle}°</span>
-                  </div>
-                  <input type="range" min="30" max="360" value={arcAngle} onChange={(e) => setArcAngle(parseInt(e.target.value))} className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]" />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Filas</label>
-                  <input type="number" min="1" value={gen.rows}
-                    onChange={(e) => setGen({ ...gen, rows: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className={inputClass} />
-                </div>
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Asientos por Fila</label>
-                  <input type="number" min="1" value={gen.cols}
-                    onChange={(e) => setGen({ ...gen, cols: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className={inputClass} />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <label className={labelClass}>Tamaño de Asiento</label>
-                  <span className="text-[10px] font-bold text-[#FF6B01]">{gen.seatRadius}px</span>
-                </div>
-                <input type="range" min="2" max="15" step="0.5" value={gen.seatRadius}
-                  onChange={(e) => setGen({ ...gen, seatRadius: parseFloat(e.target.value) })}
-                  className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]" />
-              </div>
-
-              {/* Numeración */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Fila inicial</label>
-                  <input
-                    type="text"
-                    maxLength={1}
-                    value={gen.startRow}
-                    onChange={(e) => setGen({ ...gen, startRow: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
-                    className={inputClass}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className={labelClass}>Número inicial</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={gen.startNum}
-                    onChange={(e) => setGen({ ...gen, startNum: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelClass}>Dirección de numeración</label>
-                <select
-                  value={gen.numberDirection}
-                  onChange={(e) => setGen({ ...gen, numberDirection: e.target.value as SeatGenerationParams['numberDirection'] })}
-                  className={inputClass}
-                >
-                  <option value="ltr">Izquierda → Derecha</option>
-                  <option value="rtl">Derecha → Izquierda</option>
-                  <option value="ttb">Arriba → Abajo</option>
-                  <option value="btt">Abajo → Arriba</option>
-                </select>
-              </div>
-
-              <div className="pt-2">
-                {confirmandoRegenerar ? (
-                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-3">
-                    <p className="text-[10px] font-bold text-amber-700 leading-relaxed">
-                      {pluralizar(asientosDelSector, 'Se reemplaza', 'Se reemplazan')} {asientosDelSector} {pluralizar(asientosDelSector, 'asiento', 'asientos')}.
-                      Los QR ya impresos de este sector dejan de coincidir con sus butacas.
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => { setConfirmandoRegenerar(false); generateSeats(); }}
-                        className="bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors"
-                      >
-                        Regenerar
-                      </button>
-                      <button
-                        onClick={() => setConfirmandoRegenerar(false)}
-                        className="bg-white border border-gray-200 text-gray-500 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => (asientosDelSector > 0 ? setConfirmandoRegenerar(true) : generateSeats())}
-                    className="w-full bg-[#FF6B01] hover:bg-[#e86000] text-white py-3 rounded-2xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 group"
-                  >
-                    {asientosDelSector > 0 ? 'REGENERAR DISTRIBUCIÓN' : 'GENERAR DISTRIBUCIÓN'}
-                    <Maximize2 size={14} className="group-hover:scale-110 transition-transform" />
-                  </button>
-                )}
-              </div>
-
-              {(element as ShapeElement).generation && (
-                <p className="text-[9px] text-[#6F3E8F]/60 font-bold text-center pt-2">
-                  Generado {(element as ShapeElement).generation!.rows} × {(element as ShapeElement).generation!.cols},
-                  desde {(element as ShapeElement).generation!.startRow}{(element as ShapeElement).generation!.startNum}
-                  {(element as ShapeElement).sectionType === 'circle'
-                    && (element as ShapeElement).generation!.arcRadius !== undefined
-                    && (element as ShapeElement).generation!.arcAngle !== undefined && (
-                    <>, radio {(element as ShapeElement).generation!.arcRadius}m, arco {(element as ShapeElement).generation!.arcAngle}°</>
-                  )}
-                </p>
-              )}
-            </div>
-          </section>
+        {element.type === 'section' && shape && (
+          <SeatGenerator key={element.id} sector={shape} asientos={asientos} />
         )}
 
-        {/* Apariencia */}
-        {element.type !== 'seat' && (
+        {shape && (
           <section className="space-y-6">
             <div className="flex items-center gap-2 text-[#6F3E8F]">
               <Palette size={16} className="text-[#FF6B01]" />
@@ -548,7 +165,7 @@ export const PropertyPanel: React.FC = () => {
                 <span className="text-[10px] font-bold uppercase text-gray-400">Color del Elemento</span>
                 <input
                   type="color"
-                  value={(element as ShapeElement).fill || '#6F3E8F'}
+                  value={shape.fill || '#6F3E8F'}
                   onChange={(e) => handleUpdate({ fill: e.target.value })}
                   className="w-10 h-6 border-none p-0 cursor-pointer bg-transparent rounded overflow-hidden"
                 />
@@ -557,32 +174,26 @@ export const PropertyPanel: React.FC = () => {
           </section>
         )}
 
-        {/* Transformación */}
         <section>
-          <div className="flex items-center gap-2 mb-4 text-[#6F3E8F]">
-            <Sliders size={16} className="text-[#FF6B01]" />
-            <h2 className="text-xs font-bold uppercase tracking-widest">Transformación</h2>
-          </div>
+          <Encabezado icono={<Sliders size={16} className="text-[#FF6B01]" />} titulo="Transformación" />
           <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: 'POS X', value: element.x, key: 'x' },
-              { label: 'POS Y', value: element.y, key: 'y' },
-              // Arcos y círculos se dimensionan por radios, no por ancho/alto
-              ...(!['arc', 'circle'].includes((element as ShapeElement).sectionType ?? '') ? [
-                { label: 'ANCHO', value: (element as ShapeElement).width, key: 'width' },
-                { label: 'ALTO', value: (element as ShapeElement).height, key: 'height' },
-              ] : []),
-            ].map((prop) => prop.value !== undefined && (
-              <div key={prop.key} className="space-y-1.5">
-                <label className={labelClass}>{prop.label}</label>
-                <input
-                  type="number"
-                  value={Math.round(prop.value)}
-                  onChange={(e) => handleUpdate({ [prop.key]: parseInt(e.target.value) || 0 })}
-                  className={inputClass}
-                />
-              </div>
-            ))}
+            <Campo label="POS X">
+              <input type="number" value={Math.round(element.x)} onChange={(e) => placeElement(element.id, { x: parseInt(e.target.value) || 0 })} className={inputClass} />
+            </Campo>
+            <Campo label="POS Y">
+              <input type="number" value={Math.round(element.y)} onChange={(e) => placeElement(element.id, { y: parseInt(e.target.value) || 0 })} className={inputClass} />
+            </Campo>
+            {/* Arcos y círculos se dimensionan por radios, no por ancho/alto. */}
+            {shape && !radial && (
+              <>
+                <Campo label="ANCHO">
+                  <input type="number" value={Math.round(shape.width)} onChange={(e) => handleUpdate({ width: parseInt(e.target.value) || 0 })} className={inputClass} />
+                </Campo>
+                <Campo label="ALTO">
+                  <input type="number" value={Math.round(shape.height)} onChange={(e) => handleUpdate({ height: parseInt(e.target.value) || 0 })} className={inputClass} />
+                </Campo>
+              </>
+            )}
           </div>
           <div className="mt-6 space-y-3">
             <div className="flex justify-between items-center">
@@ -592,13 +203,12 @@ export const PropertyPanel: React.FC = () => {
             <input
               type="range" min="0" max="360"
               value={element.rotation}
-              onChange={(e) => handleUpdate({ rotation: parseInt(e.target.value) })}
+              onChange={(e) => placeElement(element.id, { rotation: parseInt(e.target.value) })}
               className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#FF6B01]"
             />
           </div>
         </section>
 
-        {/* Interacción */}
         <section>
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -609,14 +219,14 @@ export const PropertyPanel: React.FC = () => {
             >
               <Lock size={14} strokeWidth={3} /> {element.locked ? 'Bloqueado' : 'Desbloqueado'}
             </button>
-            {element.type === 'section' && (
+            {element.type === 'section' && shape && (
               <button
-                onClick={() => handleUpdate({ isActive: !(element as ShapeElement).isActive })}
+                onClick={() => handleUpdate({ isActive: !shape.isActive })}
                 className={`flex items-center justify-center gap-2 px-3 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
-                  (element as ShapeElement).isActive ? 'bg-orange-50 border-[#FF6B01]/30 text-[#FF6B01] shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 opacity-70'
+                  shape.isActive ? 'bg-orange-50 border-[#FF6B01]/30 text-[#FF6B01] shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 opacity-70'
                 }`}
               >
-                {(element as ShapeElement).isActive ? 'Activo' : 'Inactivo'}
+                {shape.isActive ? 'Activo' : 'Inactivo'}
               </button>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pointInPolygon } from './geometry';
+import { pointInPolygon, poligonoDesdeBorrador } from './geometry';
 
 /**
  * `pointInPolygon` decide si una butaca cae dentro de un sector dibujado a mano.
@@ -55,4 +55,26 @@ describe('un punto dentro de un sector dibujado', () => {
         expect(pointInPolygon(500, 500, grande)).toBe(true);
         expect(pointInPolygon(1500, 500, grande)).toBe(false);
     });
+});
+
+describe('cerrar el polígono dibujado', () => {
+  it('lleva los vértices al origen del sector', () => {
+    const r = poligonoDesdeBorrador([100, 50, 200, 50, 150, 150]);
+
+    expect(r).toEqual({ x: 100, y: 50, width: 100, height: 100, points: [0, 0, 100, 0, 50, 100] });
+  });
+
+  it('el vértice repetido por el doble clic de cierre no queda duplicado', () => {
+    const r = poligonoDesdeBorrador([0, 0, 100, 0, 50, 80, 50, 80]);
+
+    expect(r?.points).toEqual([0, 0, 100, 0, 50, 80]);
+  });
+
+  it('dos clics y un doble clic son una línea, no un polígono', () => {
+    expect(poligonoDesdeBorrador([0, 0, 100, 0, 100, 0])).toBeNull();
+  });
+
+  it('volver a clicar el primer vértice no lo cuenta dos veces', () => {
+    expect(poligonoDesdeBorrador([0, 0, 100, 0, 0, 0])).toBeNull();
+  });
 });

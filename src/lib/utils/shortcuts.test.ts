@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { resolveShortcut } from './shortcuts';
+import { describe, expect, it, vi } from 'vitest';
+import { crearAgrupador, resolveShortcut } from './shortcuts';
 
 /**
  * Los atajos se resuelven en una función pura para poder probar el caso que más
@@ -65,5 +65,37 @@ describe('atajos del editor', () => {
 
   it('una tecla sin atajo no devuelve nada', () => {
     expect(resolveShortcut(evento({ key: 'q' }), opciones)).toBeNull();
+  });
+});
+
+describe('agrupar el empuje con flechas', () => {
+  it('una ráfaga guarda una sola vez, al final', () => {
+    vi.useFakeTimers();
+    const guardar = vi.fn();
+    const empuje = crearAgrupador(guardar, 400);
+
+    empuje.programar();
+    vi.advanceTimersByTime(300);
+    empuje.programar();
+    vi.advanceTimersByTime(399);
+    expect(guardar).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(guardar).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('vaciar guarda lo pendiente ya y el temporizador no vuelve a guardar', () => {
+    vi.useFakeTimers();
+    const guardar = vi.fn();
+    const empuje = crearAgrupador(guardar, 400);
+
+    empuje.programar();
+    empuje.vaciar();
+    expect(guardar).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1000);
+    expect(guardar).toHaveBeenCalledTimes(1);
+    empuje.vaciar();
+    expect(guardar).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

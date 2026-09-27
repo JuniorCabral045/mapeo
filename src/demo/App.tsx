@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Map as MapIcon, PenLine, Eye, ShoppingBag } from 'lucide-react';
 import { VenueEditor, VenueViewer } from '../lib';
 import type { AvailabilityMap, SelectedSeat, VenueMap } from '../lib';

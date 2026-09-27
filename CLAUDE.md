@@ -45,8 +45,11 @@ src/
     store/useVenueStore.ts  ← editor-only Zustand store (elements flat by id + elementIds order, undo/redo history)
     VenueEditor.tsx     ← composes Toolbar + EditorCanvas + PropertyPanel; onSave serializes store → VenueMap
     VenueViewer.tsx     ← standalone: deserializes `map` prop, local pan/zoom/selection state, auto-fits bounds on mount
-    components/         ← Toolbar, PropertyPanel, AlignBar, TemplateMenu, canvas/{EditorCanvas,Seat,CustomShape}
-    hooks/              ← useEditorShortcuts.ts (cablea el teclado al store)
+    components/         ← Toolbar (+ SaveButton), PropertyPanel, AlignBar, TemplateMenu, ViewerOverlays (leyenda y zoom del visor)
+                          canvas/{EditorCanvas,Seat,CustomShape,GridLayer,BackgroundLayer,CanvasOverlays}
+                          panel/{ElementList,SeatGenerator,styles}  ← piezas del PropertyPanel
+    hooks/              ← useEditorShortcuts (teclado → store), useCanvasGestures (arrastre, zoom, selección por área),
+                          usePolygonDraft (dibujo de polígonos), useContainerSize
     utils/              ← pure logic, each with its own *.test.ts:
                           layout.ts    generadores de asientos + rowLabel (A…Z, AA, AB…)
                           bounds.ts    elementBounds / centerOf / calculateBounds / fitView
@@ -60,6 +63,9 @@ src/
                           shortcuts.ts tecla → acción del editor (pura)
                           grid.ts      snapToGrid, effectiveGridStep, visibleGridRect
                           geometry.ts  pointInPolygon, createRoundedRectPath
+                          elements.ts  crearForma, sufijoUnico, nombreDeSectorNuevo
+                          selection.ts alternar con Shift, selección controlada del visor
+                          labels.ts    rótulos de sector
     styles.css          ← Tailwind directives; emitted as dist/style.css, exported as 'venue-mapper/styles.css'
   demo/App.tsx          ← dev-only demo: Editor/Tienda tabs, localStorage persistence, simulated availability
 ```
@@ -71,7 +77,7 @@ src/
 - **El id del asiento es lo que va en el QR de la butaca.** Se deriva de su sector, su fila y su número, así que regenerar un sector con otra cantidad de filas reasigna ids a butacas físicas distintas sin que falle nada: por eso regenerar y borrar piden confirmación diciendo cuántos asientos se pierden, y duplicar siempre genera ids nuevos. Cambiar el esquema de ids a algo estable es Fase 4.
 - **Availability is runtime data**, never stored in the map: the viewer merges `availability[seatId]` over each seat's design-time status when rendering; missing entries mean `available`. Seats that aren't `available` (or whose sector `active === false`) are not selectable.
 - Canvas renders in two passes over `elementIds`: sections/stages first (`CustomShape`), then seats (`Seat`) — seats always sit visually above sections. `CustomShape` builds an SVG path (`createRoundedRectPath`) to support per-corner radii.
-- History: `saveHistory()` deep-clones `{elements, elementIds}` (50-snapshot cap). Mutating store actions call it themselves; drag/transform handlers in `EditorCanvas` call it on gesture end so intermediate frames aren't recorded. `PropertyPanel.handleUpdate` intentionally does NOT snapshot (would spam history on keystrokes).
+- History: `saveHistory()` deep-clones `{elements, elementIds}` (50-snapshot cap). Mutating store actions call it themselves; drag/transform handlers in `EditorCanvas` call it on gesture end so intermediate frames aren't recorded. `PropertyPanel.handleUpdate` intentionally does NOT snapshot (would spam history on keystrokes); moving/rotating a sector from the panel goes through `placeElement` and regenerating seats through `regenerateSeats`, each one history step that carries the seats along.
 - **La barra de herramientas es una fila propia, no flota.** `VenueEditor` es una columna: barra, lienzo, barra de estado. Flotando sobre el lienzo tapaba el recinto —el escenario quedaba escondido detrás— y crecía con cada grupo nuevo de botones. La barra de alinear sí flota, pero abajo y centrada, donde no choca con nada.
 - **Los nombres de sector sobre el lienzo son opcionales** (`sectorLabels` en el store, apagado por omisión; en el visor es estado local). Encima de una tribuna llena de butacas el texto estorba. El escenario es la excepción: siempre lleva su nombre, porque es una figura sólida y vacía. El rótulo se contra-rota para no aparecer cabeza abajo en un sector girado, y se omite cuando el zoom lo dejaría en una mancha.
 - **Guardar pasa por `validarMapa`.** Los ids de asiento repetidos y las butacas sin sector son errores; los sectores sin aforo, los nombres repetidos o vacíos y los asientos lejos de su tribuna son avisos. No bloquea: informa y deja guardar igual. `aforoTotal` cuenta butacas dibujadas y, solo si no hay ninguna, la capacidad declarada.
@@ -79,6 +85,9 @@ src/
 - Deliberately removed in the library simplification (don't re-add without need): grouping, copy/paste, RBush spatial index (el imán entre elementos volvió en `utils/snapping.ts`, pero con un barrido lineal sobre los sectores, sin índice), demo templates (volvieron en `utils/templates.ts`).
 
 `ARQUITECTURA.md` (Spanish) documents the original design rationale of the pre-library editor; still useful for the snapping/seat-generation math but its file layout is outdated.
+
+- **Suscribirse al store siempre con selector** (`useVenueStore(useShallow((s) => ({ … })))`). Sin él, cada cuadro de un arrastre o un zoom re-renderizaba la barra, el panel y la lista. `setCanvasSize` y `useContainerSize` además ignoran una medida igual a la anterior.
+- **Un efecto no escribe el estado del que depende.** `usePolygonDraft` vaciaba los puntos con un `[]` nuevo cada vez que la herramienta no era «polígono»; eso cambiaba `close`, que estaba en las dependencias del mismo efecto: «Maximum update depth exceeded» apenas se montaba el editor. `close` lee los puntos de una ref y el vaciado depende sólo de la herramienta.
 
 ## Notes
 

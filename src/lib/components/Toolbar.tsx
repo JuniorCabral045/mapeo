@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   Circle as CircleIcon,
   Flag,
@@ -10,7 +10,6 @@ import {
   MousePointer2,
   Hand,
   Square,
-  Save,
   Hexagon,
   Spline,
   ImagePlus,
@@ -23,33 +22,27 @@ import {
   FlipHorizontal2,
   FlipVertical2,
 } from 'lucide-react';
-import { useVenueStore } from '../store/useVenueStore';
-import { serializeVenue } from '../schema';
+import { mapaDelEditor, useVenueStore } from '../store/useVenueStore';
+import { useShallow } from 'zustand/react/shallow';
+import { crearForma, nombreDeSectorNuevo } from '../utils/elements';
 import { VenueMap } from '../types';
 import { loadScaledImage } from '../utils/image';
-import { validarMapa, type Problema } from '../utils/validation';
 import { TemplateMenu } from './TemplateMenu';
+import { SaveButton } from './SaveButton';
 
 interface ToolbarProps {
   onSave?: (map: VenueMap) => void | Promise<void>;
   onDelete: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
-  const {
-    currentTool, setTool,
-    undo, redo, historyIndex, history,
-    selectedIds,
-    addElement, elements, elementIds,
-    venueName, setVenueName, loadMap,
-    backgroundImage, setBackgroundImage, removeBackgroundImage, updateBackgroundOpacity,
-    gridConfig, setGridConfig, sectorLabels, setSectorLabels,
-    selectElements,
-    duplicateSectors,
-  } = useVenueStore();
+/** Botón que queda resaltado mientras su opción está activa. */
+const alternable = (activo: boolean) =>
+  `p-2 rounded-xl transition-all ${activo ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`;
 
-  // Problemas detectados al intentar guardar. Vacío = no se está preguntando nada.
-  const [revision, setRevision] = useState<Problema[] | null>(null);
+export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
+  const { currentTool, setTool, undo, redo, historyIndex, history, selectedIds, addElement, elements, elementIds, venueName, setVenueName, loadMap, backgroundImage, setBackgroundImage, removeBackgroundImage, updateBackgroundOpacity, gridConfig, setGridConfig, sectorLabels, setSectorLabels, selectElements, duplicateSectors } = useVenueStore(
+    useShallow((s) => ({ currentTool: s.currentTool, setTool: s.setTool, undo: s.undo, redo: s.redo, historyIndex: s.historyIndex, history: s.history, selectedIds: s.selectedIds, addElement: s.addElement, elements: s.elements, elementIds: s.elementIds, venueName: s.venueName, setVenueName: s.setVenueName, loadMap: s.loadMap, backgroundImage: s.backgroundImage, setBackgroundImage: s.setBackgroundImage, removeBackgroundImage: s.removeBackgroundImage, updateBackgroundOpacity: s.updateBackgroundOpacity, gridConfig: s.gridConfig, setGridConfig: s.setGridConfig, sectorLabels: s.sectorLabels, setSectorLabels: s.setSectorLabels, selectElements: s.selectElements, duplicateSectors: s.duplicateSectors }))
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const planoInputRef = useRef<HTMLInputElement>(null);
@@ -65,33 +58,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
 
   const handleAddSection = (type: 'rectangle' | 'circle' | 'stage' | 'arc') => {
     const id = `${type}-${Date.now()}`;
-    addElement({
-      id,
-      type: type === 'stage' ? 'stage' : 'section',
-      name: type === 'stage' ? 'Escenario' : `Sector ${elementIds.length + 1}`,
-      x: type === 'arc' ? 400 : 300,
-      y: type === 'arc' ? 400 : 300,
-      width: type === 'arc' ? 440 : 200,
-      height: type === 'arc' ? 440 : 150,
-      rotation: 0,
-      visible: true,
-      locked: false,
-      opacity: type === 'stage' ? 1 : 0.2,
-      zIndex: 5,
-      fill: '#6F3E8F',
-      isActive: true,
-      sectionType: type === 'circle' ? 'circle' : type === 'arc' ? 'arc' : 'rectangle',
+    const arco = type === 'arc';
+    addElement(crearForma(id, type === 'stage' ? 'Escenario' : nombreDeSectorNuevo(elements, elementIds), type === 'stage' ? 'stage' : 'section', {
+      x: arco ? 400 : 300,
+      y: arco ? 400 : 300,
+      width: arco ? 440 : 200,
+      height: arco ? 440 : 150,
+      sectionType: type === 'circle' || arco ? type : 'rectangle',
       cornerRadius: 0,
-      radius: type === 'circle' ? 100 : undefined,
-      innerRadius: type === 'arc' ? 120 : undefined,
-      outerRadius: type === 'arc' ? 220 : undefined,
-      startAngle: type === 'arc' ? 200 : undefined,
-      endAngle: type === 'arc' ? 340 : undefined,
-    });
-    useVenueStore.getState().selectElements([id]);
+      ...(type === 'circle' && { radius: 100 }),
+      ...(arco && { innerRadius: 120, outerRadius: 220, startAngle: 200, endAngle: 340 }),
+    }));
+    selectElements([id]);
   };
 
-  const currentMap = () => serializeVenue(elements, elementIds, venueName, undefined, backgroundImage ?? undefined);
+  const currentMap = () => mapaDelEditor(useVenueStore.getState());
 
   const sectoresSeleccionados = selectedIds.filter((id) => elements[id] && elements[id].type !== 'seat');
 
@@ -134,7 +115,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
   return (
     <div className="shrink-0 bg-white border-b border-gray-200 px-3 py-1.5 flex items-center gap-x-1 gap-y-1.5 flex-wrap">
       <div className="flex items-center gap-2">
-        {/* Nombre del recinto */}
         <input
           type="text"
           value={venueName}
@@ -161,78 +141,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
           </button>
         </div>
 
-        {onSave && (
-          <div className="relative">
-            <button
-              onClick={() => {
-                // Revisar antes de guardar: lo que sale de acá es el contrato con
-                // el backend y los ids que se imprimen en los QR de las butacas.
-                const mapa = currentMap();
-                const problemas = validarMapa(mapa);
-                if (problemas.length === 0) onSave(mapa);
-                else setRevision(problemas);
-              }}
-              className="bg-[#FF6B01] hover:bg-[#e86000] text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm shadow-orange-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm flex items-center gap-2"
-            >
-              <Save size={14} /> GUARDAR
-            </button>
-
-            {revision && (
-              <div className="absolute top-10 right-0 w-80 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-[120]">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
-                  Antes de guardar
-                </p>
-                <ul className="space-y-2 max-h-52 overflow-y-auto">
-                  {revision.map((problema, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span
-                        className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${
-                          problema.severidad === 'error' ? 'bg-red-500' : 'bg-amber-400'
-                        }`}
-                      />
-                      <button
-                        onClick={() => { selectElements(problema.ids); setRevision(null); }}
-                        className="text-left text-[11px] leading-snug text-gray-600 hover:text-[#6F3E8F]"
-                        title="Seleccionar en el lienzo"
-                      >
-                        {problema.mensaje}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  <button
-                    onClick={() => { setRevision(null); onSave(currentMap()); }}
-                    className="bg-[#FF6B01] hover:bg-[#e86000] text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors"
-                  >
-                    Guardar igual
-                  </button>
-                  <button
-                    onClick={() => setRevision(null)}
-                    className="bg-white border border-gray-200 text-gray-500 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
-                  >
-                    Revisar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {onSave && <SaveButton onSave={onSave} />}
       </div>
 
-      {/* Herramientas de edición */}
-      <>
         <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <button
             onClick={() => setTool('select')}
-            className={`p-2 rounded-xl transition-all ${currentTool === 'select' ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(currentTool === 'select')}
             title="Herramienta de Selección"
           >
             <MousePointer2 size={16} strokeWidth={3} />
           </button>
           <button
             onClick={() => setTool('pan')}
-            className={`p-2 rounded-xl transition-all ${currentTool === 'pan' ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(currentTool === 'pan')}
             title="Herramienta de Mano"
           >
             <Hand size={16} strokeWidth={3} />
@@ -249,7 +171,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
           </button>
           <button
             onClick={() => setTool('polygon')}
-            className={`p-2 rounded-xl transition-all ${currentTool === 'polygon' ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(currentTool === 'polygon')}
             title="Sector Poligonal (clic para vértices, doble clic o Enter para cerrar)"
           >
             <Hexagon size={16} strokeWidth={3} />
@@ -265,28 +187,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
         <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-gray-200">
           <button
             onClick={() => setGridConfig({ visible: !gridConfig.visible })}
-            className={`p-2 rounded-xl transition-all ${gridConfig.visible ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(gridConfig.visible)}
             title="Mostrar grilla"
           >
             <Grid3x3 size={16} strokeWidth={3} />
           </button>
           <button
             onClick={() => setGridConfig({ enabled: !gridConfig.enabled })}
-            className={`p-2 rounded-xl transition-all ${gridConfig.enabled ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(gridConfig.enabled)}
             title="Imán a la grilla"
           >
             <Magnet size={16} strokeWidth={3} />
           </button>
           <button
             onClick={() => setGridConfig({ snapToElements: !gridConfig.snapToElements })}
-            className={`p-2 rounded-xl transition-all ${gridConfig.snapToElements ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(gridConfig.snapToElements)}
             title="Imán a otros sectores (bordes y centros)"
           >
             <Boxes size={16} strokeWidth={3} />
           </button>
           <button
             onClick={() => setSectorLabels(!sectorLabels)}
-            className={`p-2 rounded-xl transition-all ${sectorLabels ? 'bg-[#FF6B01]/10 text-[#FF6B01]' : 'text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50'}`}
+            className={alternable(sectorLabels)}
             title="Mostrar el nombre de cada sector sobre el lienzo"
           >
             <Tag size={16} strokeWidth={3} />
@@ -381,7 +303,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave, onDelete }) => {
             <FlipVertical2 size={16} strokeWidth={3} />
           </button>
         </div>
-      </>
     </div>
   );
 };

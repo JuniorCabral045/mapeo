@@ -1,515 +1,120 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { Stage, Layer, Rect, Transformer, Line, Circle, Image as KonvaImage, Shape } from 'react-konva';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Stage, Layer, Rect, Transformer } from 'react-konva';
 import Konva from 'konva';
 import { useVenueStore } from '../../store/useVenueStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Seat } from './Seat';
 import { CustomShape } from './CustomShape';
-import { effectiveGridStep, visibleGridRect } from '../../utils/grid';
-import { idsToMoveIndividually, idsToExcludeFromSnap } from '../../utils/sector';
+import { BackgroundLayer } from './BackgroundLayer';
+import { GridLayer } from './GridLayer';
+import { DraftPolygon, SelectionBox, SnapGuides, type CajaDeSeleccion } from './CanvasOverlays';
+import { useContainerSize } from '../../hooks/useContainerSize';
+import { usePolygonDraft } from '../../hooks/usePolygonDraft';
+import { useCanvasGestures } from '../../hooks/useCanvasGestures';
 import { transformerConfigFor } from '../../utils/transformer';
-import { snapPosition, type Guide } from '../../utils/snapping';
-import { elementBounds } from '../../utils/bounds';
+import { seatLabelMode, subtitulosDeSector } from '../../utils/labels';
+import { alternarEnSeleccion } from '../../utils/selection';
+import { zoomAt } from '../../utils/bounds';
 import { ShapeElement, SeatElement } from '../../types';
 
-/** Capa del plano de referencia (solo editor, no interactiva). */
-const BackgroundLayer: React.FC = () => {
-  const backgroundImage = useVenueStore((s) => s.backgroundImage);
-  const [img, setImg] = useState<HTMLImageElement | null>(null);
-
-  useEffect(() => {
-    if (!backgroundImage) {
-      setImg(null);
-      return;
-    }
-    const image = new window.Image();
-    image.onload = () => setImg(image);
-    image.src = backgroundImage.src;
-  }, [backgroundImage?.src]);
-
-  if (!backgroundImage || !img) return null;
-  return (
-    <KonvaImage
-      image={img}
-      x={backgroundImage.x}
-      y={backgroundImage.y}
-      width={backgroundImage.width}
-      height={backgroundImage.height}
-      opacity={backgroundImage.opacity}
-      listening={false}
-    />
-  );
-};
-
 export const EditorCanvas: React.FC = () => {
-  const {
-    elements, elementIds, selectedIds,
-    viewState, setViewState,
-    gridConfig, currentTool, setTool, sectorLabels,
-    selectElements, updateElement, addElement, setCanvasSize,
-    moveSector, transformSector,
-  } = useVenueStore();
+  const { elements, elementIds, selectedIds, viewState, setViewState, gridConfig, currentTool, sectorLabels, selectElements, setCanvasSize } = useVenueStore(
+    useShallow((s) => ({ elements: s.elements, elementIds: s.elementIds, selectedIds: s.selectedIds, viewState: s.viewState, setViewState: s.setViewState, gridConfig: s.gridConfig, currentTool: s.currentTool, sectorLabels: s.sectorLabels, selectElements: s.selectElements, setCanvasSize: s.setCanvasSize }))
+  );
 
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 1000, height: 800 });
-  const [selectionBox, setSelectionBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-  // Guías del imán a otros sectores, vigentes solo durante el arrastre en curso
-  const [guias, setGuias] = useState<Guide[]>([]);
+  const dimensions = useContainerSize(containerRef, { width: 1000, height: 800 }, setCanvasSize);
+  const [selectionBox, setSelectionBox] = useState<CajaDeSeleccion | null>(null);
+  const borrador = usePolygonDraft();
+  const gestos = useCanvasGestures(stageRef);
 
-  // Dibujo de polígono: vértices en coordenadas de mundo + posición del cursor
-  const [draftPoints, setDraftPoints] = useState<number[]>([]);
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
-
-  // Drag grupal: posiciones iniciales de toda la selección
-  const dragStart = useRef<Record<string, { x: number; y: number }> | null>(null);
-
-  // Konva dispara un `transformend` por cada nodo del Transformer (ver
-  // Transformer._removeEvents en la librería), así que en una selección múltiple
-  // handleTransformEnd se llama varias veces de forma síncrona -una por sector-
-  // dentro del mismo gesto de mouseup. Este flag agrupa esas llamadas en un solo
-  // paso de historial: cada llamada pide un guardado, pero solo la primera agenda
-  // el microtask, que corre recién cuando ya se ejecutaron todas las llamadas
-  // síncronas de este gesto.
-  const transformHistoryPending = useRef(false);
-  const scheduleTransformHistorySave = () => {
-    if (transformHistoryPending.current) return;
-    transformHistoryPending.current = true;
-    queueMicrotask(() => {
-      transformHistoryPending.current = false;
-      useVenueStore.getState().saveHistory();
-    });
-  };
-
+  // Los asientos se mueven pero no se escalan: el transformer solo toma sectores y escenarios.
   useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-        });
-        setCanvasSize(containerRef.current.offsetWidth, containerRef.current.offsetHeight);
-      }
-    };
-    updateSize();
-    // ResizeObserver: el canvas sigue al contenedor (sidebar colapsado,
-    // pantallas chicas, paneles), no solo al resize de la ventana
-    const observer = new ResizeObserver(updateSize);
-    if (containerRef.current) observer.observe(containerRef.current);
-    window.addEventListener('resize', updateSize);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateSize);
-    };
-  }, [setCanvasSize]);
-
-  useEffect(() => {
-    if (transformerRef.current) {
-      // Los asientos se mueven pero no se escalan: el transformer solo toma sectores/escenarios
-      const nodes = selectedIds
-        .filter((id) => elements[id] && elements[id].type !== 'seat')
-        .map((id) => stageRef.current?.findOne(`#${id}`))
-        .filter((n): n is Konva.Node => !!n);
-      transformerRef.current.nodes(nodes);
-      transformerRef.current.getLayer()?.batchDraw();
-    }
+    const transformer = transformerRef.current;
+    if (!transformer) return;
+    const nodes = selectedIds
+      .filter((id) => elements[id] && elements[id].type !== 'seat')
+      .map((id) => stageRef.current?.findOne(`#${id}`))
+      .filter((n): n is Konva.Node => !!n);
+    transformer.nodes(nodes);
+    transformer.getLayer()?.batchDraw();
   }, [selectedIds, elements]);
-
-  // Cerrar/cancelar el dibujo de polígono con teclado
-  useEffect(() => {
-    if (currentTool !== 'polygon') return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') closeDraftPolygon();
-      if (e.key === 'Escape') {
-        setDraftPoints([]);
-        setTool('select');
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTool, draftPoints]);
 
   const toWorld = (pointer: { x: number; y: number }) => ({
     x: (pointer.x - viewState.x) / viewState.scale,
     y: (pointer.y - viewState.y) / viewState.scale,
   });
 
-  const closeDraftPolygon = () => {
-    if (draftPoints.length < 6) {
-      setDraftPoints([]);
-      return;
-    }
-    const xs = draftPoints.filter((_, i) => i % 2 === 0);
-    const ys = draftPoints.filter((_, i) => i % 2 === 1);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const width = Math.max(5, Math.max(...xs) - minX);
-    const height = Math.max(5, Math.max(...ys) - minY);
-    const points = draftPoints.map((p, i) => (i % 2 === 0 ? p - minX : p - minY));
-    const id = `polygon-${Date.now()}`;
-    addElement({
-      id,
-      type: 'section',
-      name: `Sector ${elementIds.length + 1}`,
-      x: minX,
-      y: minY,
-      width,
-      height,
-      rotation: 0,
-      visible: true,
-      locked: false,
-      opacity: 0.2,
-      zIndex: 5,
-      fill: '#6F3E8F',
-      isActive: true,
-      sectionType: 'polygon',
-      cornerRadius: 0,
-      points,
-    });
-    setDraftPoints([]);
-    setTool('select');
-    useVenueStore.getState().selectElements([id]);
-  };
-
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const stage = stageRef.current;
-    if (!stage) return;
-
-    const oldScale = stage.scaleX();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-
-    const mousePointTo = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    };
-
-    const delta = e.evt.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(0.05, Math.min(5, oldScale * delta));
-
-    setViewState({
-      scale: newScale,
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    });
+    const pointer = stage?.getPointerPosition();
+    if (!stage || !pointer) return;
+    const vista = { scale: stage.scaleX(), x: stage.x(), y: stage.y() };
+    setViewState(zoomAt(vista, pointer, e.evt.deltaY > 0 ? 0.9 : 1.1));
   };
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (currentTool === 'pan') return;
+    const pointer = e.target.getStage()?.getPointerPosition();
+    if (!pointer) return;
 
     if (currentTool === 'polygon') {
-      const pointer = e.target.getStage()!.getPointerPosition()!;
-      const world = toWorld(pointer);
-      setDraftPoints((pts) => [...pts, world.x, world.y]);
+      borrador.addPoint(toWorld(pointer));
       return;
     }
-
     if (e.target === e.target.getStage()) {
-      const pos = e.target.getStage()!.getPointerPosition()!;
-      setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
+      setSelectionBox({ x1: pointer.x, y1: pointer.y, x2: pointer.x, y2: pointer.y });
       selectElements([]);
     }
   };
 
   const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const pointer = e.target.getStage()?.getPointerPosition();
+    if (!pointer) return;
     if (currentTool === 'polygon') {
-      const pointer = e.target.getStage()!.getPointerPosition();
-      if (pointer) setCursorPos(toWorld(pointer));
+      borrador.setCursor(toWorld(pointer));
       return;
     }
     if (currentTool === 'pan' || !selectionBox) return;
-    const pos = e.target.getStage()!.getPointerPosition()!;
-    setSelectionBox({ ...selectionBox, x2: pos.x, y2: pos.y });
+    setSelectionBox({ ...selectionBox, x2: pointer.x, y2: pointer.y });
   };
 
   const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (!selectionBox) return;
     const stage = e.target.getStage()!;
-    const box = {
-      x: Math.min(selectionBox.x1, selectionBox.x2),
-      y: Math.min(selectionBox.y1, selectionBox.y2),
-      width: Math.abs(selectionBox.x1 - selectionBox.x2),
-      height: Math.abs(selectionBox.y1 - selectionBox.y2),
-    };
+    const minX = Math.min(selectionBox.x1, selectionBox.x2);
+    const maxX = Math.max(selectionBox.x1, selectionBox.x2);
+    const minY = Math.min(selectionBox.y1, selectionBox.y2);
+    const maxY = Math.max(selectionBox.y1, selectionBox.y2);
 
-    const selected = elementIds.filter((id) => {
-      const node = stage.findOne(`#${id}`);
-      if (!node) return false;
-      const pos = node.getAbsolutePosition();
-      return (
-        pos.x >= box.x && pos.x <= box.x + box.width &&
-        pos.y >= box.y && pos.y <= box.y + box.height
-      );
-    });
-
-    selectElements(selected);
+    selectElements(elementIds.filter((id) => {
+      const pos = stage.findOne(`#${id}`)?.getAbsolutePosition();
+      return !!pos && pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY;
+    }));
     setSelectionBox(null);
   };
 
-  const handleDblClick = () => {
-    if (currentTool === 'polygon') closeDraftPolygon();
-  };
-
-  /**
-   * Grilla dibujada sobre el rectángulo visible, no sobre un cuadro fijo: antes
-   * desaparecía al panear más allá de 5000 y saturaba de líneas al alejarse.
-   *
-   * El rectángulo se calcula a partir de la transformación **en vivo** del
-   * stage (`shape.getStage()`), no del `viewState` capturado en el closure de
-   * este `useMemo`. Con la herramienta de mano el `<Stage>` es `draggable` y
-   * Konva no mueve una capa CSS: repinta con Canvas 2D, así que para que los
-   * asientos sigan al mouse redibuja todos los nodos de la capa -incluido
-   * este `sceneFunc`- en cada frame del arrastre nativo, sin pasar por React.
-   * Leer `stage.x()/y()/scaleX()` ahí adentro, en vez de depender de
-   * `viewState` (que React solo actualiza al soltar el botón), hace que el
-   * rectángulo dibujado sea siempre exactamente el visible, en cualquier
-   * frame intermedio de un arrastre, sin importar cuántos viewports recorra
-   * antes de soltar. Ya no hace falta un margen ni dibujar de más alrededor.
-   *
-   * `viewState` queda solo como respaldo (`stage` puede no existir todavía en
-   * el primer render) y como dependencia del `useMemo`, para que la grilla se
-   * recalcule si `viewState` cambia por una vía que no sea el arrastre nativo
-   * (zoom con la rueda, por ejemplo).
-   */
-  const Grid = useMemo(() => {
-    if (!gridConfig.visible) return null;
-
-    return (
-      <Shape
-        listening={false}
-        sceneFunc={(ctx, shape) => {
-          const stage = shape.getStage();
-          const view = stage
-            ? { x: stage.x(), y: stage.y(), scale: stage.scaleX() }
-            : viewState;
-
-          const pasoEfectivo = effectiveGridStep(gridConfig.size, view.scale);
-          const { minX, minY, maxX, maxY } = visibleGridRect(view, dimensions);
-
-          const primeraX = Math.floor(minX / pasoEfectivo) * pasoEfectivo;
-          const primeraY = Math.floor(minY / pasoEfectivo) * pasoEfectivo;
-
-          ctx.setAttr('strokeStyle', '#DCE0E8');
-          ctx.setAttr('lineWidth', 1 / view.scale);
-          ctx.beginPath();
-          for (let x = primeraX; x <= maxX; x += pasoEfectivo) {
-            ctx.moveTo(x, minY);
-            ctx.lineTo(x, maxY);
-          }
-          for (let y = primeraY; y <= maxY; y += pasoEfectivo) {
-            ctx.moveTo(minX, y);
-            ctx.lineTo(maxX, y);
-          }
-          ctx.stroke();
-        }}
-      />
-    );
-  }, [gridConfig, viewState, dimensions]);
-
-  const showLabels = useMemo(() => {
-    if (viewState.scale > 1.2) return 'all' as const;
-    if (viewState.scale > 0.6) return 'row' as const;
-    return 'none' as const;
-  }, [viewState.scale]);
-
-  /**
-   * Segunda línea del rótulo de cada sector: cuántas butacas tiene, o la
-   * capacidad declarada si no tiene ninguna dibujada. Se cuenta de una sola
-   * pasada sobre todos los elementos; preguntárselo a cada sector por separado
-   * sería recorrer el recinto entero una vez por tribuna.
-   */
-  const subtitulosDeSector = useMemo(() => {
-    const cuenta: Record<string, number> = {};
-    for (const id of elementIds) {
-      const el = elements[id];
-      if (el?.type === 'seat' && el.sectionId) {
-        cuenta[el.sectionId] = (cuenta[el.sectionId] ?? 0) + 1;
-      }
-    }
-
-    const subtitulos: Record<string, string> = {};
-    for (const id of elementIds) {
-      const el = elements[id];
-      if (!el || el.type === 'seat') continue;
-      const asientos = cuenta[id];
-      if (asientos) {
-        subtitulos[id] = `${asientos} ${asientos === 1 ? 'asiento' : 'asientos'}`;
-      } else if (el.type === 'section' && (el as ShapeElement).capacity) {
-        subtitulos[id] = `${(el as ShapeElement).capacity} de capacidad`;
-      }
-    }
-    return subtitulos;
-  }, [elements, elementIds]);
+  const subtitulos = useMemo(
+    () => (sectorLabels ? subtitulosDeSector(elements, elementIds) : {}),
+    [sectorLabels, elements, elementIds]
+  );
 
   const transformerConfig = useMemo(
     () => transformerConfigFor(selectedIds.map((id) => elements[id]).filter(Boolean)),
     [selectedIds, elements]
   );
 
-  const cursorClass = currentTool === 'pan'
-    ? 'cursor-grab active:cursor-grabbing'
-    : 'cursor-crosshair';
-
-  // Evita re-renderizar sectores y asientos en cada tick del arrastre cuando
-  // la lista de guías no cambió (p.ej. sigue vacía porque no hay nada cerca).
-  const actualizarGuias = (nuevas: Guide[]) => {
-    setGuias((previas) => {
-      if (
-        previas.length === nuevas.length &&
-        previas.every((g, i) => g.axis === nuevas[i].axis && g.pos === nuevas[i].pos)
-      ) {
-        return previas;
-      }
-      return nuevas;
-    });
+  const alSeleccionar = (id: string) => (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (currentTool !== 'select') return;
+    e.cancelBubble = true;
+    selectElements(alternarEnSeleccion(selectedIds, id, e.evt.shiftKey));
   };
 
-  /** Aplica el imán (grilla y/o bordes de otros sectores) durante el arrastre. Con Alt se ignora. */
-  const aplicarIman = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    if (e.evt.altKey) {
-      actualizarGuias([]);
-      return;
-    }
-    const el = elements[id];
-    if (!el) return;
-    const caja = elementBounds(el);
-    const r = snapPosition({
-      x: e.target.x(),
-      y: e.target.y(),
-      width: caja.maxX - caja.minX,
-      height: caja.maxY - caja.minY,
-      excludedIds: idsToExcludeFromSnap(id, selectedIds),
-      elements,
-      elementIds,
-      grid: gridConfig,
-      scale: viewState.scale,
-    });
-    e.target.x(r.x);
-    e.target.y(r.y);
-    actualizarGuias(r.guides);
-  };
-
-  // ── Drag grupal: toda la selección sigue al elemento arrastrado ──
-  const handleDragStart = (id: string) => {
-    if (selectedIds.includes(id) && selectedIds.length > 1) {
-      const positions: Record<string, { x: number; y: number }> = {};
-      selectedIds.forEach((sid) => {
-        const el = elements[sid];
-        if (el && !el.locked) positions[sid] = { x: el.x, y: el.y };
-      });
-      dragStart.current = positions;
-    } else {
-      dragStart.current = null;
-    }
-  };
-
-  const handleDragMove = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    aplicarIman(id, e);
-    const start = dragStart.current;
-    if (!start || !start[id]) return;
-    const dx = e.target.x() - start[id].x;
-    const dy = e.target.y() - start[id].y;
-    Object.keys(start).forEach((sid) => {
-      if (sid === id) return;
-      const node = stageRef.current?.findOne(`#${sid}`);
-      node?.position({ x: start[sid].x + dx, y: start[sid].y + dy });
-    });
-  };
-
-  /**
-   * Mueve un elemento; si es un sector, `moveSector` arrastra sus asientos.
-   * Durante un gesto del lienzo se pide sin guardar historial: el gesto entero
-   * -uno o varios sectores, más asientos sueltos- cierra con un solo
-   * `saveHistory()` al final de `handleDragEnd`, cubriendo también el caso del
-   * asiento suelto (que via `updateElement` nunca guarda historial por sí solo).
-   */
-  const aplicarMovimiento = (id: string, x: number, y: number) => {
-    const el = elements[id];
-    if (el && el.type !== 'seat') moveSector(id, x, y, false);
-    else updateElement(id, { x, y });
-  };
-
-  const handleDragEnd = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    const start = dragStart.current;
-    if (start && start[id]) {
-      const dx = e.target.x() - start[id].x;
-      const dy = e.target.y() - start[id].y;
-      // Un asiento cuyo propio sector también está seleccionado se excluye:
-      // moveSector ya lo arrastra al mover el sector, así que aplicarle el
-      // movimiento acá también lo desplazaría el doble. La exclusión mira la
-      // selección, no el orden en que se recorre `start` (ver idsToMoveIndividually).
-      idsToMoveIndividually(elements, Object.keys(start)).forEach((sid) => {
-        aplicarMovimiento(sid, start[sid].x + dx, start[sid].y + dy);
-      });
-    } else {
-      aplicarMovimiento(id, e.target.x(), e.target.y());
-    }
-    dragStart.current = null;
-    // Un solo paso de historial por gesto de arrastre, sea un asiento suelto,
-    // uno o varios sectores, o una selección mixta.
-    useVenueStore.getState().saveHistory();
-    setGuias([]);
-  };
-
-  // ── Transform (el nodo es el Group del elemento) ──
-  const handleTransformEnd = (id: string, shape: ShapeElement, e: Konva.KonvaEventObject<Event>) => {
-    const node = e.currentTarget;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-    node.scaleX(1);
-    node.scaleY(1);
-    const updates: Partial<ShapeElement> = {
-      x: node.x(),
-      y: node.y(),
-      rotation: node.rotation(),
-    };
-    if (shape.sectionType === 'circle') {
-      const radius = Math.max(5, (shape.radius ?? shape.width / 2) * scaleX);
-      updates.radius = radius;
-      updates.width = radius * 2;
-      updates.height = radius * 2;
-    } else if (shape.sectionType === 'arc') {
-      updates.innerRadius = Math.max(0, (shape.innerRadius ?? 100) * scaleX);
-      updates.outerRadius = Math.max(10, (shape.outerRadius ?? 200) * scaleX);
-    } else if (shape.sectionType === 'polygon') {
-      updates.points = (shape.points ?? []).map((p, i) => (i % 2 === 0 ? p * scaleX : p * scaleY));
-      updates.width = Math.max(5, shape.width * scaleX);
-      updates.height = Math.max(5, shape.height * scaleY);
-    } else {
-      updates.width = Math.max(5, shape.width * scaleX);
-      updates.height = Math.max(5, shape.height * scaleY);
-    }
-    // Los radiales escalan por scaleX en los dos ejes: su geometría es un radio,
-    // no un ancho y un alto. Es la misma decisión que toma el bloque de arriba al
-    // calcular `radius` y `outerRadius`.
-    const esRadial = shape.sectionType === 'circle' || shape.sectionType === 'arc';
-
-    // Orden obligatorio: transformSector lee la posición/rotación del sector
-    // TODAVÍA vigentes en el store para calcular cuánto se movió cada butaca;
-    // si updateElement corriera antes, ya las habría pisado con los valores
-    // nuevos y la resta (nuevo - nuevo) daría siempre cero. Verificado a mano:
-    // con el orden updateElement→transformSector, rotar o redimensionar un
-    // sector reposicionaba las butacas en lugares sin relación con el sector.
-    transformSector(id, {
-      x: node.x(),
-      y: node.y(),
-      rotation: node.rotation(),
-      scaleX,
-      scaleY: esRadial ? scaleX : scaleY,
-    }, false);
-    updateElement(id, updates);
-
-    // Ver el comentario de `scheduleTransformHistorySave`: agrupa las llamadas
-    // síncronas de este gesto (una por sector seleccionado) en un solo paso.
-    scheduleTransformHistorySave();
-  };
-
-  // Puntos del borrador de polígono + línea al cursor
-  const draftPreview = draftPoints.length > 0
-    ? (cursorPos ? [...draftPoints, cursorPos.x, cursorPos.y] : draftPoints)
-    : [];
+  const labels = seatLabelMode(viewState.scale);
+  const cursorClass = currentTool === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair';
 
   return (
     <div ref={containerRef} className={`w-full h-full bg-[#F3F4F6] overflow-hidden ${cursorClass}`}>
@@ -524,139 +129,72 @@ export const EditorCanvas: React.FC = () => {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onDblClick={handleDblClick}
+        onDblClick={() => currentTool === 'polygon' && borrador.close()}
         ref={stageRef}
         draggable={currentTool === 'pan'}
         onDragEnd={(e) => {
-          if (e.target === stageRef.current) {
-            setViewState({ x: e.target.x(), y: e.target.y() });
-          }
+          if (e.target === stageRef.current) setViewState({ x: e.target.x(), y: e.target.y() });
         }}
       >
         <Layer>
           <Rect x={-2500} y={-2500} width={10000} height={10000} fill="#F3F4F6" listening={false} />
           <BackgroundLayer />
-          {Grid}
+          {gridConfig.visible && <GridLayer step={gridConfig.size} view={viewState} viewport={dimensions} />}
 
-          {/* Sectores y escenarios primero */}
           {elementIds.map((id) => {
             const el = elements[id];
-            if (!el || (el.type !== 'section' && el.type !== 'stage')) return null;
-            const shape = el as ShapeElement;
-            const isSelected = selectedIds.includes(id);
-
+            if (!el || el.type === 'seat') return null;
             return (
               <CustomShape
                 key={id}
-                element={shape}
-                isSelected={isSelected}
+                element={el as ShapeElement}
+                isSelected={selectedIds.includes(id)}
                 scale={viewState.scale}
                 showLabel={sectorLabels}
-                subtitle={sectorLabels ? subtitulosDeSector[id] : undefined}
+                subtitle={subtitulos[id]}
                 draggable={currentTool === 'select'}
-                onSelect={(e) => {
-                  if (currentTool !== 'select') return;
-                  e.cancelBubble = true;
-                  selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
-                }}
-                onDragStart={() => handleDragStart(id)}
-                onDragMove={(e) => handleDragMove(id, e)}
-                onDragEnd={(e) => handleDragEnd(id, e)}
-                onTransformEnd={(e) => handleTransformEnd(id, shape, e)}
+                onSelect={alSeleccionar(id)}
+                onDragStart={() => gestos.onDragStart(id)}
+                onDragMove={(e) => gestos.onDragMove(id, e)}
+                onDragEnd={(e) => gestos.onDragEnd(id, e)}
+                onTransformEnd={(e) => gestos.onTransformEnd(id, e)}
               />
             );
           })}
 
-          {/* Asientos encima */}
           {elementIds.map((id) => {
             const el = elements[id];
-            if (!el || el.type !== 'seat') return null;
+            if (el?.type !== 'seat') return null;
             const seat = el as SeatElement;
-            const isSelected = selectedIds.includes(id);
             const section = seat.sectionId ? (elements[seat.sectionId] as ShapeElement | undefined) : undefined;
-            const isInactive = !!section && section.isActive === false;
+            const isInactive = section?.isActive === false;
 
             return (
               <Seat
                 key={id}
                 element={seat}
-                isSelected={isSelected}
+                isSelected={selectedIds.includes(id)}
                 draggable={currentTool === 'select' && !isInactive}
-                showLabels={showLabels}
+                showLabels={labels}
                 isInactive={isInactive}
-                onSelect={(e) => {
-                  if (currentTool !== 'select') return;
-                  e.cancelBubble = true;
-                  selectElements(e.evt.shiftKey ? [...selectedIds, id] : [id]);
-                }}
-                onDragStart={() => handleDragStart(id)}
-                onDragMove={(e) => handleDragMove(id, e)}
-                onDragEnd={(e) => handleDragEnd(id, e)}
+                onSelect={alSeleccionar(id)}
+                onDragStart={() => gestos.onDragStart(id)}
+                onDragMove={(e) => gestos.onDragMove(id, e)}
+                onDragEnd={(e) => gestos.onDragEnd(id, e)}
               />
             );
           })}
 
-          {/* Guías del imán a otros sectores */}
-          {guias.map((g, i) => (
-            <Line
-              key={`guia-${i}`}
-              points={g.axis === 'v'
-                ? [g.pos, -10000, g.pos, 10000]
-                : [-10000, g.pos, 10000, g.pos]}
-              stroke="#FF6B01"
-              strokeWidth={1 / viewState.scale}
-              dash={[4 / viewState.scale, 4 / viewState.scale]}
-              listening={false}
-            />
-          ))}
-
-          {/* Borrador del polígono en dibujo */}
-          {draftPreview.length >= 2 && (
-            <>
-              <Line
-                points={draftPreview}
-                stroke="#FF6B01"
-                strokeWidth={2 / viewState.scale}
-                dash={[6, 4]}
-                listening={false}
-              />
-              {draftPoints.map((_, i) =>
-                i % 2 === 0 ? (
-                  <Circle
-                    key={i}
-                    x={draftPoints[i]}
-                    y={draftPoints[i + 1]}
-                    radius={4 / viewState.scale}
-                    fill="#FF6B01"
-                    listening={false}
-                  />
-                ) : null
-              )}
-            </>
-          )}
-
-          {selectionBox && (
-            <Rect
-              x={Math.min(selectionBox.x1, selectionBox.x2) / viewState.scale - viewState.x / viewState.scale}
-              y={Math.min(selectionBox.y1, selectionBox.y2) / viewState.scale - viewState.y / viewState.scale}
-              width={Math.abs(selectionBox.x1 - selectionBox.x2) / viewState.scale}
-              height={Math.abs(selectionBox.y1 - selectionBox.y2) / viewState.scale}
-              fill="rgba(255, 107, 1, 0.06)"
-              stroke="#FF6B01"
-              strokeWidth={1 / viewState.scale}
-              dash={[5, 3]}
-            />
-          )}
+          <SnapGuides guias={gestos.guias} scale={viewState.scale} />
+          <DraftPolygon points={borrador.points} cursor={borrador.cursor} scale={viewState.scale} />
+          {selectionBox && <SelectionBox caja={selectionBox} view={viewState} />}
 
           <Transformer
             ref={transformerRef}
             rotateEnabled
             keepRatio={transformerConfig.keepRatio}
             enabledAnchors={transformerConfig.anchors}
-            boundBoxFunc={(oldBox, newBox) => {
-              if (newBox.width < 10 || newBox.height < 10) return oldBox;
-              return newBox;
-            }}
+            boundBoxFunc={(oldBox, newBox) => (newBox.width < 10 || newBox.height < 10 ? oldBox : newBox)}
             anchorFill="#FF6B01"
             anchorStroke="#FFFFFF"
             anchorCornerRadius={3}

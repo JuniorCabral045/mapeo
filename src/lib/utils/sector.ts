@@ -1,18 +1,12 @@
 import { SeatElement, VenueElement } from '../types';
 
 /**
- * Ids que el imán entre elementos debe excluir como candidatos al arrastrar
- * `id`: siempre el propio elemento, más el resto de la selección cuando `id`
- * forma parte de ella.
+ * Ids que el imán debe ignorar al arrastrar `id`: el propio elemento y, si forma
+ * parte de la selección, el resto de ella.
  *
- * Mirar solo el tamaño de la selección (`selectedIds.length > 1 ? selectedIds
- * : [id]`) no alcanza: si ya había una selección múltiple `[A, B]` y se
- * arrastra un tercer elemento `C` sin deseleccionar primero -Konva no dispara
- * `click` cuando el puntero se movió antes de soltar, así que la selección
- * React no se actualiza-, `selectedIds` seguía siendo `[A, B]` y `C` no
- * quedaba excluido: se enganchaba contra su propia caja y volvía a su
- * posición de origen. La condición correcta es pertenencia (`includes`), no
- * tamaño.
+ * Se decide por pertenencia y no por tamaño: Konva no dispara `click` si el
+ * puntero se movió, así que se puede arrastrar un `C` con `[A, B]` todavía
+ * seleccionados, y `C` se engancharía contra su propia caja.
  */
 export const idsToExcludeFromSnap = (id: string, selectedIds: string[]): string[] =>
   selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id];
@@ -41,17 +35,7 @@ export interface ResumenDeBorrado {
   asientos: number;
 }
 
-/**
- * Cuenta sectores, escenarios y asientos afectados por separado.
- *
- * Antes esto filtraba por `type !== 'seat'` y llamaba "sector" a cualquier
- * elemento que pasara el filtro -incluidos los escenarios, que también son
- * `type !== 'seat'`. Un escenario y un sector con asientos seleccionados
- * juntos se contaban como "2 sectores", mintiéndole al usuario sobre qué
- * está por perder. Un escenario nunca tiene asientos propios
- * (`seatsOfSector` no encuentra ninguno para su id), así que separar los
- * tipos no cambia el conteo de asientos, solo lo que se dice que se borra.
- */
+/** Sectores y escenarios se cuentan aparte: un escenario no es «un sector más». */
 export const resumenDeBorrado = (
   elements: Record<string, VenueElement>,
   elementIds: string[],
@@ -66,22 +50,12 @@ export const resumenDeBorrado = (
   return { sectores: sectores.length, escenarios: escenarios.length, asientos };
 };
 
-/** Frase de consecuencia del aviso de borrado, con la misma función que la
- * del aviso de regenerar (QR ya impresos que dejan de servir) pero para
- * butacas que van a dejar de existir en vez de solo cambiar de lugar. */
 const consecuenciaDeBorrado = (asientos: number): string =>
   asientos === 1
     ? 'Esa butaca deja de existir: su QR queda apuntando a la nada.'
     : 'Esas butacas dejan de existir: sus QR quedan apuntando a la nada.';
 
-/**
- * Arma el texto del aviso de borrado a partir de un `ResumenDeBorrado`.
- * Cubre las cuatro combinaciones de composición (solo sectores, solo
- * escenarios, mezcla, y cualquiera de esas con o sin asientos) con
- * concordancia de número correcta en cada sustantivo y en el verbo -un
- * sector de 1×1 o un solo escenario seleccionado son casos alcanzables, no
- * un detalle cosmético.
- */
+/** Texto del aviso de borrado, con concordancia de número en cada sustantivo y en el verbo. */
 export const textoAvisoDeBorrado = (resumen: ResumenDeBorrado): string => {
   const { sectores, escenarios, asientos } = resumen;
   if (sectores === 0 && escenarios === 0) return '';
@@ -100,15 +74,10 @@ export const textoAvisoDeBorrado = (resumen: ResumenDeBorrado): string => {
 };
 
 /**
- * De un conjunto de ids arrastrados en el mismo gesto, cuáles hay que mover
- * por su cuenta. Un asiento cuyo propio sector también está en `ids` queda
- * afuera: `moveSector` ya arrastra a todos los asientos del sector, así que
- * aplicarle el movimiento aparte lo desplazaría el doble (una vez como
- * asiento suelto, otra como parte del sector que lo contiene).
- *
- * La decisión mira solo pertenencia -si `sectionId` está en el propio
- * conjunto de ids-, nunca estado ya modificado, así que el resultado no
- * depende del orden en que `ids` traiga al asiento y a su sector.
+ * De los ids arrastrados en un mismo gesto, cuáles mover por su cuenta. Un
+ * asiento cuyo sector también está en `ids` queda afuera: el sector ya lo
+ * arrastra, y moverlo aparte lo desplazaría el doble. Mira solo pertenencia,
+ * así que no depende del orden de `ids`.
  */
 export const idsToMoveIndividually = (
   elements: Record<string, VenueElement>,
@@ -117,9 +86,6 @@ export const idsToMoveIndividually = (
   const seleccionados = new Set(ids);
   return ids.filter((id) => {
     const el = elements[id];
-    if (el?.type === 'seat' && el.sectionId && seleccionados.has(el.sectionId)) {
-      return false;
-    }
-    return true;
+    return !(el?.type === 'seat' && el.sectionId && seleccionados.has(el.sectionId));
   });
 };

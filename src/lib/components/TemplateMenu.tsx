@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LayoutTemplate } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
+import { useShallow } from 'zustand/react/shallow';
 import { TEMPLATES } from '../utils/templates';
 
 // La cantidad de asientos de cada plantilla no depende de ningun estado del
@@ -22,7 +23,9 @@ function obtenerCantidadesPorPlantilla(): Map<string, number> {
 
 /** Inserta una plantilla. Nunca reemplaza: si ya hay contenido, avisa. */
 export const TemplateMenu: React.FC = () => {
-  const { elementIds, applyTemplate } = useVenueStore();
+  const { elementIds, applyTemplate } = useVenueStore(
+    useShallow((s) => ({ elementIds: s.elementIds, applyTemplate: s.applyTemplate }))
+  );
   const [abierto, setAbierto] = useState(false);
   const contenedorRef = useRef<HTMLDivElement>(null);
   const botonRef = useRef<HTMLButtonElement>(null);

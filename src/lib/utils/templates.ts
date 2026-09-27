@@ -1,5 +1,6 @@
 import { SeatGenerationParams, ShapeElement, VenueElement } from '../types';
-import { generateArcSectorLayout, generateRectLayout } from './layout';
+import { generarAsientosDelSector } from './layout';
+import { crearForma, sufijoUnico } from './elements';
 
 export type TemplateId = 'estadio-recto' | 'estadio-curvo' | 'teatro';
 
@@ -11,9 +12,6 @@ export interface VenueTemplate {
   build: (newId?: () => string) => VenueElement[];
 }
 
-const sufijoPorDefecto = () =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-
 const CENTRO_X = 600;
 const CENTRO_Y = 400;
 
@@ -22,46 +20,24 @@ const base = (
   name: string,
   tipo: 'section' | 'stage',
   extra: Partial<ShapeElement>
-): ShapeElement => ({
-  id,
-  type: tipo,
-  name,
-  x: 0, y: 0, width: 100, height: 100, rotation: 0,
-  visible: true,
-  locked: false,
-  opacity: tipo === 'stage' ? 1 : 0.2,
-  zIndex: tipo === 'stage' ? 1 : 5,
-  fill: tipo === 'stage' ? '#1F2937' : '#6F3E8F',
-  isActive: true,
-  sectionType: 'rectangle',
-  ...extra,
-});
+): ShapeElement =>
+  crearForma(id, name, tipo, tipo === 'stage' ? { fill: '#1F2937', zIndex: 1, ...extra } : extra);
 
 const generacion = (extra: Partial<SeatGenerationParams> = {}): SeatGenerationParams => ({
   rows: 8, cols: 20, seatRadius: 3.5, startRow: 'A', startNum: 1, numberDirection: 'ltr',
   ...extra,
 });
 
-/** Sector rectangular con sus butacas, ya con los parámetros registrados. */
+/** Sector con sus butacas, ya con los parámetros registrados. */
 const sectorConAsientos = (
   sector: ShapeElement,
   gen: SeatGenerationParams
 ): VenueElement[] => {
   const conGeneracion = { ...sector, generation: gen };
-  const asientos = generateRectLayout(conGeneracion, {
-    rows: gen.rows,
-    cols: gen.cols,
-    rowSpacing: gen.seatRadius * 1.5,
-    colSpacing: gen.seatRadius * 1.5,
-    seatRadius: gen.seatRadius,
-    startRow: gen.startRow,
-    startNum: gen.startNum,
-    numberDirection: gen.numberDirection,
-  });
-  return [conGeneracion, ...asientos];
+  return [conGeneracion, ...generarAsientosDelSector(conGeneracion, gen)];
 };
 
-const estadioRecto = (newId = sufijoPorDefecto): VenueElement[] => {
+const estadioRecto = (newId = sufijoUnico): VenueElement[] => {
   const s = newId();
   const cancha = base(`stage-${s}`, 'Cancha', 'stage', {
     x: CENTRO_X - 200, y: CENTRO_Y - 125, width: 400, height: 250, cornerRadius: 8, locked: true,
@@ -85,14 +61,13 @@ const estadioRecto = (newId = sufijoPorDefecto): VenueElement[] => {
   ];
 };
 
-const estadioCurvo = (newId = sufijoPorDefecto): VenueElement[] => {
+const estadioCurvo = (newId = sufijoUnico): VenueElement[] => {
   const s = newId();
   const cancha = base(`stage-${s}`, 'Cancha', 'stage', {
     x: CENTRO_X - 180, y: CENTRO_Y - 110, width: 360, height: 220, cornerRadius: 8, locked: true,
   });
 
-  // Cuatro anillos alrededor de la cancha. Los ángulos van en grados, 0° a la
-  // derecha y en sentido horario.
+  // Grados, 0° a la derecha y en sentido horario.
   const anillos = [
     { nombre: 'Anillo Norte', inicio: 200, fin: 340 },
     { nombre: 'Anillo Sur', inicio: 20, fin: 160 },
@@ -100,39 +75,28 @@ const estadioCurvo = (newId = sufijoPorDefecto): VenueElement[] => {
     { nombre: 'Anillo Oeste', inicio: 110, fin: 250 },
   ];
 
-  const salida: VenueElement[] = [cancha];
-
-  anillos.forEach((anillo, i) => {
-    const gen = generacion({ rows: 6, cols: 0, seatRadius: 4 });
-    const sector = base(`arc-${s}-${i}`, anillo.nombre, 'section', {
-      x: CENTRO_X,
-      y: CENTRO_Y,
-      width: 620,
-      height: 620,
-      sectionType: 'arc',
-      innerRadius: 240,
-      outerRadius: 310,
-      startAngle: anillo.inicio,
-      endAngle: anillo.fin,
-      generation: gen,
-    });
-    const asientos = generateArcSectorLayout(sector, {
-      rows: gen.rows,
-      cols: gen.cols,
-      rowSpacing: gen.seatRadius * 2,
-      colSpacing: gen.seatRadius * 1.5,
-      seatRadius: gen.seatRadius,
-      startRow: gen.startRow,
-      startNum: gen.startNum,
-      numberDirection: gen.numberDirection,
-    });
-    salida.push(sector, ...asientos);
-  });
-
-  return salida;
+  return [
+    cancha,
+    ...anillos.flatMap((anillo, i) =>
+      sectorConAsientos(
+        base(`arc-${s}-${i}`, anillo.nombre, 'section', {
+          x: CENTRO_X,
+          y: CENTRO_Y,
+          width: 620,
+          height: 620,
+          sectionType: 'arc',
+          innerRadius: 240,
+          outerRadius: 310,
+          startAngle: anillo.inicio,
+          endAngle: anillo.fin,
+        }),
+        generacion({ rows: 6, cols: 0, seatRadius: 4 })
+      )
+    ),
+  ];
 };
 
-const teatro = (newId = sufijoPorDefecto): VenueElement[] => {
+const teatro = (newId = sufijoUnico): VenueElement[] => {
   const s = newId();
   const escenario = base(`stage-${s}`, 'Escenario', 'stage', {
     x: CENTRO_X - 200, y: 100, width: 400, height: 120,

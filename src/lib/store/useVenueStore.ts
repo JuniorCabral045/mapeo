@@ -4,15 +4,26 @@ import {
   EditorTool,
   GridConfig,
   HistorySnapshot,
+  SeatElement,
+  SeatGenerationParams,
+  ShapeElement,
   VenueElement,
   VenueMap,
   ViewState,
 } from '../types';
-import { deserializeVenue } from '../schema';
+import { deserializeVenue, serializeVenue } from '../schema';
 import { calculateBounds, fitView } from '../utils/bounds';
 import { idsToMoveIndividually, seatsOfSector } from '../utils/sector';
 import { alignElements, distributeElements, type AlignMode, type DistributeAxis, type Movimientos } from '../utils/align';
 import { duplicateSectors as calcularDuplicados, type DuplicateOptions } from '../utils/duplicate';
+
+export interface Transformacion {
+  x: number;
+  y: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+}
 
 interface VenueStore {
   elements: Record<string, VenueElement>;
@@ -22,80 +33,69 @@ interface VenueStore {
   gridConfig: GridConfig;
   venueName: string;
   currentTool: EditorTool;
+  /** Preferencia de vista: no se guarda ni entra al historial. */
   sectorLabels: boolean;
   backgroundImage: BackgroundImage | null;
   /** Tamaño del lienzo en píxeles. Lo publica EditorCanvas; lo necesita fitToContent. */
   canvasSize: { width: number; height: number };
   /**
-   * Si EditorCanvas ya publicó una medición real del lienzo al menos una vez.
-   * Describe el lienzo físico, no el mapa cargado: reset() no la toca, porque el
-   * <canvas> sigue montado y medido después de vaciar el mapa.
+   * Si EditorCanvas ya midió el lienzo. Describe el <canvas> físico, no el mapa:
+   * reset() no la toca, porque el lienzo sigue montado y medido.
    */
   hasMeasuredCanvas: boolean;
-  /** Si loadMap pidió encuadrar pero el lienzo todavía no fue medido. */
+  /** loadMap pidió encuadrar antes de que el lienzo estuviera medido. */
   pendingFit: boolean;
 
   history: HistorySnapshot[];
   historyIndex: number;
 
-  // Elementos
   addElement: (element: VenueElement) => void;
   addElements: (elements: VenueElement[]) => void;
   /** Inserta los elementos de una plantilla sin borrar lo que ya hay. */
   applyTemplate: (elements: VenueElement[]) => void;
+  /** Sin historial: el panel de propiedades lo llama en cada tecla. */
   updateElement: (id: string, updates: Partial<VenueElement>) => void;
+  /**
+   * Cambia posición o rotación desde el panel. A un sector lo acompañan sus
+   * asientos, como al arrastrarlo. Sin historial, igual que `updateElement`.
+   */
+  placeElement: (id: string, cambio: Partial<Pick<VenueElement, 'x' | 'y' | 'rotation'>>) => void;
   deleteElements: (ids: string[]) => void;
+  /** Reemplaza los asientos de un sector y registra con qué se generaron, en un solo paso. */
+  regenerateSeats: (sectorId: string, seats: SeatElement[], generation: SeatGenerationParams) => void;
   /** Duplica los sectores indicados (con sus asientos) y los deja seleccionados. */
   duplicateSectors: (sectorIds: string[], options: DuplicateOptions) => void;
   /**
-   * Mueve un sector con todos sus asientos.
-   * `guardarHistorial` (default true) puede venir en false: el lienzo mueve varios
-   * elementos dentro de un mismo gesto del usuario (varios sectores, o un sector
-   * más asientos sueltos) y es el manejador del gesto quien cierra el paso de
-   * historial una sola vez, no cada llamada individual.
+   * Mueve un sector con todos sus asientos. `guardarHistorial` en false deja que
+   * quien llama cierre el paso una sola vez por gesto.
    */
   moveSector: (id: string, x: number, y: number, guardarHistorial?: boolean) => void;
-  /** Empuja la selección. Los sectores llevan sus asientos. */
+  /** Empuja la selección sin historial: el hook de atajos agrupa la ráfaga. */
   nudgeSelection: (dx: number, dy: number) => void;
-  /** Aplica al sector y a sus asientos la misma transformación afín. Mismo motivo
-   * para `guardarHistorial` que en `moveSector`. */
-  transformSector: (
-    id: string,
-    cambio: { x: number; y: number; rotation: number; scaleX: number; scaleY: number },
-    guardarHistorial?: boolean
-  ) => void;
+  /** Aplica al sector y a sus asientos la misma transformación afín. */
+  transformSector: (id: string, cambio: Transformacion, guardarHistorial?: boolean) => void;
 
-  // Selección
   selectElements: (ids: string[]) => void;
   clearSelection: () => void;
   alignSelection: (mode: AlignMode) => void;
   distributeSelection: (axis: DistributeAxis) => void;
 
-  // Vista / configuración
   setViewState: (updates: Partial<ViewState>) => void;
   setCanvasSize: (width: number, height: number) => void;
   /** Encuadra todo el contenido. Sin elementos no hace nada. */
   fitToContent: () => void;
   setGridConfig: (updates: Partial<GridConfig>) => void;
   setTool: (tool: EditorTool) => void;
-  /**
-   * Dibujar el nombre de cada sector sobre el lienzo. Apagado por omisión: con
-   * las tribunas llenas de butacas el texto encima estorba. Es una preferencia
-   * de vista, no parte del mapeo: no se guarda ni entra al historial.
-   */
   setSectorLabels: (visible: boolean) => void;
   setVenueName: (name: string) => void;
 
-  // Plano de fondo (solo editor)
   setBackgroundImage: (image: BackgroundImage) => void;
   removeBackgroundImage: () => void;
   updateBackgroundOpacity: (opacity: number) => void;
 
-  // Carga de un mapeo guardado
   loadMap: (map: VenueMap) => void;
   reset: () => void;
 
-  // Historial
   saveHistory: () => void;
   undo: () => void;
   redo: () => void;
@@ -114,333 +114,351 @@ const DEFAULT_VIEW: ViewState = {
   y: 100,
 };
 
+const HISTORIAL_MAXIMO = 50;
+
+const clonar = <T,>(valor: T): T => JSON.parse(JSON.stringify(valor));
+
+/** Lleva `id` a (x, y) y desplaza sus asientos lo mismo, sobre una copia de `elements`. */
+const desplazarConAsientos = (
+  origen: Record<string, VenueElement>,
+  destino: Record<string, VenueElement>,
+  elementIds: string[],
+  id: string,
+  x: number,
+  y: number
+) => {
+  const el = origen[id];
+  const dx = x - el.x;
+  const dy = y - el.y;
+  destino[id] = { ...el, x, y };
+  if (el.type === 'seat') return;
+  for (const asiento of seatsOfSector(origen, elementIds, id)) {
+    destino[asiento.id] = { ...asiento, x: asiento.x + dx, y: asiento.y + dy };
+  }
+};
+
 /**
- * Aplica un conjunto de movimientos en un solo paso de historial.
- * Los sectores se mueven con seatsOfSector para que sus asientos acompañen.
- *
- * `guardarHistorial` en false lo usa el empuje con flechas, que agrupa el paso
- * cuando el usuario suelta la tecla: si no, mantener una flecha apretada llenaría
- * los 50 lugares del historial y borraría todo lo anterior.
- *
- * Corrección posterior a la revisión de la Tarea 11: si un asiento y su propio
- * sector están los dos en `movimientos` -fácil con la goma de selección, que
- * agarra por posición sin filtrar pertenencia-, aplicar los dos movimientos por
- * separado (el propio del asiento, calculado por align/distribute, y el que le
- * suma su sector al arrastrar `seatsOfSector`) hacía que el resultado dependiera
- * del orden de iteración: cuál de los dos ganaba dependía de cuál se procesara
- * último. `idsToMoveIndividually` -ya usada por el arrastre del lienzo para el
- * mismo problema- filtra por pertenencia, no por orden: si el sector de un
- * asiento también está en el conjunto, el asiento se deja afuera de la lista de
- * movimientos propios y solo lo mueve el paso que arrastra a los asientos del
- * sector, sin importar en qué orden vinieran los ids.
+ * Aplica un conjunto de movimientos en un solo paso de historial. Un asiento
+ * cuyo sector también se mueve queda fuera (`idsToMoveIndividually`): si no, el
+ * resultado dependería del orden de los ids.
  */
 const aplicarMovimientos = (
   get: () => VenueStore,
+  set: (parcial: Partial<VenueStore>) => void,
   movimientos: Movimientos,
-  elements: Record<string, VenueElement>,
-  elementIds: string[],
   guardarHistorial = true
 ) => {
-  const ids = idsToMoveIndividually(elements, Object.keys(movimientos));
+  const { elements, elementIds } = get();
+  const ids = idsToMoveIndividually(elements, Object.keys(movimientos)).filter((id) => elements[id]);
   if (ids.length === 0) return;
 
   const nuevos = { ...elements };
   for (const id of ids) {
-    const movimiento = movimientos[id];
-    const el = nuevos[id];
-    if (!movimiento || !el) continue;
-    const dx = movimiento.x - el.x;
-    const dy = movimiento.y - el.y;
-    nuevos[id] = { ...el, x: movimiento.x, y: movimiento.y };
-    if (el.type !== 'seat') {
-      for (const asiento of seatsOfSector(elements, elementIds, id)) {
-        nuevos[asiento.id] = { ...asiento, x: asiento.x + dx, y: asiento.y + dy };
-      }
-    }
+    desplazarConAsientos(elements, nuevos, elementIds, id, movimientos[id].x, movimientos[id].y);
   }
 
-  useVenueStore.setState({ elements: nuevos });
+  set({ elements: nuevos });
   if (guardarHistorial) get().saveHistory();
 };
 
-export const useVenueStore = create<VenueStore>()((set, get) => ({
-  elements: {},
-  elementIds: [],
-  selectedIds: [],
-  viewState: DEFAULT_VIEW,
-  gridConfig: DEFAULT_GRID,
-  venueName: 'Nuevo Recinto',
-  currentTool: 'select',
-  sectorLabels: false,
-  backgroundImage: null,
-  canvasSize: { width: 1000, height: 800 },
-  hasMeasuredCanvas: false,
-  pendingFit: false,
+/**
+ * Konva pivota el grupo en su origen: un punto del sector es
+ * `origen + R(rotación) · S(escala) · local`. Para cada asiento se recupera su
+ * posición local con la transformación vieja y se aplica la nueva. Rotar y
+ * escalar no conmutan con escalas distintas por eje, así que escalar en ejes de
+ * mundo sacaba de su tribuna los asientos de un sector girado.
+ */
+const transformarAsiento = (
+  asiento: SeatElement,
+  sector: ShapeElement,
+  cambio: Transformacion
+): SeatElement => {
+  const antes = (sector.rotation * Math.PI) / 180;
+  const despues = (cambio.rotation * Math.PI) / 180;
+  const rx = asiento.x - sector.x;
+  const ry = asiento.y - sector.y;
+  const localX = (rx * Math.cos(antes) + ry * Math.sin(antes)) * cambio.scaleX;
+  const localY = (-rx * Math.sin(antes) + ry * Math.cos(antes)) * cambio.scaleY;
+  return {
+    ...asiento,
+    x: cambio.x + localX * Math.cos(despues) - localY * Math.sin(despues),
+    y: cambio.y + localX * Math.sin(despues) + localY * Math.cos(despues),
+    rotation: asiento.rotation + cambio.rotation - sector.rotation,
+  };
+};
 
-  history: [],
-  historyIndex: -1,
+/** Mapa serializado con el estado actual del editor. */
+export const mapaDelEditor = (
+  state: Pick<VenueStore, 'elements' | 'elementIds' | 'venueName' | 'backgroundImage'>
+): VenueMap =>
+  serializeVenue(state.elements, state.elementIds, state.venueName, undefined, state.backgroundImage ?? undefined);
 
-  addElement: (element) => {
-    set((state) => ({
-      elements: { ...state.elements, [element.id]: element },
-      elementIds: [...state.elementIds, element.id],
-    }));
-    get().saveHistory();
-  },
+/**
+ * Si entre dos estados hubo un cambio confirmado del mapa: un paso de historial
+ * nuevo, un deshacer/rehacer o un plano de fondo distinto. Compara el arreglo de
+ * historial y no solo el índice, que con el historial lleno ya no cambia.
+ */
+export const huboCambioConfirmado = (
+  state: Pick<VenueStore, 'history' | 'historyIndex' | 'backgroundImage'>,
+  prev: Pick<VenueStore, 'history' | 'historyIndex' | 'backgroundImage'>
+): boolean =>
+  state.history !== prev.history ||
+  state.historyIndex !== prev.historyIndex ||
+  state.backgroundImage !== prev.backgroundImage;
 
-  addElements: (newElements) => {
+export const useVenueStore = create<VenueStore>()((set, get) => {
+  const irAlPaso = (historyIndex: number) =>
     set((state) => {
-      const elements = { ...state.elements };
-      const elementIds = [...state.elementIds];
-      newElements.forEach((el) => {
-        elements[el.id] = el;
-        if (!state.elementIds.includes(el.id)) elementIds.push(el.id);
-      });
-      return { elements, elementIds };
+      if (historyIndex < 0 || historyIndex >= state.history.length) return state;
+      const { elements, elementIds } = clonar(state.history[historyIndex]);
+      return { elements, elementIds, historyIndex, selectedIds: [] };
     });
-    get().saveHistory();
-  },
 
-  applyTemplate: (nuevos) => {
-    get().addElements(nuevos);
-    get().fitToContent();
-  },
+  return {
+    elements: {},
+    elementIds: [],
+    selectedIds: [],
+    viewState: DEFAULT_VIEW,
+    gridConfig: DEFAULT_GRID,
+    venueName: 'Nuevo Recinto',
+    currentTool: 'select',
+    sectorLabels: false,
+    backgroundImage: null,
+    canvasSize: { width: 1000, height: 800 },
+    hasMeasuredCanvas: false,
+    pendingFit: false,
 
-  updateElement: (id, updates) => {
-    set((state) => {
-      const element = state.elements[id];
-      if (!element) return state;
-      return {
-        elements: { ...state.elements, [id]: { ...element, ...updates } as VenueElement },
-      };
-    });
-  },
+    history: [],
+    historyIndex: -1,
 
-  deleteElements: (ids) => {
-    set((state) => {
-      // Cascada: un sector se lleva sus asientos. Sin esto quedaban huérfanos y
-      // el serializador los agrupaba en un sector «General» inventado.
-      const aBorrar = new Set(ids);
-      for (const id of state.elementIds) {
-        const el = state.elements[id];
-        if (el?.type === 'seat' && el.sectionId && aBorrar.has(el.sectionId)) {
-          aBorrar.add(id);
+    addElement: (element) => get().addElements([element]),
+
+    addElements: (newElements) => {
+      set((state) => {
+        const elements = { ...state.elements };
+        const elementIds = [...state.elementIds];
+        const presentes = new Set(state.elementIds);
+        for (const el of newElements) {
+          elements[el.id] = el;
+          if (!presentes.has(el.id)) {
+            presentes.add(el.id);
+            elementIds.push(el.id);
+          }
         }
-      }
+        return { elements, elementIds };
+      });
+      get().saveHistory();
+    },
 
-      const elements = { ...state.elements };
-      aBorrar.forEach((id) => delete elements[id]);
-      return {
-        elements,
-        elementIds: state.elementIds.filter((id) => !aBorrar.has(id)),
-        selectedIds: state.selectedIds.filter((id) => !aBorrar.has(id)),
-      };
-    });
-    get().saveHistory();
-  },
-
-  duplicateSectors: (sectorIds, options) => {
-    const { elements, elementIds } = get();
-    const nuevos = calcularDuplicados(elements, elementIds, sectorIds, options);
-    if (nuevos.length === 0) return;
-
-    get().addElements(nuevos);
-    set({ selectedIds: nuevos.filter((el) => el.type !== 'seat').map((el) => el.id) });
-  },
-
-  moveSector: (id, x, y, guardarHistorial = true) => {
-    set((state) => {
-      const sector = state.elements[id];
-      if (!sector || sector.type === 'seat') return state;
-      const dx = x - sector.x;
-      const dy = y - sector.y;
-
-      const elements = { ...state.elements, [id]: { ...sector, x, y } };
-      for (const asiento of seatsOfSector(state.elements, state.elementIds, id)) {
-        elements[asiento.id] = {
-          ...asiento,
-          x: asiento.x + dx,
-          y: asiento.y + dy,
-        };
-      }
-      return { elements };
-    });
-    if (guardarHistorial) get().saveHistory();
-  },
-
-  transformSector: (id, cambio, guardarHistorial = true) => {
-    set((state) => {
-      const sector = state.elements[id];
-      if (!sector || sector.type === 'seat') return state;
-
-      const dRot = cambio.rotation - sector.rotation;
-      const rad = (dRot * Math.PI) / 180;
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-
-      const elements = {
-        ...state.elements,
-        [id]: { ...sector, x: cambio.x, y: cambio.y, rotation: cambio.rotation },
-      };
-
-      for (const asiento of seatsOfSector(state.elements, state.elementIds, id)) {
-        // Posición relativa al origen del sector, escalada y luego rotada.
-        const rx = (asiento.x - sector.x) * cambio.scaleX;
-        const ry = (asiento.y - sector.y) * cambio.scaleY;
-        elements[asiento.id] = {
-          ...asiento,
-          x: cambio.x + rx * cos - ry * sin,
-          y: cambio.y + rx * sin + ry * cos,
-          rotation: asiento.rotation + dRot,
-        };
-      }
-      return { elements };
-    });
-    if (guardarHistorial) get().saveHistory();
-  },
-
-  nudgeSelection: (dx, dy) => {
-    const { elements, elementIds, selectedIds } = get();
-    const movimientos: Movimientos = {};
-    for (const id of selectedIds) {
-      const el = elements[id];
-      if (!el || el.locked) continue;
-      movimientos[id] = { x: el.x + dx, y: el.y + dy };
-    }
-    // Sin historial: lo agrupa el hook cuando el usuario deja de empujar.
-    aplicarMovimientos(get, movimientos, elements, elementIds, false);
-  },
-
-  selectElements: (ids) => set({ selectedIds: ids }),
-  clearSelection: () => set({ selectedIds: [] }),
-
-  alignSelection: (mode) => {
-    const { elements, elementIds, selectedIds } = get();
-    aplicarMovimientos(get, alignElements(elements, selectedIds, mode), elements, elementIds);
-  },
-
-  distributeSelection: (axis) => {
-    const { elements, elementIds, selectedIds } = get();
-    aplicarMovimientos(get, distributeElements(elements, selectedIds, axis), elements, elementIds);
-  },
-
-  setViewState: (updates) =>
-    set((state) => ({ viewState: { ...state.viewState, ...updates } })),
-
-  setCanvasSize: (width, height) => {
-    const { pendingFit } = get();
-    set({ canvasSize: { width, height }, hasMeasuredCanvas: true, pendingFit: false });
-    // Si loadMap pidió encuadrar antes de que llegara esta medición, es el momento:
-    // ya tenemos el tamaño real del lienzo.
-    if (pendingFit) get().fitToContent();
-  },
-
-  fitToContent: () => {
-    const { elements, elementIds, canvasSize } = get();
-    const caja = calculateBounds(elements, elementIds);
-    if (!caja) return;
-    set({ viewState: fitView(caja, canvasSize.width, canvasSize.height) });
-  },
-
-  setGridConfig: (updates) =>
-    set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
-  setTool: (tool) => set({ currentTool: tool }),
-  setSectorLabels: (sectorLabels) => set({ sectorLabels }),
-  setVenueName: (name) => set({ venueName: name }),
-
-  setBackgroundImage: (image) => set({ backgroundImage: image }),
-  removeBackgroundImage: () => set({ backgroundImage: null }),
-  updateBackgroundOpacity: (opacity) =>
-    set((state) =>
-      state.backgroundImage
-        ? { backgroundImage: { ...state.backgroundImage, opacity } }
-        : state
-    ),
-
-  loadMap: (map) => {
-    const { elements, elementIds, name, backgroundImage } = deserializeVenue(map);
-    set({
-      elements,
-      elementIds,
-      venueName: name,
-      backgroundImage,
-      selectedIds: [],
-      history: [],
-      historyIndex: -1,
-    });
-    // El encuadre y la medición del lienzo llegan de componentes distintos
-    // (VenueEditor dispara loadMap, EditorCanvas mide su contenedor) sin ningún orden
-    // garantizado entre sí: hoy funciona porque React corre los efectos de los hijos
-    // antes que los del padre, pero es una garantía implícita que se rompe apenas
-    // EditorCanvas se monte condicionalmente, en Suspense o en un portal. Si ya tenemos
-    // una medición real, encuadramos ahora; si no, dejamos el pedido pendiente para que
-    // setCanvasSize lo resuelva en cuanto la medición llegue.
-    if (get().hasMeasuredCanvas) {
+    applyTemplate: (nuevos) => {
+      get().addElements(nuevos);
       get().fitToContent();
-    } else {
-      set({ pendingFit: true });
-    }
-    get().saveHistory();
-  },
+    },
 
-  reset: () =>
-    set({
-      elements: {},
-      elementIds: [],
-      selectedIds: [],
-      venueName: 'Nuevo Recinto',
-      backgroundImage: null,
-      history: [],
-      historyIndex: -1,
-      viewState: DEFAULT_VIEW,
-      // hasMeasuredCanvas NO se toca: describe el lienzo fisico (si EditorCanvas ya
-      // lo midio), no el mapa cargado. El <canvas> sigue montado y medido despues de
-      // un reset(), y de hecho reset() ni siquiera borra canvasSize. Si reset()
-      // pisara esta bandera a false, VenueEditor (que llama reset() al montarse sin
-      // initialMap, ya con el lienzo medido) haria creer al proximo loadMap directo
-      // -p. ej. el boton "Importar JSON"- que el lienzo nunca fue medido: el encuadre
-      // quedaria pendiente y nada volveria a resolverlo (setCanvasSize no se
-      // reejecuta sin un resize real).
-      pendingFit: false,
-    }),
+    updateElement: (id, updates) => {
+      set((state) => {
+        const element = state.elements[id];
+        if (!element) return state;
+        return {
+          elements: { ...state.elements, [id]: { ...element, ...updates } as VenueElement },
+        };
+      });
+    },
 
-  saveHistory: () => {
-    set((state) => {
-      const snapshot: HistorySnapshot = JSON.parse(
-        JSON.stringify({ elements: state.elements, elementIds: state.elementIds })
-      );
-      const history = state.history.slice(0, state.historyIndex + 1);
-      history.push(snapshot);
-      if (history.length > 50) history.shift();
-      return { history, historyIndex: history.length - 1 };
-    });
-  },
+    placeElement: (id, cambio) => {
+      const el = get().elements[id];
+      if (!el) return;
+      if (el.type === 'seat') {
+        get().updateElement(id, cambio);
+        return;
+      }
+      get().transformSector(id, {
+        x: cambio.x ?? el.x,
+        y: cambio.y ?? el.y,
+        rotation: cambio.rotation ?? el.rotation,
+        scaleX: 1,
+        scaleY: 1,
+      }, false);
+    },
 
-  undo: () => {
-    set((state) => {
-      if (state.historyIndex <= 0) return state;
-      const historyIndex = state.historyIndex - 1;
-      const snapshot = JSON.parse(JSON.stringify(state.history[historyIndex]));
-      return {
-        elements: snapshot.elements,
-        elementIds: snapshot.elementIds,
-        historyIndex,
+    deleteElements: (ids) => {
+      set((state) => {
+        // Un sector se lleva sus asientos: huérfanos, el serializador los
+        // agruparía en un sector «General» inventado.
+        const aBorrar = new Set(ids);
+        for (const id of state.elementIds) {
+          const el = state.elements[id];
+          if (el?.type === 'seat' && el.sectionId && aBorrar.has(el.sectionId)) {
+            aBorrar.add(id);
+          }
+        }
+
+        const elements = { ...state.elements };
+        aBorrar.forEach((id) => delete elements[id]);
+        return {
+          elements,
+          elementIds: state.elementIds.filter((id) => !aBorrar.has(id)),
+          selectedIds: state.selectedIds.filter((id) => !aBorrar.has(id)),
+        };
+      });
+      get().saveHistory();
+    },
+
+    regenerateSeats: (sectorId, seats, generation) => {
+      set((state) => {
+        const sector = state.elements[sectorId];
+        if (!sector || sector.type === 'seat') return state;
+
+        const viejos = new Set(seatsOfSector(state.elements, state.elementIds, sectorId).map((a) => a.id));
+        const elements = { ...state.elements, [sectorId]: { ...sector, generation } };
+        viejos.forEach((id) => delete elements[id]);
+        const elementIds = state.elementIds.filter((id) => !viejos.has(id));
+        for (const asiento of seats) {
+          if (!elements[asiento.id]) elementIds.push(asiento.id);
+          elements[asiento.id] = asiento;
+        }
+        return {
+          elements,
+          elementIds,
+          selectedIds: state.selectedIds.filter((id) => !viejos.has(id)),
+        };
+      });
+      get().saveHistory();
+    },
+
+    duplicateSectors: (sectorIds, options) => {
+      const { elements, elementIds } = get();
+      const nuevos = calcularDuplicados(elements, elementIds, sectorIds, options);
+      if (nuevos.length === 0) return;
+
+      get().addElements(nuevos);
+      set({ selectedIds: nuevos.filter((el) => el.type !== 'seat').map((el) => el.id) });
+    },
+
+    moveSector: (id, x, y, guardarHistorial = true) => {
+      const sector = get().elements[id];
+      if (!sector || sector.type === 'seat') return;
+      aplicarMovimientos(get, set, { [id]: { x, y } }, guardarHistorial);
+    },
+
+    transformSector: (id, cambio, guardarHistorial = true) => {
+      set((state) => {
+        const sector = state.elements[id];
+        if (!sector || sector.type === 'seat') return state;
+
+        const elements = {
+          ...state.elements,
+          [id]: { ...sector, x: cambio.x, y: cambio.y, rotation: cambio.rotation },
+        };
+        for (const asiento of seatsOfSector(state.elements, state.elementIds, id)) {
+          elements[asiento.id] = transformarAsiento(asiento, sector as ShapeElement, cambio);
+        }
+        return { elements };
+      });
+      if (guardarHistorial) get().saveHistory();
+    },
+
+    nudgeSelection: (dx, dy) => {
+      const { elements, selectedIds } = get();
+      const movimientos: Movimientos = {};
+      for (const id of selectedIds) {
+        const el = elements[id];
+        if (!el || el.locked) continue;
+        movimientos[id] = { x: el.x + dx, y: el.y + dy };
+      }
+      aplicarMovimientos(get, set, movimientos, false);
+    },
+
+    selectElements: (ids) => set({ selectedIds: ids }),
+    clearSelection: () => set({ selectedIds: [] }),
+
+    alignSelection: (mode) => {
+      const { elements, selectedIds } = get();
+      aplicarMovimientos(get, set, alignElements(elements, selectedIds, mode));
+    },
+
+    distributeSelection: (axis) => {
+      const { elements, selectedIds } = get();
+      aplicarMovimientos(get, set, distributeElements(elements, selectedIds, axis));
+    },
+
+    setViewState: (updates) =>
+      set((state) => ({ viewState: { ...state.viewState, ...updates } })),
+
+    setCanvasSize: (width, height) => {
+      const { pendingFit, canvasSize, hasMeasuredCanvas } = get();
+      // La misma medida no notifica: cada aviso re-renderiza todo el editor.
+      if (hasMeasuredCanvas && !pendingFit && canvasSize.width === width && canvasSize.height === height) return;
+      set({ canvasSize: { width, height }, hasMeasuredCanvas: true, pendingFit: false });
+      if (pendingFit) get().fitToContent();
+    },
+
+    fitToContent: () => {
+      const { elements, elementIds, canvasSize } = get();
+      const caja = calculateBounds(elements, elementIds);
+      if (!caja) return;
+      set({ viewState: fitView(caja, canvasSize.width, canvasSize.height) });
+    },
+
+    setGridConfig: (updates) =>
+      set((state) => ({ gridConfig: { ...state.gridConfig, ...updates } })),
+    setTool: (tool) => set({ currentTool: tool }),
+    setSectorLabels: (sectorLabels) => set({ sectorLabels }),
+    setVenueName: (name) => set({ venueName: name }),
+
+    setBackgroundImage: (image) => set({ backgroundImage: image }),
+    removeBackgroundImage: () => set({ backgroundImage: null }),
+    updateBackgroundOpacity: (opacity) =>
+      set((state) =>
+        state.backgroundImage
+          ? { backgroundImage: { ...state.backgroundImage, opacity } }
+          : state
+      ),
+
+    loadMap: (map) => {
+      const { elements, elementIds, name, backgroundImage } = deserializeVenue(map);
+      set({
+        elements,
+        elementIds,
+        venueName: name,
+        backgroundImage,
         selectedIds: [],
-      };
-    });
-  },
+        history: [],
+        historyIndex: -1,
+      });
+      // VenueEditor carga el mapa y EditorCanvas mide el lienzo sin orden
+      // garantizado entre sí: si todavía no hay medida, setCanvasSize encuadra.
+      if (get().hasMeasuredCanvas) {
+        get().fitToContent();
+      } else {
+        set({ pendingFit: true });
+      }
+      get().saveHistory();
+    },
 
-  redo: () => {
-    set((state) => {
-      if (state.historyIndex >= state.history.length - 1) return state;
-      const historyIndex = state.historyIndex + 1;
-      const snapshot = JSON.parse(JSON.stringify(state.history[historyIndex]));
-      return {
-        elements: snapshot.elements,
-        elementIds: snapshot.elementIds,
-        historyIndex,
+    reset: () =>
+      set({
+        elements: {},
+        elementIds: [],
         selectedIds: [],
-      };
-    });
-  },
-}));
+        venueName: 'Nuevo Recinto',
+        backgroundImage: null,
+        history: [],
+        historyIndex: -1,
+        viewState: DEFAULT_VIEW,
+        pendingFit: false,
+      }),
+
+    saveHistory: () => {
+      set((state) => {
+        const snapshot: HistorySnapshot = clonar({ elements: state.elements, elementIds: state.elementIds });
+        const history = [...state.history.slice(0, state.historyIndex + 1), snapshot];
+        if (history.length > HISTORIAL_MAXIMO) history.shift();
+        return { history, historyIndex: history.length - 1 };
+      });
+    },
+
+    undo: () => irAlPaso(get().historyIndex - 1),
+    redo: () => irAlPaso(get().historyIndex + 1),
+  };
+});

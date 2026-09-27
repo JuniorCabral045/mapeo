@@ -24,6 +24,8 @@ export interface ShortcutOptions {
 
 const CAMPOS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
+export const esCampoDeTexto = (tag: string) => CAMPOS.has(tag.toUpperCase());
+
 const FLECHAS: Record<string, { dx: number; dy: number }> = {
   ArrowLeft: { dx: -1, dy: 0 },
   ArrowRight: { dx: 1, dy: 0 },
@@ -47,7 +49,7 @@ export const resolveShortcut = (
   evento: ShortcutEvent,
   { gridSize }: ShortcutOptions
 ): EditorAction | null => {
-  if (CAMPOS.has(evento.targetTag.toUpperCase())) return null;
+  if (esCampoDeTexto(evento.targetTag)) return null;
 
   const conModificador = evento.ctrlKey || evento.metaKey;
   const tecla = evento.key.length === 1 ? evento.key.toLowerCase() : evento.key;
@@ -72,4 +74,31 @@ export const resolveShortcut = (
   if (herramienta) return { kind: 'tool', tool: herramienta };
 
   return null;
+};
+
+/**
+ * Agrupa una ráfaga de empujes con flechas en un solo `guardar()`, que corre
+ * `ms` después del último. `vaciar()` guarda ya lo pendiente: hay que llamarlo
+ * antes de cualquier otra acción, o un deshacer dentro del plazo saltaba el
+ * empuje entero y deshacía además el paso anterior.
+ */
+export const crearAgrupador = (guardar: () => void, ms: number) => {
+  let temporizador: ReturnType<typeof setTimeout> | null = null;
+
+  const vaciar = () => {
+    if (!temporizador) return;
+    clearTimeout(temporizador);
+    temporizador = null;
+    guardar();
+  };
+
+  const programar = () => {
+    if (temporizador) clearTimeout(temporizador);
+    temporizador = setTimeout(() => {
+      temporizador = null;
+      guardar();
+    }, ms);
+  };
+
+  return { programar, vaciar };
 };

@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Circle, Rect, Group, Text } from 'react-konva';
 import Konva from 'konva';
 import { SeatElement } from '../../types';
+import { COLOR_POR_ESTADO, type SeatLabelMode } from '../../utils/labels';
 
 interface SeatProps {
   element: SeatElement;
@@ -11,7 +12,7 @@ interface SeatProps {
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   draggable: boolean;
-  showLabels?: 'none' | 'row' | 'all';
+  showLabels?: SeatLabelMode;
   isInactive?: boolean;
 }
 
@@ -29,8 +30,8 @@ export const Seat: React.FC<SeatProps> = ({
   const groupRef = useRef<Konva.Group>(null);
   const { id, x, y, radius, status, locked, opacity, color, number, rotation } = element;
 
+  // En reposo el asiento se cachea como bitmap: con miles en pantalla es lo que mantiene fluido el zoom.
   useEffect(() => {
-    // Cache para rendimiento cuando el asiento no está en interacción
     if (groupRef.current && !isSelected && !draggable && showLabels === 'none') {
       groupRef.current.cache();
     } else if (groupRef.current) {
@@ -38,19 +39,7 @@ export const Seat: React.FC<SeatProps> = ({
     }
   }, [isSelected, draggable, status, color, opacity, showLabels, isInactive, rotation]);
 
-  const getStatusColor = () => {
-    if (isSelected) return '#FF6B01';
-    if (color) return color;
-    switch (status) {
-      case 'available': return '#6F3E8F';
-      case 'occupied': return '#C7CBD4';
-      case 'blocked': return '#9AA1AE';
-      case 'reserved': return '#F59E0B';
-      default: return '#6F3E8F';
-    }
-  };
-
-  const seatColor = getStatusColor();
+  const seatColor = isSelected ? '#FF6B01' : color || COLOR_POR_ESTADO[status] || COLOR_POR_ESTADO.available;
 
   return (
     <Group

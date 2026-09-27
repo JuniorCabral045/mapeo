@@ -13,15 +13,22 @@ La librería es **agnóstica del backend**: recibe el mapeo por props y avisa po
 
 ## Instalación (desarrollo local)
 
+En Point la consume el panel de administración (`point-web-admin`) como dependencia
+local `file:../mapeo`, así que los dos repositorios tienen que estar **como carpetas
+hermanas**. `dist/` no está en git: hay que compilar antes de instalar o levantar el panel.
+
 ```bash
 # 1. Compilar la librería en este repo
 npm install
 npm run build          # genera dist/
 
-# 2. Instalarla en tu sistema de pedidos (React 18)
-cd ../tu-sistema-de-pedidos
-npm install ../mapeo
+# 2. En el sistema que la usa (en Point, point-web-admin ya la declara)
+cd ../point-web-admin
+npm install
 ```
+
+Después de cambiar algo en la librería, volver a correr `npm run build` para que el panel
+lo vea. Los cambios van en `src/lib/`: `src/demo/` es sólo la app de prueba.
 
 ## Uso
 
@@ -123,4 +130,11 @@ Abre una app demo con dos pestañas: **Editor (Admin)** para diseñar y guardar 
 npm run dev       # app demo con hot-reload
 npm run build     # compila la librería a dist/ (ES module + tipos + CSS)
 npm run lint      # eslint
+npm test          # vitest: generadores de asientos, geometría, store, imán, selección…
+```
+
+Lo mismo que corre CI en cada push:
+
+```bash
+npm run lint && npm test && npm run build
 ```

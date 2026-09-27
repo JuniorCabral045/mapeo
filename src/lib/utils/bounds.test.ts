@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateBounds, centerOf, elementBounds, fitView } from './bounds';
+import { calculateBounds, centerOf, elementBounds, fitView, zoomAt } from './bounds';
 import type { SeatElement, ShapeElement, VenueElement } from '../types';
 
 /**
@@ -144,5 +144,25 @@ describe('encuadre', () => {
     const punto = { minX: 10, minY: 10, maxX: 10, maxY: 10 };
 
     expect(Number.isFinite(fitView(punto, 800, 600).scale)).toBe(true);
+  });
+});
+
+describe('zoom sobre un punto', () => {
+  const vista = { scale: 1, x: 100, y: 50 };
+
+  it('el punto de pantalla indicado no se mueve', () => {
+    const punto = { x: 400, y: 300 };
+    const mundoAntes = { x: (punto.x - vista.x) / vista.scale, y: (punto.y - vista.y) / vista.scale };
+
+    const nueva = zoomAt(vista, punto, 2);
+
+    expect(nueva.scale).toBe(2);
+    expect(mundoAntes.x * nueva.scale + nueva.x).toBeCloseTo(punto.x);
+    expect(mundoAntes.y * nueva.scale + nueva.y).toBeCloseTo(punto.y);
+  });
+
+  it('acota la escala al rango del lienzo', () => {
+    expect(zoomAt(vista, { x: 0, y: 0 }, 1000).scale).toBe(5);
+    expect(zoomAt(vista, { x: 0, y: 0 }, 0.0001).scale).toBe(0.05);
   });
 });

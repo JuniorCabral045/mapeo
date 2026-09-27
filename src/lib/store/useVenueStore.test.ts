@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useVenueStore } from './useVenueStore';
+import { huboCambioConfirmado, useVenueStore } from './useVenueStore';
 import type { SeatElement, ShapeElement, VenueMap } from '../types';
 
 /**
@@ -592,5 +592,121 @@ describe('empuje con flechas y agrupamiento del historial (store)', () => {
     expect(useVenueStore.getState().elements['a1'].y).toBe(posicionPreviaA1.y);
     expect(useVenueStore.getState().elements['a2'].x).toBe(posicionPreviaA2.x);
     expect(useVenueStore.getState().elements['a2'].y).toBe(posicionPreviaA2.y);
+  });
+});
+
+describe('transformar un sector girado', () => {
+  beforeEach(escenario);
+
+  it('estirar en un eje un sector girado deja los asientos dentro de él', () => {
+    // Girado 90°, el ancho local del sector corre a lo largo del eje y del mundo.
+    useVenueStore.getState().transformSector('sector-1', { x: 100, y: 100, rotation: 90, scaleX: 1, scaleY: 1 });
+    // a1 queda en local (20, 20). Estirar al doble el ancho local lo lleva a (40, 20),
+    // que girado 90° es (-20, 40) desde el origen.
+    useVenueStore.getState().transformSector('sector-1', { x: 100, y: 100, rotation: 90, scaleX: 2, scaleY: 1 });
+    const a1 = useVenueStore.getState().elements['a1'];
+
+    expect(a1.x).toBeCloseTo(80);
+    expect(a1.y).toBeCloseTo(140);
+  });
+});
+
+describe('regenerar los asientos de un sector', () => {
+  beforeEach(escenario);
+
+  const nuevos = () => [asiento('b1', 110, 110), asiento('b2', 130, 110), asiento('b3', 150, 110)];
+  const generacion = { rows: 1, cols: 3, seatRadius: 5, startRow: 'A', startNum: 1 };
+
+  it('reemplaza los asientos y registra la generación', () => {
+    useVenueStore.getState().regenerateSeats('sector-1', nuevos(), generacion);
+    const { elements, elementIds } = useVenueStore.getState();
+
+    expect(elementIds).toEqual(['sector-1', 'b1', 'b2', 'b3']);
+    expect((elements['sector-1'] as ShapeElement).generation).toEqual(generacion);
+  });
+
+  it('es un solo paso: deshacer vuelve a los asientos anteriores', () => {
+    const antes = useVenueStore.getState().historyIndex;
+    useVenueStore.getState().regenerateSeats('sector-1', nuevos(), generacion);
+
+    expect(useVenueStore.getState().historyIndex).toBe(antes + 1);
+    useVenueStore.getState().undo();
+    expect(useVenueStore.getState().elementIds).toEqual(['sector-1', 'a1', 'a2']);
+  });
+
+  it('rehacer conserva la generación registrada', () => {
+    useVenueStore.getState().regenerateSeats('sector-1', nuevos(), generacion);
+    useVenueStore.getState().undo();
+    useVenueStore.getState().redo();
+
+    expect((useVenueStore.getState().elements['sector-1'] as ShapeElement).generation).toEqual(generacion);
+  });
+});
+
+describe('posición y rotación desde el panel', () => {
+  beforeEach(escenario);
+
+  it('cambiar la x de un sector lleva sus asientos', () => {
+    useVenueStore.getState().placeElement('sector-1', { x: 150 });
+    const { elements } = useVenueStore.getState();
+
+    expect(elements['sector-1'].x).toBe(150);
+    expect(elements['a1'].x).toBeCloseTo(170);
+  });
+
+  it('girar un sector gira sus asientos', () => {
+    useVenueStore.getState().placeElement('sector-1', { rotation: 90 });
+    const a1 = useVenueStore.getState().elements['a1'];
+
+    expect([a1.x, a1.y, a1.rotation].map((v) => Math.round(v))).toEqual([80, 120, 90]);
+  });
+
+  it('un asiento se mueve solo', () => {
+    useVenueStore.getState().placeElement('a1', { x: 500 });
+    const { elements } = useVenueStore.getState();
+
+    expect(elements['a1'].x).toBe(500);
+    expect(elements['sector-1'].x).toBe(100);
+  });
+
+  it('no agrega pasos de historial, como el resto del panel', () => {
+    const antes = useVenueStore.getState().historyIndex;
+    useVenueStore.getState().placeElement('sector-1', { x: 150 });
+
+    expect(useVenueStore.getState().historyIndex).toBe(antes);
+  });
+});
+
+describe('agregar elementos', () => {
+  beforeEach(() => useVenueStore.getState().reset());
+
+  it('un id repetido en el mismo lote no se duplica en el orden del lienzo', () => {
+    useVenueStore.getState().addElements([sector, asiento('a1', 0, 0), asiento('a1', 5, 5)]);
+
+    expect(useVenueStore.getState().elementIds).toEqual(['sector-1', 'a1']);
+    expect(useVenueStore.getState().elements['a1'].x).toBe(5);
+  });
+});
+
+describe('aviso de cambios al consumidor (onChange)', () => {
+  beforeEach(escenario);
+
+  it('sigue avisando cuando el historial ya está lleno', () => {
+    for (let i = 0; i < 60; i++) useVenueStore.getState().moveSector('sector-1', i, 0);
+    const prev = useVenueStore.getState();
+
+    useVenueStore.getState().moveSector('sector-1', 999, 0);
+    const state = useVenueStore.getState();
+
+    expect(state.historyIndex).toBe(prev.historyIndex);
+    expect(huboCambioConfirmado(state, prev)).toBe(true);
+  });
+
+  it('no avisa por cambios de selección o de vista', () => {
+    const prev = useVenueStore.getState();
+    useVenueStore.getState().selectElements(['sector-1']);
+    useVenueStore.getState().setViewState({ scale: 2 });
+
+    expect(huboCambioConfirmado(useVenueStore.getState(), prev)).toBe(false);
   });
 });

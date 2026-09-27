@@ -1,4 +1,4 @@
-import { SeatElement, ShapeElement } from '../types';
+import { SeatElement, SeatGenerationParams, ShapeElement } from '../types';
 import { pointInPolygon } from './geometry';
 
 export interface LayoutParams {
@@ -23,12 +23,7 @@ export interface LayoutParams {
 
 export type NumberDirection = 'ltr' | 'rtl' | 'ttb' | 'btt';
 
-/**
- * Etiqueta de fila: A…Z, AA, AB… desde la fila inicial indicada.
- *
- * La versión anterior sumaba al código del carácter, así que la fila 27 de una
- * tribuna se llamaba «[». Un estadio con 30 filas es lo normal, no el borde.
- */
+/** Etiqueta de fila: A…Z, AA, AB… desde la fila inicial indicada. */
 export const rowLabel = (index: number, startRow = 'A'): string => {
   const base = (startRow.toUpperCase().charCodeAt(0) || 65) - 65;
   let n = base + index;
@@ -80,13 +75,7 @@ const seatNum = (
 const esVertical = (direction?: NumberDirection): boolean =>
   direction === 'ttb' || direction === 'btt';
 
-/**
- * Fila (letra) y número de un asiento de grilla según su posición y la dirección
- * de numeración, sin mover el asiento: solo decide qué etiqueta le toca.
- *
- * En horizontal la letra indexa la fila y el número corre a lo ancho; en
- * vertical se transpone: la letra indexa la columna y el número corre a lo alto.
- */
+/** Fila y número de un asiento de grilla. En vertical se transpone: la letra indexa la columna. */
 const etiquetarAsiento = (
   r: number,
   c: number,
@@ -191,7 +180,6 @@ export const generatePolygonLayout = (
   const stepX = seatRadius * 2 + colSpacing;
   const stepY = seatRadius * 2 + rowSpacing;
 
-  // Filas de la grilla que caen dentro del polígono (coordenadas relativas)
   const rows: { y: number; xs: number[] }[] = [];
   for (let py = seatRadius; py <= container.height - seatRadius; py += stepY) {
     const xs: number[] = [];
@@ -264,4 +252,43 @@ export const generateArcSectorLayout = (
   }
 
   return seats;
+};
+
+/**
+ * Asientos de un sector según su forma y los parámetros guardados en
+ * `generation`. Es lo que usan el panel al generar y las plantillas.
+ */
+export const generarAsientosDelSector = (
+  sector: ShapeElement,
+  gen: SeatGenerationParams
+): SeatElement[] => {
+  const base: LayoutParams = {
+    rows: gen.rows,
+    cols: gen.cols,
+    rowSpacing: gen.seatRadius * 1.5,
+    colSpacing: gen.seatRadius * 1.5,
+    seatRadius: gen.seatRadius,
+    startRow: (gen.startRow || 'A').toUpperCase(),
+    startNum: gen.startNum,
+    numberDirection: gen.numberDirection,
+  };
+
+  switch (sector.sectionType) {
+    case 'rectangle':
+      return generateRectLayout(sector, base);
+    case 'polygon':
+      return generatePolygonLayout(sector, base);
+    case 'arc':
+      return generateArcSectorLayout(sector, { ...base, rowSpacing: gen.seatRadius * 2 });
+    case 'circle': {
+      const angulo = gen.arcAngle ?? 120;
+      return generateArcLayout(sector, {
+        ...base,
+        rowSpacing: gen.seatRadius * 2,
+        innerRadius: gen.arcRadius ?? 200,
+        startAngle: 180 - angulo / 2,
+        endAngle: 180 + angulo / 2,
+      });
+    }
+  }
 };

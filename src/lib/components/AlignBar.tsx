@@ -10,11 +10,14 @@ import {
   AlignEndHorizontal,
 } from 'lucide-react';
 import { useVenueStore } from '../store/useVenueStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { AlignMode, DistributeAxis } from '../utils/align';
 
 /** Aparece solo con dos o más elementos seleccionados. */
 export const AlignBar: React.FC = () => {
-  const { selectedIds, alignSelection, distributeSelection } = useVenueStore();
+  const { selectedIds, alignSelection, distributeSelection } = useVenueStore(
+    useShallow((s) => ({ selectedIds: s.selectedIds, alignSelection: s.alignSelection, distributeSelection: s.distributeSelection }))
+  );
   if (selectedIds.length < 2) return null;
 
   const boton = 'p-2 text-gray-400 hover:text-[#6F3E8F] hover:bg-purple-50 rounded-xl transition-colors disabled:opacity-20';

@@ -5,12 +5,9 @@ export const snapToGrid = (x: number, y: number, gridSize: number) => ({
 });
 
 /**
- * Paso con el que se dibuja la grilla, en unidades de mundo, garantizando que
- * en pantalla nunca quede más fina que `minPixelSize`. A diferencia de
- * multiplicar por un factor fijo una sola vez (que alcanza en la mayoría de
- * los casos pero no en el zoom mínimo con el paso mínimo), acá se calcula el
- * múltiplo entero justo y necesario del paso elegido por el usuario, así el
- * imán a la grilla sigue enganchando donde caen las líneas.
+ * Paso con el que se dibuja la grilla: el menor múltiplo entero del paso elegido
+ * que en pantalla no quede más fino que `minPixelSize`. Al ser múltiplo, el imán
+ * sigue enganchando donde caen las líneas.
  */
 export const effectiveGridStep = (step: number, scale: number, minPixelSize = 4): number => {
   const pixelsPerStep = step * scale;
@@ -19,19 +16,7 @@ export const effectiveGridStep = (step: number, scale: number, minPixelSize = 4)
   return step * factor;
 };
 
-/**
- * Rectángulo, en coordenadas de mundo, sobre el que se dibuja la grilla:
- * exactamente el viewport visible, sin margen. El margen de un viewport que
- * tenía antes esta función existía para que un gesto de paneo sostenido
- * -que Konva anima de forma nativa sin re-renderizar React- encontrara
- * grilla ya dibujada en el borde hacia el que avanza; dejó de hacer falta
- * cuando el `sceneFunc` de la grilla (en `EditorCanvas`) pasó a leer la
- * posición y la escala en vivo del stage en cada frame del arrastre, en vez
- * de depender del `viewState` de React, que solo se actualiza al soltar: con
- * la transformación en vivo, este rectángulo ya es exactamente lo visible en
- * cada frame intermedio, así que dibujar de más alrededor no suma cobertura,
- * solo costo.
- */
+/** Rectángulo visible, en coordenadas de mundo. */
 export const visibleGridRect = (
   view: { x: number; y: number; scale: number },
   viewport: { width: number; height: number }
